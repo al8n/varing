@@ -574,4 +574,46 @@ mod fuzzy {
   }
 
   fuzzy!(u16, u32, u64, u128, i16, i32, i64, i128);
+
+  #[cfg(feature = "std")]
+  mod with_std {
+    use super::*;
+
+    extern crate std;
+
+    use std::{vec, vec::Vec};
+
+    #[quickcheck]
+    fn fuzzy_buffer_underflow(value: u64, short_len: usize) -> bool {
+      let short_len = short_len % 9; // Keep length under max varint size
+      if short_len >= value.encoded_len() {
+        return true; // Skip test if buffer is actually large enough
+      }
+      let mut short_buffer = vec![0u8; short_len];
+      value.encode(&mut short_buffer) == Err(EncodeError::Underflow)
+    }
+
+    #[quickcheck]
+    fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
+      if bytes.is_empty() {
+        return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
+      }
+
+      // Only test sequences up to max varint length
+      if bytes.len() > 10 {
+        return true;
+      }
+
+      // If all bytes have continuation bit set, should get Underflow
+      if bytes.iter().all(|b| b & 0x80 != 0) {
+        return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
+      }
+
+      // For other cases, we should get either a valid decode or an error
+      match decode_u64_varint(&bytes) {
+        Ok(_) => true,
+        Err(_) => true,
+      }
+    }
+  }
 }
