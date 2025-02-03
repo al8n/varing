@@ -1,29 +1,28 @@
 [package]
-name = "template-rs"
-version = "0.0.0"
+name = "const-varint"
+version = "0.1.0"
 edition = "2021"
-repository = "https://github.com/al8n/template-rs"
-homepage = "https://github.com/al8n/template-rs"
-documentation = "https://docs.rs/template-rs"
+repository = "https://github.com/al8n/const-varint"
+homepage = "https://github.com/al8n/const-varint"
+documentation = "https://docs.rs/const-varint"
 description = "A template for creating Rust open-source repo on GitHub"
 license = "MIT OR Apache-2.0"
-rust-version = "1.73"
-
-[[bench]]
-path = "benches/foo.rs"
-name = "foo"
-harness = false
+rust-version = "1.81.0"
 
 [features]
 default = ["std"]
-alloc = []
-std = []
+std = ["thiserror/default"]
 
 [dependencies]
+thiserror = { version = "2", default-features = false }
+paste = "1"
+
+ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
-tempfile = "3"
+quickcheck = "1"
+quickcheck_macros = "1"
+ruint_1 = { package = "ruint", version = "1", features = ["arbitrary", "quickcheck"] }
 
 [profile.bench]
 opt-level = 3
