@@ -7,16 +7,16 @@
 use core::{num::NonZeroU64, ops::RangeInclusive};
 
 macro_rules! impl_varint {
-  ($($ty:ident), +$(,)?) => {
+  ($($ty:literal), +$(,)?) => {
     $(
       paste::paste! {
-        impl Varint for $ty {
-          const MIN_ENCODED_LEN: usize = [< encoded_ $ty _varint_len >](0);
-          const MAX_ENCODED_LEN: usize = [< encoded_ $ty _varint_len >](<$ty>::MAX);
+        impl Varint for [< u $ty >] {
+          const MIN_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](0);
+          const MAX_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](<[< u $ty >]>::MAX);
 
           #[inline]
           fn encoded_len(&self) -> usize {
-            [< encoded_ $ty _varint_len >](*self)
+            [< encoded_ u $ty _varint_len >](*self)
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
@@ -26,7 +26,31 @@ macro_rules! impl_varint {
 
           #[inline]
           fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-            [< decode_ $ty _varint >](buf)
+            [< decode_ u $ty _varint >](buf)
+          }
+        }
+
+        impl Varint for [< i $ty >] {
+          const MIN_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](0);
+          const MAX_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](<[< i $ty >]>::MAX);
+
+          #[inline]
+          fn encoded_len(&self) -> usize {
+            [< encoded_ i $ty _varint_len >](*self)
+          }
+
+          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+            let mut x = {
+              let x = *self;
+              // Zig-zag encoding
+              ((x << 1) ^ (x >> ($ty - 1))) as [< u $ty >]
+            };
+            encode_varint!(@to_buf buf[x])
+          }
+
+          #[inline]
+          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
+            [< decode_ i $ty _varint >](buf)
           }
         }
       }
@@ -261,7 +285,7 @@ macro_rules! decode {
   };
 }
 
-impl_varint!(u16, i16, u32, i32, u64, i64, u128, i128);
+impl_varint!(16, 32, 64, 128,);
 varint_len!(u16, u32,);
 varint_len!(@zigzag i16, i32,);
 buffer!(u16, u32, u64, u128, i16, i32, i64, i128);
@@ -564,6 +588,21 @@ mod fuzzy {
 
             if let Ok((bytes_read, decoded)) = [< decode_ $ty _varint >](&encoded) {
               value == decoded && encoded.len() == bytes_read
+            } else {
+              false
+            }
+          }
+
+          #[quickcheck]
+          fn [< fuzzy_ $ty _varint>](value: $ty) -> bool {
+            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+            let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
+            if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
+              return false;
+            }
+
+            if let Ok((bytes_read, decoded)) = <$ty>::decode(&buf) {
+              value == decoded && encoded_len == bytes_read
             } else {
               false
             }
