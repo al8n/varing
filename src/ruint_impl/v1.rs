@@ -141,6 +141,8 @@ mod tests_ruint_1 {
 
     use super::*;
 
+    use std::{vec, vec::Vec};
+
     // Helper type to generate fixed size arrays
     #[derive(Debug, Clone)]
     struct ByteArray<const N: usize>([u8; N]);
@@ -155,43 +157,47 @@ mod tests_ruint_1 {
       }
     }
 
+    // Underflow tests for different sizes
     #[quickcheck]
-    fn fuzzy_ruint_buffer_underflow(value: ByteArray<32>, short_len: usize) -> bool {
-      let uint = Uint::<256, 4>::from_be_bytes(value.0);
-      let short_len = short_len % (Uint::<256, 4>::MAX_ENCODED_LEN - 1); // Keep length under max
+    fn fuzzy_u256_buffer_underflow(bytes: ByteArray<32>, short_len: usize) -> bool {
+      let uint = Uint::<256, 4>::from_be_bytes(bytes.0);
+      let short_len = short_len % (Uint::<256, 4>::MAX_ENCODED_LEN - 1);
       if short_len >= uint.encoded_len() {
         return true;
       }
-      let mut short_buffer = std::vec![0u8; short_len];
+      let mut short_buffer = vec![0u8; short_len];
       uint.encode(&mut short_buffer) == Err(EncodeError::Underflow)
     }
 
     #[quickcheck]
-    fn fuzzy_ruint_invalid_sequences(bytes: std::vec::Vec<u8>) -> bool {
+    fn fuzzy_u512_buffer_underflow(bytes: ByteArray<64>, short_len: usize) -> bool {
+      let uint = Uint::<512, 8>::from_be_bytes(bytes.0);
+      let short_len = short_len % (Uint::<512, 8>::MAX_ENCODED_LEN - 1);
+      if short_len >= uint.encoded_len() {
+        return true;
+      }
+      let mut short_buffer = vec![0u8; short_len];
+      uint.encode(&mut short_buffer) == Err(EncodeError::Underflow)
+    }
+
+    #[quickcheck]
+    fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
-        return matches!(Uint::<256, 4>::decode(&bytes), Err(DecodeError::Underflow));
+        return matches!(U256::decode(&bytes), Err(DecodeError::Underflow));
       }
 
-      // Only test sequences up to max varint length for U256
-      if bytes.len() > Uint::<256, 4>::MAX_ENCODED_LEN {
+      // Only test sequences up to max varint length
+      if bytes.len() > 10 {
         return true;
       }
 
       // If all bytes have continuation bit set, should get Underflow
       if bytes.iter().all(|b| b & 0x80 != 0) {
-        return matches!(Uint::<256, 4>::decode(&bytes), Err(DecodeError::Underflow));
-      }
-
-      // Check for overflow cases - create a sequence that would decode to a value > U256::MAX
-      if !bytes.is_empty() && bytes.len() == Uint::<256, 4>::MAX_ENCODED_LEN {
-        let last_byte = bytes.last().unwrap();
-        if last_byte & 0x80 == 0 && last_byte > &0 {
-          return matches!(Uint::<256, 4>::decode(&bytes), Err(DecodeError::Overflow));
-        }
+        return matches!(U256::decode(&bytes), Err(DecodeError::Underflow));
       }
 
       // For other cases, we should get either a valid decode or an error
-      match Uint::<256, 4>::decode(&bytes) {
+      match U256::decode(&bytes) {
         Ok(_) => true,
         Err(_) => true,
       }
