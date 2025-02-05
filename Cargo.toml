@@ -1,11 +1,11 @@
 [package]
 name = "const-varint"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 repository = "https://github.com/al8n/const-varint"
 homepage = "https://github.com/al8n/const-varint"
 documentation = "https://docs.rs/const-varint"
-description = "Protocolbuf's varint encoding/decoding with full const context operations supports."
+description = "Protobuf's varint encoding/decoding with full const context operations supports."
 license = "MIT OR Apache-2.0"
 rust-version = "1.81.0"
 keywords = ["leb128", "varint", "protobuf"]
