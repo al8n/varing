@@ -21,7 +21,7 @@ macro_rules! impl_varint {
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
             let mut val = *self;
-            encode_varint!(@to_buf buf[val])
+            encode_varint!(@to_buf [< u $ty >]::buf[val])
           }
 
           #[inline]
@@ -45,7 +45,7 @@ macro_rules! impl_varint {
               // Zig-zag encoding
               ((x << 1) ^ (x >> ($ty - 1))) as [< u $ty >]
             };
-            encode_varint!(@to_buf buf[x])
+            encode_varint!(@to_buf [<u $ty>]::buf[x])
           }
 
           #[inline]
@@ -121,26 +121,29 @@ macro_rules! encode_varint {
     $buf[i] = $x as u8;
     i + 1
   }};
-  (@to_buf $buf:ident[$x:ident]) => {{
-    let mut i = 0;
+  (@to_buf $ty:ident::$buf:ident[$x:ident]) => {{
+    paste::paste! {
+      let mut i = 0;
+      let orig = $x;
 
-    while $x >= 0x80 {
-      if i >= $buf.len() {
-        return Err(EncodeError::Underflow);
+      while $x >= 0x80 {
+        if i >= $buf.len() {
+          return Err(EncodeError::underflow([< encoded_ $ty _varint_len >](orig), $buf.len()));
+        }
+
+        $buf[i] = ($x as u8) | 0x80;
+        $x >>= 7;
+        i += 1;
       }
 
-      $buf[i] = ($x as u8) | 0x80;
-      $x >>= 7;
-      i += 1;
-    }
+      // Check buffer capacity before writing final byte
+      if i >= $buf.len() {
+        return Err(EncodeError::underflow(i + 1, $buf.len()));
+      }
 
-    // Check buffer capacity before writing final byte
-    if i >= $buf.len() {
-      return Err(EncodeError::Underflow);
+      $buf[i] = $x as u8;
+      Ok(i + 1)
     }
-
-    $buf[i] = $x as u8;
-    Ok(i + 1)
   }};
 }
 
@@ -391,7 +394,23 @@ pub const fn encoded_u64_varint_len(value: u64) -> usize {
 pub enum EncodeError {
   /// The buffer does not have enough capacity to encode the value.
   #[error("buffer does not have enough capacity to encode the value")]
-  Underflow,
+  Underflow {
+    /// The number of bytes needed to encode the value.
+    required: usize,
+    /// The number of bytes remaining in the buffer.
+    remaining: usize,
+  },
+}
+
+impl EncodeError {
+  /// Creates a new `EncodeError::Underflow` with the required and remaining bytes.
+  #[inline]
+  pub const fn underflow(required: usize, remaining: usize) -> Self {
+    Self::Underflow {
+      required,
+      remaining,
+    }
+  }
 }
 
 /// Decoding varint error.
@@ -629,7 +648,10 @@ mod fuzzy {
         return true; // Skip test if buffer is actually large enough
       }
       let mut short_buffer = vec![0u8; short_len];
-      value.encode(&mut short_buffer) == Err(EncodeError::Underflow)
+      matches!(
+        value.encode(&mut short_buffer),
+        Err(EncodeError::Underflow { .. })
+      )
     }
 
     #[quickcheck]

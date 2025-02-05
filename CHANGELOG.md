@@ -1,7 +1,7 @@
-# UNRELEASED
+# RELEASED
 
-# 0.1.2 (January 6th, 2022)
+## 0.2.0 (Feb 5th, 2025)
 
 FEATURES
 
-
+- Add more information for `EncodeError::Underflow`

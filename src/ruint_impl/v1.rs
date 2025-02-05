@@ -22,8 +22,9 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
 
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
     let len = self.encoded_len();
-    if buf.len() < len {
-      return Err(EncodeError::Underflow);
+    let buf_len = buf.len();
+    if buf_len < len {
+      return Err(EncodeError::underflow(len, buf_len));
     }
 
     let mut value = *self;
@@ -166,7 +167,10 @@ mod tests_ruint_1 {
         return true;
       }
       let mut short_buffer = vec![0u8; short_len];
-      uint.encode(&mut short_buffer) == Err(EncodeError::Underflow)
+      matches!(
+        uint.encode(&mut short_buffer),
+        Err(EncodeError::Underflow { .. })
+      )
     }
 
     #[quickcheck]
@@ -177,7 +181,10 @@ mod tests_ruint_1 {
         return true;
       }
       let mut short_buffer = vec![0u8; short_len];
-      uint.encode(&mut short_buffer) == Err(EncodeError::Underflow)
+      matches!(
+        uint.encode(&mut short_buffer),
+        Err(EncodeError::Underflow { .. })
+      )
     }
 
     #[quickcheck]
