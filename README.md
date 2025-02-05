@@ -21,13 +21,13 @@ Protocolbuf's varint encoding/decoding with full const context operations suppor
 
 ```toml
 [dependencies]
-const-varint = "0.1"
+const-varint = "0.2"
 ```
 
 - For `ruint::Uint<BITS, LBITS>` support (not compatible in `const` context)
 
   ```toml
-  const-varint = { version = "0.1", features = ["ruint_1"] }
+  const-varint = { version = "0.2", features = ["ruint_1"] }
   ```
 
 #### License
