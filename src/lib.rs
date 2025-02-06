@@ -6,6 +6,10 @@
 
 use core::{num::NonZeroU64, ops::RangeInclusive};
 
+pub use duration::*;
+
+mod duration;
+
 macro_rules! impl_varint {
   ($($ty:literal), +$(,)?) => {
     $(
@@ -20,8 +24,7 @@ macro_rules! impl_varint {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            let mut val = *self;
-            encode_varint!(@to_buf [< u $ty >]::buf[val])
+            [< encode_ u $ty _varint_to >](*self, buf)
           }
 
           #[inline]
@@ -40,12 +43,7 @@ macro_rules! impl_varint {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            let mut x = {
-              let x = *self;
-              // Zig-zag encoding
-              ((x << 1) ^ (x >> ($ty - 1))) as [< u $ty >]
-            };
-            encode_varint!(@to_buf [<u $ty>]::buf[x])
+            [< encode_ i $ty _varint_to >](*self, buf)
           }
 
           #[inline]
@@ -245,15 +243,31 @@ macro_rules! encode {
       paste::paste! {
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub fn [< encode_ u $ty _varint >](x: [< u $ty >]) -> [< U $ty:camel VarintBuffer >] {
+        pub const fn [< encode_ u $ty _varint >](x: [< u $ty >]) -> [< U $ty:camel VarintBuffer >] {
           [< U $ty:camel VarintBuffer >]::new(x)
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> [< I $ty:camel VarintBuffer >] {
+        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> [< I $ty:camel VarintBuffer >] {
           let x = (x << 1) ^ (x >> ($ty - 1)); // Zig-zag encoding;
           [< I $ty:camel VarintBuffer >]([< U $ty:camel VarintBuffer >]::new(x as [< u $ty >]).0)
+        }
+
+        #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
+        #[inline]
+        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
+          encode_varint!(@to_buf [< u $ty >]::buf[x])
+        }
+
+        #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
+        #[inline]
+        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
+          let mut x = {
+            // Zig-zag encoding
+            ((x << 1) ^ (x >> ($ty - 1))) as [< u $ty >]
+          };
+          encode_varint!(@to_buf [<u $ty>]::buf[x])
         }
       }
     )*
@@ -595,7 +609,7 @@ mod fuzzy {
   use quickcheck_macros::quickcheck;
 
   macro_rules! fuzzy {
-    ($($ty:ident), +$(,)?) => {
+    ($($ty:ty), +$(,)?) => {
       $(
         paste::paste! {
           #[quickcheck]
