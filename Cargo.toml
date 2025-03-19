@@ -1,6 +1,6 @@
 [package]
 name = "const-varint"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 repository = "https://github.com/al8n/const-varint"
 homepage = "https://github.com/al8n/const-varint"
@@ -10,6 +10,9 @@ license = "MIT OR Apache-2.0"
 rust-version = "1.81.0"
 keywords = ["leb128", "varint", "protobuf"]
 categories = ["no-std", "data-structures", "network-programming"]
+
+[workspace]
+members = [".", "fuzz"]
 
 [features]
 default = ["std"]

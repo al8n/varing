@@ -4,7 +4,7 @@ use ruint_1::Uint;
 
 impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
   const MIN_ENCODED_LEN: usize = 1;
-  const MAX_ENCODED_LEN: usize = (BITS + 6) / 7;
+  const MAX_ENCODED_LEN: usize = BITS.div_ceil(7);
 
   fn encoded_len(&self) -> usize {
     // Each byte in LEB128 can store 7 bits
@@ -17,7 +17,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     let highest_bit = BITS - self.leading_zeros();
     // Convert to number of LEB128 bytes needed
     // Each byte holds 7 bits, but we need to round up
-    (highest_bit + 6) / 7
+    highest_bit.div_ceil(7)
   }
 
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
