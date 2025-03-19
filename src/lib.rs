@@ -302,12 +302,64 @@ macro_rules! decode {
   };
 }
 
-impl_varint!(16, 32, 64, 128,);
-varint_len!(u16, u32,);
-varint_len!(@zigzag i16, i32,);
-buffer!(u16, u32, u64, u128, i16, i32, i64, i128);
-encode!(128, 64, 32, 16,);
-decode!(128, 64, 32, 16,);
+impl_varint!(8, 16, 32, 64, 128,);
+varint_len!(u8, u16, u32,);
+varint_len!(@zigzag i8, i16, i32,);
+buffer!(u8, u16, u32, u64, u128, i16, i32, i64, i128);
+encode!(128, 64, 32, 16);
+decode!(128, 64, 32, 16, 8);
+
+#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
+#[inline]
+pub const fn encode_u8_varint_to(mut x: u8, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  encode_varint!(@to_buf u8::buf[x])
+}
+
+#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
+#[inline]
+pub const fn encode_i8_varint_to(orig: i8, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  let mut n = {
+    // Zig-zag encoding
+    ((orig << 1) ^ (orig >> 7)) as u8
+  };
+
+  let mut i = 0;
+
+  while n > 0x7F {
+    if i >= buf.len() {
+      return Err(EncodeError::underflow(
+        encoded_i8_varint_len(orig),
+        buf.len(),
+      ));
+    }
+
+    // Store 7 bits and set the high bit to indicate more bytes follow
+    buf[i] = (n & 0x7F) | 0x80;
+    i += 1;
+    n >>= 7;
+  }
+
+  // Check buffer capacity before writing final byte
+  if i >= buf.len() {
+    return Err(EncodeError::underflow(i + 1, buf.len()));
+  }
+
+  buf[i] = n;
+  Ok(i + 1)
+}
+
+#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
+#[inline]
+pub const fn encode_u8_varint(x: u8) -> U8VarintBuffer {
+  U8VarintBuffer::new(x)
+}
+
+#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
+#[inline]
+pub const fn encode_i8_varint(x: i8) -> I8VarintBuffer {
+  let x = (x << 1) ^ (x >> (8 - 1)); // Zig-zag encoding;
+  I8VarintBuffer(U8VarintBuffer::new(x as u8).0)
+}
 
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
@@ -373,7 +425,7 @@ pub const fn encoded_u128_varint_len(value: u128) -> usize {
   let highest_bit = 128 - value.leading_zeros();
   // Convert to number of LEB128 bytes needed
   // Each byte holds 7 bits, but we need to round up
-  ((highest_bit + 6) / 7) as usize
+  highest_bit.div_ceil(7) as usize
 }
 
 /// Returns the encoded length of the value in LEB128 variable length format.
@@ -436,6 +488,81 @@ pub enum DecodeError {
   /// The buffer does not contain enough data to decode.
   #[error("buffer does not contain enough data to decode a value")]
   Underflow,
+}
+
+///A buffer for storing LEB128 encoded i8 values.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct I8VarintBuffer([u8; i8::MAX_ENCODED_LEN + 1]);
+
+impl core::fmt::Debug for I8VarintBuffer {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    self.0[..self.len()].fmt(f)
+  }
+}
+impl I8VarintBuffer {
+  const LAST_INDEX: usize = i8::MAX_ENCODED_LEN;
+  #[allow(dead_code)]
+  #[inline]
+  const fn new(val: i8) -> Self {
+    let mut buf = [0; i8::MAX_ENCODED_LEN + 1];
+    let mut_buf = &mut buf;
+    let len = {
+      let mut n = {
+        // Zig-zag encoding
+        ((val << 1) ^ (val >> 7)) as u8
+      };
+
+      let mut i = 0;
+      while n > 0x7F {
+        if i >= mut_buf.len() {
+          panic!("insufficient buffer capacity");
+        }
+
+        // Store 7 bits and set the high bit to indicate more bytes follow
+        mut_buf[i] = (n & 0x7F) | 0x80;
+        i += 1;
+        n >>= 7;
+      }
+
+      // Check buffer capacity before writing final byte
+      if i >= mut_buf.len() {
+        panic!("insufficient buffer capacity");
+      }
+
+      mut_buf[i] = n;
+      i + 1
+    };
+    buf[Self::LAST_INDEX] = len as u8;
+    Self(buf)
+  }
+  /// Returns the number of bytes in the buffer.
+  #[inline]
+  #[allow(clippy::len_without_is_empty)]
+  pub const fn len(&self) -> usize {
+    self.0[Self::LAST_INDEX] as usize
+  }
+  /// Extracts a slice from the buffer.
+  #[inline]
+  pub const fn as_bytes(&self) -> &[u8] {
+    self.0.split_at(self.len()).0
+  }
+}
+
+impl core::ops::Deref for I8VarintBuffer {
+  type Target = [u8];
+  fn deref(&self) -> &Self::Target {
+    &self.0[..self.len()]
+  }
+}
+impl core::borrow::Borrow<[u8]> for I8VarintBuffer {
+  fn borrow(&self) -> &[u8] {
+    self
+  }
+}
+impl AsRef<[u8]> for I8VarintBuffer {
+  fn as_ref(&self) -> &[u8] {
+    self
+  }
 }
 
 #[cfg(feature = "ruint_1")]
@@ -578,6 +705,14 @@ mod tests {
   }
 
   #[test]
+  fn test_zigzag_encode_decode_i8() {
+    let values = [-1, 0, 1, -100, 100, i8::MIN, i8::MAX];
+    for &value in &values {
+      test_zigzag_encode_decode(value);
+    }
+  }
+
+  #[test]
   fn test_zigzag_encode_decode_i16() {
     let values = [-1, 0, 1, -100, 100, i16::MIN, i16::MAX];
     for &value in &values {
@@ -645,7 +780,7 @@ mod fuzzy {
     };
   }
 
-  fuzzy!(u16, u32, u64, u128, i16, i32, i64, i128);
+  fuzzy!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
 
   #[cfg(feature = "std")]
   mod with_std {
