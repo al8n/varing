@@ -476,23 +476,28 @@ pub const fn encoded_u64_varint_len(value: u64) -> usize {
 /// let buf = [0x7F]; // Varint encoding of 127
 /// assert_eq!(consume_varint(&buf), Ok(1));
 /// ```
-pub fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
+pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
   if buf.is_empty() {
     return Err(DecodeError::Underflow);
   }
 
   // Scan the buffer to find the end of the varint
-  for (i, &byte) in buf.iter().enumerate() {
+  let mut idx = 0;
+  let buf_len = buf.len();
+
+  while idx < buf_len {
+    let byte = buf[idx];
     // Check if this is the last byte of the varint (MSB is not set)
     if byte & 0x80 == 0 {
       // Found the last byte, return the total number of bytes
-      return Ok(i + 1);
+      return Ok(idx + 1);
     }
 
     // If we've reached the end of the buffer but haven't found the end of the varint
-    if i == buf.len() - 1 {
+    if idx == buf_len - 1 {
       return Err(DecodeError::Underflow);
     }
+    idx += 1;
   }
 
   // This point is reached only if all bytes have their MSB set and we've
