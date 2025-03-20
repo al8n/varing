@@ -455,6 +455,51 @@ pub const fn encoded_u64_varint_len(value: u64) -> usize {
   ((log2value * 9 + (64 + 9)) / 64) as usize
 }
 
+/// Calculates the number of bytes occupied by a varint encoded value in the buffer.
+///
+/// In varint encoding, each byte uses 7 bits for the value and the highest bit (MSB)
+/// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
+/// marks the last byte of the varint.
+///
+/// ## Returns
+/// * `Ok(usize)` - The number of bytes the varint occupies in the buffer
+/// * `Err(DecodeError)` - If the buffer is empty or contains an incomplete varint
+///
+/// ## Examples
+///
+/// ```rust
+/// use const_varint::consume_varint;
+///
+/// let buf = [0x96, 0x01]; // Varint encoding of 150
+/// assert_eq!(consume_varint(&buf), Ok(2));
+///
+/// let buf = [0x7F]; // Varint encoding of 127
+/// assert_eq!(consume_varint(&buf), Ok(1));
+/// ```
+pub fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
+  if buf.is_empty() {
+    return Err(DecodeError::Underflow);
+  }
+
+  // Scan the buffer to find the end of the varint
+  for (i, &byte) in buf.iter().enumerate() {
+    // Check if this is the last byte of the varint (MSB is not set)
+    if byte & 0x80 == 0 {
+      // Found the last byte, return the total number of bytes
+      return Ok(i + 1);
+    }
+
+    // If we've reached the end of the buffer but haven't found the end of the varint
+    if i == buf.len() - 1 {
+      return Err(DecodeError::Underflow);
+    }
+  }
+
+  // This point is reached only if all bytes have their MSB set and we've
+  // exhausted the buffer, which means the varint is incomplete
+  Err(DecodeError::Underflow)
+}
+
 /// Encode varint error
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, thiserror::Error)]
 pub enum EncodeError {
@@ -754,6 +799,13 @@ mod fuzzy {
               return false;
             }
 
+            let Ok(consumed) = consume_varint(&encoded) else {
+              return false;
+            };
+            if consumed != encoded.len() {
+              return false;
+            }
+
             if let Ok((bytes_read, decoded)) = [< decode_ $ty _varint >](&encoded) {
               value == decoded && encoded.len() == bytes_read
             } else {
@@ -766,6 +818,13 @@ mod fuzzy {
             let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
             let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
             if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
+              return false;
+            }
+
+            let Ok(consumed) = consume_varint(&buf) else {
+              return false;
+            };
+            if consumed != encoded_len {
               return false;
             }
 

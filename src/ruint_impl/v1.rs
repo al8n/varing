@@ -117,6 +117,13 @@ mod tests_ruint_1 {
               return false;
             }
 
+            let Ok(consumed) = crate::consume_varint(&buf) else {
+              return false;
+            };
+            if consumed != encoded_len {
+              return false;
+            }
+
             if let Ok((bytes_read, decoded)) = <$ty>::decode(&buf) {
               value == decoded && encoded_len == bytes_read
             } else {
