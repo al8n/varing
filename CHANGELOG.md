@@ -1,5 +1,12 @@
 # RELEASED
 
+## 0.4.0 (Mar 22nd, 2025)
+
+FEATURES
+
+- Implement `Varint` trait for `NonZero*` types
+- Add `EncodeError::Custom` and `DecodeError::Custom`
+
 ## 0.3.3 (Mar 22nd, 2025)
 
 FEATURES
