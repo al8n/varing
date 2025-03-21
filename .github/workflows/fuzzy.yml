@@ -19,7 +19,7 @@ on:
       - '**.txt'
       - 'art'
   schedule: [cron: "0 1 */7 * *"]
-
+  workflow_dispatch:
 
 jobs:
   fuzz:
@@ -39,3 +39,56 @@ jobs:
         run: |
           cargo fuzz build
           cargo fuzz run varint -- -max_total_time=300
+
+  fuzz-ethereum-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run ethereum-types --features ethereum-types -- -max_total_time=300
+  
+  fuzz-primitive-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run primitive-types --features primitive-types -- -max_total_time=300
+  fuzz-ruint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run ruint --features ruint -- -max_total_time=300

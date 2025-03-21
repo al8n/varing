@@ -45,6 +45,8 @@ ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-fe
 quickcheck = "1"
 quickcheck_macros = "1"
 ruint_1 = { package = "ruint", version = "1", features = ["arbitrary", "quickcheck"] }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", features = ["arbitrary"] }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"] }
 
 [profile.bench]
 opt-level = 3

@@ -490,7 +490,7 @@ pub const fn encoded_u64_varint_len(value: u64) -> usize {
 /// ```
 pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
   if buf.is_empty() {
-    return Err(DecodeError::Underflow);
+    return Ok(0);
   }
 
   // Scan the buffer to find the end of the varint
