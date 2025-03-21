@@ -1,5 +1,12 @@
 # RELEASED
 
+## 0.3.3 (Mar 22nd, 2025)
+
+FEATURES
+
+- Add `arbitrary-int` to support `u1`, `u2`, `u3` .. `u127`
+- Add `primitive-types` and `ethereum-types` support
+
 ## 0.3.0 (Mar 19th, 2025)
 
 FEATURES

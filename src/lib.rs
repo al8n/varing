@@ -177,12 +177,24 @@ macro_rules! buffer {
     $(
       paste::paste! {
         #[doc = "A buffer for storing LEB128 encoded " $ty " values."]
-        #[derive(Copy, Clone, PartialEq, Eq)]
+        #[derive(Copy, Clone, Eq)]
         pub struct [< $ty:camel VarintBuffer >]([u8; $ty::MAX_ENCODED_LEN + 1]);
 
         impl core::fmt::Debug for [< $ty:camel VarintBuffer >] {
           fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
             self.0[..self.len()].fmt(f)
+          }
+        }
+
+        impl PartialEq for [< $ty:camel VarintBuffer >] {
+          fn eq(&self, other: &Self) -> bool {
+            self.as_bytes().eq(other.as_bytes())
+          }
+        }
+
+        impl core::hash::Hash for [< $ty:camel VarintBuffer >] {
+          fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+            self.as_bytes().hash(state)
           }
         }
 
@@ -278,14 +290,14 @@ macro_rules! decode {
   ($($ty:literal), + $(,)?) => {
     $(
       paste::paste! {
-        #[doc = "Decodes a `i" $ty "` in LEB128 encoded format from the buffer."]
+        #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
         pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(usize, [< u $ty >]), DecodeError> {
           decode_varint!(|buf| [< u $ty >])
         }
 
-        #[doc = "Decodes a `u" $ty "` in LEB128 encoded format from the buffer."]
+        #[doc = "Decodes an `u" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
         pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(usize, [< i $ty >]), DecodeError> {
@@ -478,7 +490,7 @@ pub const fn encoded_u64_varint_len(value: u64) -> usize {
 /// ```
 pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
   if buf.is_empty() {
-    return Err(DecodeError::Underflow);
+    return Ok(0);
   }
 
   // Scan the buffer to find the end of the varint
@@ -617,6 +629,17 @@ impl AsRef<[u8]> for I8VarintBuffer {
 
 #[cfg(feature = "ruint_1")]
 mod ruint_impl;
+
+/// LEB128 encoding/decoding for `u1`, `u2` .. `u127`
+#[cfg(feature = "arbitrary-int_1")]
+#[cfg_attr(docsrs, doc(cfg(feature = "arbitrary-int")))]
+pub mod arbitrary_int;
+
+#[cfg(feature = "primitive-types_0_13")]
+mod primitive_types;
+
+#[cfg(feature = "ethereum-types_0_15")]
+mod ethereum_types;
 
 #[cfg(test)]
 mod tests {

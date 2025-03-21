@@ -1,6 +1,6 @@
 [package]
 name = "const-varint"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 repository = "https://github.com/al8n/const-varint"
 homepage = "https://github.com/al8n/const-varint"
@@ -18,16 +18,35 @@ members = [".", "fuzz"]
 default = ["std"]
 std = ["thiserror/default"]
 
+ruint_1 = ["dep:ruint_1"]
+ruint = ["ruint_1"]
+
+arbitrary-int_1 = ["dep:arbitrary-int_1"]
+arbitrary-int = ["arbitrary-int_1"]
+
+primitive-types_0_13 = ["dep:primitive-types_0_13", "ruint"]
+primitive-types = ["primitive-types_0_13"]
+
+ethereum-types_0_15 = ["dep:ethereum-types_0_15", "ruint"]
+ethereum-types = ["ethereum-types_0_15"]
+
 [dependencies]
 thiserror = { version = "2", default-features = false }
 paste = "1"
+seq-macro = "0.3"
 
 ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
+arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
+
 
 [dev-dependencies]
 quickcheck = "1"
 quickcheck_macros = "1"
 ruint_1 = { package = "ruint", version = "1", features = ["arbitrary", "quickcheck"] }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", features = ["arbitrary"] }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"] }
 
 [profile.bench]
 opt-level = 3

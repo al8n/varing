@@ -1,59 +1,89 @@
-use crate::{DecodeError, EncodeError, Varint};
+use crate::*;
 
 use ruint_1::Uint;
 
 impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
-  const MIN_ENCODED_LEN: usize = 1;
+  const MIN_ENCODED_LEN: usize = const {
+    if BITS == 0 {
+      0
+    } else {
+      1
+    }
+  };
   const MAX_ENCODED_LEN: usize = BITS.div_ceil(7);
 
   fn encoded_len(&self) -> usize {
-    // Each byte in LEB128 can store 7 bits
-    // Special case for 0 since it always needs 1 byte
-    if self.is_zero() {
-      return 1;
-    }
+    match BITS {
+      0 => 0,
+      1..=8 => encoded_u8_varint_len(self.to()),
+      9..=16 => encoded_u16_varint_len(self.to()),
+      17..=32 => encoded_u32_varint_len(self.to()),
+      33..=64 => encoded_u64_varint_len(self.to()),
+      65..=128 => encoded_u128_varint_len(self.to()),
+      _ => {
+        // Each byte in LEB128 can store 7 bits
+        // Special case for 0 since it always needs 1 byte
+        if self.is_zero() {
+          return 1;
+        }
 
-    // Calculate position of highest set bit
-    let highest_bit = BITS - self.leading_zeros();
-    // Convert to number of LEB128 bytes needed
-    // Each byte holds 7 bits, but we need to round up
-    highest_bit.div_ceil(7)
+        // Calculate position of highest set bit
+        let highest_bit = BITS - self.leading_zeros();
+        // Convert to number of LEB128 bytes needed
+        // Each byte holds 7 bits, but we need to round up
+        highest_bit.div_ceil(7)
+      }
+    }
   }
 
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    let len = self.encoded_len();
-    let buf_len = buf.len();
-    if buf_len < len {
-      return Err(EncodeError::underflow(len, buf_len));
-    }
+    match BITS {
+      0 => Ok(0),
+      1..=8 => encode_u8_varint_to(self.to(), buf),
+      9..=16 => encode_u16_varint_to(self.to(), buf),
+      17..=32 => encode_u32_varint_to(self.to(), buf),
+      33..=64 => encode_u64_varint_to(self.to(), buf),
+      65..=128 => encode_u128_varint_to(self.to(), buf),
+      _ => {
+        let len = self.encoded_len();
+        let buf_len = buf.len();
+        if buf_len < len {
+          return Err(EncodeError::underflow(len, buf_len));
+        }
 
-    let mut value = *self;
-    let mut bytes_written = 0;
+        let mut value = *self;
+        let mut bytes_written = 0;
 
-    loop {
-      let mut byte = (value & Uint::from(0x7f)).to::<u8>();
-      value >>= 7;
+        loop {
+          let mut byte = (value & Uint::from(0x7f)).to::<u8>();
+          value >>= 7;
 
-      // If there are more bits to encode, set the continuation bit
-      if !value.is_zero() {
-        byte |= 0x80;
+          // If there are more bits to encode, set the continuation bit
+          if !value.is_zero() {
+            byte |= 0x80;
+          }
+
+          buf[bytes_written] = byte;
+          bytes_written += 1;
+
+          if value.is_zero() {
+            break;
+          }
+        }
+
+        Ok(bytes_written)
       }
-
-      buf[bytes_written] = byte;
-      bytes_written += 1;
-
-      if value.is_zero() {
-        break;
-      }
     }
-
-    Ok(bytes_written)
   }
 
   fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
   where
     Self: Sized,
   {
+    if BITS == 0 {
+      return Ok((0, Self::ZERO));
+    }
+
     if buf.is_empty() {
       return Err(DecodeError::Underflow);
     }
@@ -99,9 +129,9 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
 mod tests_ruint_1 {
   use super::*;
 
-  type U256 = Uint<256, 4>;
-  type U512 = Uint<512, 8>;
-  type U1024 = Uint<1024, 16>;
+  use ruint_1::aliases::{
+    U0, U1, U1024, U128, U16, U2048, U256, U32, U320, U384, U4096, U448, U512, U64, U768,
+  };
 
   use quickcheck_macros::quickcheck;
 
@@ -135,13 +165,27 @@ mod tests_ruint_1 {
     };
   }
 
-  #[test]
-  fn test_max_encoded_len() {
-    let value = U256::MAX;
-    assert_eq!(value.encoded_len(), U256::MAX_ENCODED_LEN);
+  fuzzy!(U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096);
+
+  macro_rules! max_encoded_len {
+    ($($ty:ident), +$(,)?) => {
+      $(
+        paste::paste! {
+          #[test]
+          fn [< test_ $ty:snake _min_max_encoded_len>]() {
+            let max = $ty::MAX;
+            let min = $ty::MIN;
+            assert_eq!(max.encoded_len(), $ty::MAX_ENCODED_LEN);
+            assert_eq!(min.encoded_len(), $ty::MIN_ENCODED_LEN);
+          }
+        }
+      )*
+    };
   }
 
-  fuzzy!(U256, U512, U1024);
+  max_encoded_len!(
+    U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096
+  );
 
   #[cfg(feature = "std")]
   mod with_std {
@@ -192,6 +236,11 @@ mod tests_ruint_1 {
         uint.encode(&mut short_buffer),
         Err(EncodeError::Underflow { .. })
       )
+    }
+
+    #[test]
+    fn t() {
+      std::println!("{} {}", U0::MAX, U0::MAX_ENCODED_LEN);
     }
 
     #[quickcheck]
