@@ -6,8 +6,10 @@
 
 use core::{num::NonZeroU64, ops::RangeInclusive};
 
+pub use char::*;
 pub use duration::*;
 
+mod char;
 mod duration;
 
 macro_rules! impl_varint {

@@ -6,6 +6,7 @@ FEATURES
 
 - Implement `Varint` trait for `NonZero*` types
 - Add `EncodeError::Custom` and `DecodeError::Custom`
+- Add `encode_char`, `encoded_char_len`, `encode_char_to` and `decode_char`
 
 ## 0.3.3 (Mar 22nd, 2025)
 
