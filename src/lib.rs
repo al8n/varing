@@ -667,6 +667,16 @@ mod primitive_types;
 #[cfg(feature = "ethereum-types_0_15")]
 mod ethereum_types;
 
+/// LEB128 encoding/decoding for [`chrono`](https://crates.io/crates/chrono) types.
+#[cfg(feature = "chrono_0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono_0_4")))]
+pub mod chrono;
+
+/// LEB128 encoding/decoding for [`time`](https://crates.io/crates/time) types.
+#[cfg(feature = "time_0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time_0_3")))]
+pub mod time;
+
 #[cfg(test)]
 mod tests {
   extern crate std;
