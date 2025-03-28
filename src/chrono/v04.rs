@@ -1,6 +1,4 @@
-use crate::{
-  time_utils, DecodeError, EncodeError, I128VarintBuffer, U128VarintBuffer, Varint
-};
+use crate::{time_utils, DecodeError, EncodeError, I128VarintBuffer, U128VarintBuffer, Varint};
 
 use chrono_0_4::{
   DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc,
@@ -107,12 +105,23 @@ impl Varint for NaiveTime {
 
   #[inline]
   fn encoded_len(&self) -> usize {
-    time_utils::encoded_time_len(self.nanosecond(), self.second() as u8, self.minute() as u8, self.hour() as u8)
+    time_utils::encoded_time_len(
+      self.nanosecond(),
+      self.second() as u8,
+      self.minute() as u8,
+      self.hour() as u8,
+    )
   }
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    time_utils::encode_time_to(self.nanosecond(), self.second() as u8, self.minute() as u8, self.hour() as u8, buf)
+    time_utils::encode_time_to(
+      self.nanosecond(),
+      self.second() as u8,
+      self.minute() as u8,
+      self.hour() as u8,
+      buf,
+    )
   }
 
   #[inline]
@@ -137,12 +146,29 @@ impl Varint for NaiveDateTime {
 
   #[inline]
   fn encoded_len(&self) -> usize {
-    time_utils::encoded_datetime_len(self.year(), self.month() as u8, self.day() as u8, self.hour() as u8, self.minute() as u8, self.second() as u8, self.nanosecond())
+    time_utils::encoded_datetime_len(
+      self.year(),
+      self.month() as u8,
+      self.day() as u8,
+      self.hour() as u8,
+      self.minute() as u8,
+      self.second() as u8,
+      self.nanosecond(),
+    )
   }
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    time_utils::encode_datetime_to(self.year(), self.month() as u8, self.day() as u8, self.hour() as u8, self.minute() as u8, self.second() as u8, self.nanosecond(), buf)
+    time_utils::encode_datetime_to(
+      self.year(),
+      self.month() as u8,
+      self.day() as u8,
+      self.hour() as u8,
+      self.minute() as u8,
+      self.second() as u8,
+      self.nanosecond(),
+      buf,
+    )
   }
 
   #[inline]
@@ -150,27 +176,21 @@ impl Varint for NaiveDateTime {
   where
     Self: Sized,
   {
-    time_utils::decode_datetime(buf).and_then(|(
-      read,
-      year,
-      month,
-      day,
-      hour,
-      minute,
-      second,
-      nano,
-    )| {
-      // Create date and time
-      let date =
-        NaiveDate::from_ymd_opt(year, month as u32, day as u32).ok_or(DecodeError::custom("invalid date"))?;
+    time_utils::decode_datetime(buf).and_then(
+      |(read, year, month, day, hour, minute, second, nano)| {
+        // Create date and time
+        let date = NaiveDate::from_ymd_opt(year, month as u32, day as u32)
+          .ok_or(DecodeError::custom("invalid date"))?;
 
-      let time = NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nano).ok_or(
-        DecodeError::custom("invalid hour, minute, second and/or nanosecond"),
-      )?;
+        let time = NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nano)
+          .ok_or(DecodeError::custom(
+            "invalid hour, minute, second and/or nanosecond",
+          ))?;
 
-      // Combine into NaiveDateTime
-      Ok((read, NaiveDateTime::new(date, time)))
-    })
+        // Combine into NaiveDateTime
+        Ok((read, NaiveDateTime::new(date, time)))
+      },
+    )
   }
 }
 
@@ -213,7 +233,13 @@ mod tests {
   impl IntoChrono for TimeTime {
     type Target = NaiveTime;
     fn into_chrono(self) -> Self::Target {
-      NaiveTime::from_hms_nano_opt(self.hour() as u32, self.minute() as u32, self.second() as u32, self.nanosecond()).unwrap()
+      NaiveTime::from_hms_nano_opt(
+        self.hour() as u32,
+        self.minute() as u32,
+        self.second() as u32,
+        self.nanosecond(),
+      )
+      .unwrap()
     }
   }
 
@@ -234,7 +260,10 @@ mod tests {
   impl IntoChrono for TimeUtc {
     type Target = DateTime<Utc>;
     fn into_chrono(self) -> Self::Target {
-      DateTime::<Utc>::from_naive_utc_and_offset(TimeDateTime::new(self.date(), self.time()).into_chrono(), Utc)
+      DateTime::<Utc>::from_naive_utc_and_offset(
+        TimeDateTime::new(self.date(), self.time()).into_chrono(),
+        Utc,
+      )
     }
   }
 
@@ -270,7 +299,7 @@ mod tests {
       }
     };
   }
-  
+
   fuzzy_chrono_types!(Time, Date, DateTime, Utc);
 
   #[derive(Debug, Clone, Copy)]

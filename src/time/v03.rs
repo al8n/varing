@@ -1,8 +1,6 @@
 use time_0_3::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
 
-use crate::{
-  time_utils, DecodeError, EncodeError, U128VarintBuffer, Varint
-};
+use crate::{time_utils, DecodeError, EncodeError, U128VarintBuffer, Varint};
 
 pub use time_utils::{DateBuffer, DateTimeBuffer, TimeBuffer};
 
@@ -43,12 +41,14 @@ macro_rules! impl_varint_for_time {
   };
 }
 
-
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`Duration::ENCODED_LEN_RANGE`].
 #[inline]
 pub const fn encoded_duration_len(duration: &Duration) -> usize {
-  time_utils::encoded_secs_and_subsec_nanos_len(duration.whole_seconds(), duration.subsec_nanoseconds())
+  time_utils::encoded_secs_and_subsec_nanos_len(
+    duration.whole_seconds(),
+    duration.subsec_nanoseconds(),
+  )
 }
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
@@ -60,7 +60,11 @@ pub const fn encode_duration(duration: &Duration) -> U128VarintBuffer {
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
 pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  time_utils::encode_secs_and_subsec_nanos_to(duration.whole_seconds(), duration.subsec_nanoseconds(), buf)
+  time_utils::encode_secs_and_subsec_nanos_to(
+    duration.whole_seconds(),
+    duration.subsec_nanoseconds(),
+    buf,
+  )
 }
 
 /// Decodes a `Duration` in LEB128 encoded format from the buffer.
@@ -69,9 +73,7 @@ pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<u
 #[inline]
 pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), DecodeError> {
   match time_utils::decode_secs_and_subsec_nanos(buf) {
-    Ok((bytes_read, secs, nanos)) => {
-      Ok((bytes_read, Duration::new(secs, nanos)))
-    }
+    Ok((bytes_read, secs, nanos)) => Ok((bytes_read, Duration::new(secs, nanos))),
     Err(e) => Err(e),
   }
 }
@@ -153,13 +155,29 @@ pub const fn decode_utc(buf: &[u8]) -> Result<(usize, UtcDateTime), DecodeError>
 /// The returned value will be in range [`PrimitiveDateTime::ENCODED_LEN_RANGE`].
 #[inline]
 pub const fn encoded_datetime_len(dt: &PrimitiveDateTime) -> usize {
-  time_utils::encoded_datetime_len(dt.year(), dt.month() as u8, dt.day(), dt.hour(), dt.minute(), dt.second(), dt.nanosecond())
+  time_utils::encoded_datetime_len(
+    dt.year(),
+    dt.month() as u8,
+    dt.day(),
+    dt.hour(),
+    dt.minute(),
+    dt.second(),
+    dt.nanosecond(),
+  )
 }
 
 /// Encodes a `PrimitiveDateTime` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
 pub const fn encode_datetime(dt: &PrimitiveDateTime) -> DateTimeBuffer {
-  time_utils::encode_datetime(dt.year(), dt.month() as u8, dt.day(), dt.hour(), dt.minute(), dt.second(), dt.nanosecond())
+  time_utils::encode_datetime(
+    dt.year(),
+    dt.month() as u8,
+    dt.day(),
+    dt.hour(),
+    dt.minute(),
+    dt.second(),
+    dt.nanosecond(),
+  )
 }
 
 /// Encodes a `PrimitiveDateTime` value into LEB128 variable length format, and writes it to the buffer.
@@ -170,7 +188,16 @@ pub const fn encode_datetime_to(
   dt: &PrimitiveDateTime,
   buf: &mut [u8],
 ) -> Result<usize, EncodeError> {
-  time_utils::encode_datetime_to(dt.year(), dt.month() as u8, dt.day(), dt.hour(), dt.minute(), dt.second(), dt.nanosecond(), buf)
+  time_utils::encode_datetime_to(
+    dt.year(),
+    dt.month() as u8,
+    dt.day(),
+    dt.hour(),
+    dt.minute(),
+    dt.second(),
+    dt.nanosecond(),
+    buf,
+  )
 }
 
 /// Decodes a `PrimitiveDateTime` in LEB128 encoded format from the buffer.
@@ -220,7 +247,13 @@ pub const fn encode_time(time: &Time) -> TimeBuffer {
 /// Returns the number of bytes written to the buffer.
 #[inline]
 pub const fn encode_time_to(time: &Time, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  time_utils::encode_time_to(time.nanosecond(), time.second(), time.minute(), time.hour(), buf)
+  time_utils::encode_time_to(
+    time.nanosecond(),
+    time.second(),
+    time.minute(),
+    time.hour(),
+    buf,
+  )
 }
 
 /// Decodes a `Time` in LEB128 encoded format from the buffer.

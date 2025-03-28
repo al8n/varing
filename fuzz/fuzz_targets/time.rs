@@ -1,11 +1,9 @@
-
 #![no_main]
 
 use ::chrono::{Datelike, Timelike};
+use ::time::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
 use const_varint::*;
 use libfuzzer_sys::fuzz_target;
-use ::time::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
-
 
 macro_rules! fuzzy {
     ($($ty:ty), +$(,)?) => {
@@ -67,7 +65,12 @@ impl IntoTime for ChronoNaiveDate {
   type Target = Date;
 
   fn into_time(self) -> Self::Target {
-    Date::from_calendar_date(self.year(), Month::try_from(self.month() as u8).unwrap(), self.day() as u8).unwrap()
+    Date::from_calendar_date(
+      self.year(),
+      Month::try_from(self.month() as u8).unwrap(),
+      self.day() as u8,
+    )
+    .unwrap()
   }
 }
 

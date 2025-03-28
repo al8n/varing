@@ -1,4 +1,9 @@
-use crate::{decode_i128_varint, decode_i32_varint, decode_u128_varint, decode_u64_varint, encode_i128_varint_to, encode_i32_varint_to, encode_u128_varint, encode_u128_varint_to, encode_u64_varint_to, encoded_i128_varint_len, encoded_i32_varint_len, encoded_u128_varint_len, encoded_u64_varint_len, DecodeError, EncodeError, U128VarintBuffer};
+use crate::{
+  decode_i128_varint, decode_i32_varint, decode_u128_varint, decode_u64_varint,
+  encode_i128_varint_to, encode_i32_varint_to, encode_u128_varint, encode_u128_varint_to,
+  encode_u64_varint_to, encoded_i128_varint_len, encoded_i32_varint_len, encoded_u128_varint_len,
+  encoded_u64_varint_len, DecodeError, EncodeError, U128VarintBuffer,
+};
 
 #[inline]
 pub(crate) const fn date_time_to_merged(
@@ -19,7 +24,7 @@ pub(crate) const fn date_time_to_merged(
   let minute = minute as i128;
   let second = second as i128;
   let nano = nano as i128;
-  
+
   // Place components with likely smaller values in the lower bits
   nano & 0x7FFFFFFF |              // Nanoseconds in lowest 31 bits
   (second & 0x3F) << 31 |          // Seconds (6 bits) shifted by 31 bits
@@ -27,28 +32,30 @@ pub(crate) const fn date_time_to_merged(
   (hour & 0x1F) << 43 |            // Hours (5 bits) shifted by 43 bits
   (day & 0x1F) << 48 |             // Day (5 bits) shifted by 48 bits
   (month & 0xF) << 53 |            // Month (4 bits) shifted by 53 bits
-  (year << 57)                      // Year in highest bits (from bit 57)
+  (year << 57) // Year in highest bits (from bit 57)
 }
 
 #[inline]
-pub(crate) const fn merged_to_date_time(merged: i128) -> (
+pub(crate) const fn merged_to_date_time(
+  merged: i128,
+) -> (
   i32, // Year
-  u8, // Month
-  u8, // Day
-  u8, // Hour
-  u8, // Minute
-  u8, // Second
+  u8,  // Month
+  u8,  // Day
+  u8,  // Hour
+  u8,  // Minute
+  u8,  // Second
   u32, // Nanosecond
 ) {
   // Extract components
-  let nano = (merged & 0x7FFFFFFF) as u32;      // 31 bits for nanoseconds
-  let second = ((merged >> 31) & 0x3F) as u8;   // 6 bits for seconds
-  let minute = ((merged >> 37) & 0x3F) as u8;   // 6 bits for minutes
-  let hour = ((merged >> 43) & 0x1F) as u8;    // 5 bits for hours
-  let day = ((merged >> 48) & 0x1F) as u8;      // 5 bits for day
-  let month = ((merged >> 53) & 0xF) as u8;     // 4 bits for month
-  let year = (merged >> 57) as i32;             // Preserve sign bit for negative years
-  
+  let nano = (merged & 0x7FFFFFFF) as u32; // 31 bits for nanoseconds
+  let second = ((merged >> 31) & 0x3F) as u8; // 6 bits for seconds
+  let minute = ((merged >> 37) & 0x3F) as u8; // 6 bits for minutes
+  let hour = ((merged >> 43) & 0x1F) as u8; // 5 bits for hours
+  let day = ((merged >> 48) & 0x1F) as u8; // 5 bits for day
+  let month = ((merged >> 53) & 0xF) as u8; // 4 bits for month
+  let year = (merged >> 57) as i32; // Preserve sign bit for negative years
+
   (year, month, day, hour, minute, second, nano)
 }
 
@@ -105,40 +112,36 @@ pub(crate) const fn encoded_datetime_len(
 
 #[allow(clippy::type_complexity)]
 #[inline]
-pub(crate) const fn decode_datetime(buf: &[u8]) -> Result<(usize, i32, u8, u8, u8, u8, u8, u32), DecodeError> {
+pub(crate) const fn decode_datetime(
+  buf: &[u8],
+) -> Result<(usize, i32, u8, u8, u8, u8, u8, u32), DecodeError> {
   match decode_i128_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (year, month, day, hour, minute, second, nano) = merged_to_date_time(merged);
       Ok((bytes_read, year, month, day, hour, minute, second, nano))
-    },
+    }
     Err(e) => Err(e),
   }
 }
 
-
 #[inline]
-pub(crate) const fn time_to_merged(
-  nano: u32,
-  second: u8,
-  minute: u8,
-  hour: u8,
-) -> u64 {
-  let nano = nano as u64 & 0x7FFF_FFFF;     // 31 bits
+pub(crate) const fn time_to_merged(nano: u32, second: u8, minute: u8, hour: u8) -> u64 {
+  let nano = nano as u64 & 0x7FFF_FFFF; // 31 bits
   let second = (second as u64 & 0x3F) << 31; // 6 bits
   let minute = (minute as u64 & 0x3F) << 37; // 6 bits
-  let hour = (hour as u64 & 0x1F) << 43;     // 5 bits
-  
+  let hour = (hour as u64 & 0x1F) << 43; // 5 bits
+
   // Combine all components
   nano | second | minute | hour
 }
 
 #[inline]
 pub(crate) const fn merged_to_time(merged: u64) -> (u32, u8, u8, u8) {
-  let nano = (merged & 0x7FFF_FFFF) as u32;     // 31 bits
-  let second = ((merged >> 31) & 0x3F) as u8;   // 6 bits
-  let minute = ((merged >> 37) & 0x3F) as u8;   // 6 bits
-  let hour = ((merged >> 43) & 0x1F) as u8;     // 5 bits
-  
+  let nano = (merged & 0x7FFF_FFFF) as u32; // 31 bits
+  let second = ((merged >> 31) & 0x3F) as u8; // 6 bits
+  let minute = ((merged >> 37) & 0x3F) as u8; // 6 bits
+  let hour = ((merged >> 43) & 0x1F) as u8; // 5 bits
+
   (nano, second, minute, hour)
 }
 
@@ -148,7 +151,7 @@ pub(crate) const fn decode_time(buf: &[u8]) -> Result<(usize, u32, u8, u8, u8), 
     Ok((bytes_read, merged)) => {
       let (nano, second, minute, hour) = merged_to_time(merged);
       Ok((bytes_read, nano, second, minute, hour))
-    },
+    }
     Err(e) => Err(e),
   }
 }
@@ -160,7 +163,13 @@ pub(crate) const fn encoded_time_len(nano: u32, second: u8, minute: u8, hour: u8
 }
 
 #[inline]
-pub(crate) const fn encode_time_to(nano: u32, second: u8, minute: u8, hour: u8, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub(crate) const fn encode_time_to(
+  nano: u32,
+  second: u8,
+  minute: u8,
+  hour: u8,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError> {
   let merged = time_to_merged(nano, second, minute, hour);
   encode_u64_varint_to(merged, buf)
 }
@@ -202,7 +211,7 @@ pub(crate) const fn decode_date(buf: &[u8]) -> Result<(usize, i32, u8, u8), Deco
     Ok((bytes_read, merged)) => {
       let (year, month, day) = merged_to_date(merged);
       Ok((bytes_read, year, month, day))
-    },
+    }
     Err(e) => Err(e),
   }
 }
@@ -214,7 +223,12 @@ pub(crate) const fn encoded_date_len(year: i32, month: u8, day: u8) -> usize {
 }
 
 #[inline]
-pub(crate) const fn encode_date_to(year: i32, month: u8, day: u8, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub(crate) const fn encode_date_to(
+  year: i32,
+  month: u8,
+  day: u8,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError> {
   let merged = date_to_merged(year, month, day);
   encode_i32_varint_to(merged, buf)
 }
@@ -246,11 +260,11 @@ pub(crate) const fn secs_and_subsec_nanos_to_merged(secs: i64, nanos: i32) -> u1
 pub(crate) const fn merged_to_secs_and_subsec_nanos(merged: u128) -> (i64, i32) {
   // 1. Split out nanos (lower 32 bits) and secs (upper bits)
   let nanos_zz = (merged & 0xFFFF_FFFF) as u32;
-  let secs_zz  = (merged >> 32) as u64;
+  let secs_zz = (merged >> 32) as u64;
 
   // 2. ZigZag decode each component
   let nanos = ((nanos_zz >> 1) as i32) ^ -((nanos_zz & 1) as i32);
-  let secs  = ((secs_zz >> 1) as i64) ^ -((secs_zz & 1) as i64);
+  let secs = ((secs_zz >> 1) as i64) ^ -((secs_zz & 1) as i64);
   (secs, nanos)
 }
 
@@ -260,7 +274,11 @@ pub(crate) const fn encode_secs_and_subsec_nanos(secs: i64, nanos: i32) -> U128V
 }
 
 #[inline]
-pub(crate) const fn encode_secs_and_subsec_nanos_to(secs: i64, nanos: i32, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub(crate) const fn encode_secs_and_subsec_nanos_to(
+  secs: i64,
+  nanos: i32,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError> {
   let merged = secs_and_subsec_nanos_to_merged(secs, nanos);
   encode_u128_varint_to(merged, buf)
 }
@@ -272,12 +290,14 @@ pub(crate) const fn encoded_secs_and_subsec_nanos_len(secs: i64, nanos: i32) -> 
 }
 
 #[inline]
-pub(crate) const fn decode_secs_and_subsec_nanos(buf: &[u8]) -> Result<(usize, i64, i32), DecodeError> {
+pub(crate) const fn decode_secs_and_subsec_nanos(
+  buf: &[u8],
+) -> Result<(usize, i64, i32), DecodeError> {
   match decode_u128_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (secs, nanos) = merged_to_secs_and_subsec_nanos(merged);
       Ok((bytes_read, secs, nanos))
-    },
+    }
     Err(e) => Err(e),
   }
 }
@@ -347,22 +367,21 @@ macro_rules! time_buffer {
 
 time_buffer!(
   /// A buffer for storing LEB128 encoded [`NaiveDate`] or [`Date`] value.
-  /// 
+  ///
   /// [`NaiveDate`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDate.html
   /// [`Date`]: https://docs.rs/time/latest/time/struct.Date.html
   #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
   DateBuffer(5),
   /// A buffer for storing LEB128 encoded [`NaiveTime`] or [`Time`] value.
-  /// 
+  ///
   /// [`NaiveTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveTime.html
   /// [`Time`]: https://docs.rs/time/latest/time/struct.Time.html
   #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
   TimeBuffer(7),
   /// A buffer for storing LEB128 encoded [`NaiveDateTime`] or [`PrimitiveDateTime`] value.
-  /// 
+  ///
   /// [`NaiveDateTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDateTime.html
   /// [`PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
   #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
   DateTimeBuffer(12),
 );
-

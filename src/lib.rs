@@ -936,8 +936,6 @@ mod tests {
 mod fuzzy {
   use super::*;
 
-  use quickcheck_macros::quickcheck;
-
   fuzzy!(@const_varint(u8 => varint, u16 => varint, u32 => varint, u64 => varint, u128 => varint, i8 => varint, i16 => varint, i32 => varint, i64 => varint, i128 => varint));
   fuzzy!(@varint(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128));
 
@@ -949,7 +947,7 @@ mod fuzzy {
 
     use std::{vec, vec::Vec};
 
-    #[quickcheck]
+    #[quickcheck_macros::quickcheck]
     fn fuzzy_buffer_underflow(value: u64, short_len: usize) -> bool {
       let short_len = short_len % 9; // Keep length under max varint size
       if short_len >= value.encoded_len() {
@@ -962,7 +960,7 @@ mod fuzzy {
       )
     }
 
-    #[quickcheck]
+    #[quickcheck_macros::quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
         return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
