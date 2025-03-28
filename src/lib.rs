@@ -651,6 +651,92 @@ impl AsRef<[u8]> for I8VarintBuffer {
   }
 }
 
+#[cfg(any(feature = "chrono_0_4", feature = "time_0_3"))]
+mod time_utils;
+
+#[cfg(test)]
+macro_rules! fuzzy {
+  (@const_varint ($($ty:ty$( => $suffix:ident)?), +$(,)?)) => {
+    paste::paste! {
+      $(
+        #[quickcheck_macros::quickcheck]
+        fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
+          let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
+            return false;
+          }
+
+          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+            return false;
+          };
+          if consumed != encoded.len() {
+            return false;
+          }
+
+          if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
+            value == decoded && encoded.len() == bytes_read
+          } else {
+            false
+          }
+        }
+      )*
+    }
+  };
+  (@const_varint_ref ($($ty:ty$( => $suffix:ident)?), +$(,)?)) => {
+    paste::paste! {
+      $(
+        #[quickcheck_macros::quickcheck]
+        fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
+          let encoded = [< encode_ $ty:snake $(_$suffix)? >](&value);
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (&value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
+            return false;
+          }
+
+          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+            return false;
+          };
+          if consumed != encoded.len() {
+            return false;
+          }
+
+          if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
+            value == decoded && encoded.len() == bytes_read
+          } else {
+            false
+          }
+        }
+      )*
+    }
+  };
+  (@varint($($ty:ty), +$(,)?)) => {
+    $(
+      paste::paste! {
+        #[quickcheck_macros::quickcheck]
+        fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
+          let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+          let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
+          if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
+            return false;
+          }
+
+          let Ok(consumed) = $crate::consume_varint(&buf) else {
+            return false;
+          };
+          if consumed != encoded_len {
+            return false;
+          }
+
+          if let Ok((bytes_read, decoded)) = <$ty>::decode(&buf) {
+            value == decoded && encoded_len == bytes_read
+          } else {
+            false
+          }
+        }
+      }
+    )*
+  };
+}
+
 mod non_zero;
 
 #[cfg(feature = "ruint_1")]
@@ -666,6 +752,16 @@ mod primitive_types;
 
 #[cfg(feature = "ethereum-types_0_15")]
 mod ethereum_types;
+
+/// LEB128 encoding/decoding for [`chrono`](https://crates.io/crates/chrono) types.
+#[cfg(feature = "chrono_0_4")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono_0_4")))]
+pub mod chrono;
+
+/// LEB128 encoding/decoding for [`time`](https://crates.io/crates/time) types.
+#[cfg(feature = "time_0_3")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time_0_3")))]
+pub mod time;
 
 #[cfg(test)]
 mod tests {
@@ -840,60 +936,8 @@ mod tests {
 mod fuzzy {
   use super::*;
 
-  use quickcheck_macros::quickcheck;
-
-  macro_rules! fuzzy {
-    ($($ty:ty), +$(,)?) => {
-      $(
-        paste::paste! {
-          #[quickcheck]
-          fn [< fuzzy_ $ty >](value: $ty) -> bool {
-            let encoded = [< encode_ $ty _varint >](value);
-            if encoded.len() != [< encoded_ $ty _varint_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
-              return false;
-            }
-
-            let Ok(consumed) = consume_varint(&encoded) else {
-              return false;
-            };
-            if consumed != encoded.len() {
-              return false;
-            }
-
-            if let Ok((bytes_read, decoded)) = [< decode_ $ty _varint >](&encoded) {
-              value == decoded && encoded.len() == bytes_read
-            } else {
-              false
-            }
-          }
-
-          #[quickcheck]
-          fn [< fuzzy_ $ty _varint>](value: $ty) -> bool {
-            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
-            let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
-            if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
-              return false;
-            }
-
-            let Ok(consumed) = consume_varint(&buf) else {
-              return false;
-            };
-            if consumed != encoded_len {
-              return false;
-            }
-
-            if let Ok((bytes_read, decoded)) = <$ty>::decode(&buf) {
-              value == decoded && encoded_len == bytes_read
-            } else {
-              false
-            }
-          }
-        }
-      )*
-    };
-  }
-
-  fuzzy!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128);
+  fuzzy!(@const_varint(u8 => varint, u16 => varint, u32 => varint, u64 => varint, u128 => varint, i8 => varint, i16 => varint, i32 => varint, i64 => varint, i128 => varint));
+  fuzzy!(@varint(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128));
 
   #[cfg(feature = "std")]
   mod with_std {
@@ -903,7 +947,7 @@ mod fuzzy {
 
     use std::{vec, vec::Vec};
 
-    #[quickcheck]
+    #[quickcheck_macros::quickcheck]
     fn fuzzy_buffer_underflow(value: u64, short_len: usize) -> bool {
       let short_len = short_len % 9; // Keep length under max varint size
       if short_len >= value.encoded_len() {
@@ -916,7 +960,7 @@ mod fuzzy {
       )
     }
 
-    #[quickcheck]
+    #[quickcheck_macros::quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
         return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));

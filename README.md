@@ -24,6 +24,18 @@ Protobuf's varint encoding/decoding with full const context operations supports.
 const-varint = "0.4"
 ```
 
+- Enable `chrono` support
+
+  ```toml
+  const-varint = { version = "0.4", features = "chrono" }
+  ```
+
+- Enable `time` support
+
+  ```toml
+  const-varint =  { version = "0.4", features = "time" }
+  ```
+
 - For `u1`, `u2`, `u3`, .., `u127`
 
   ```toml
