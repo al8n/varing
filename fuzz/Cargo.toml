@@ -11,6 +11,7 @@ cargo-fuzz = true
 ethereum-types = ["dep:ethereum-types", "const-varint/ethereum-types"]
 primitive-types = ["dep:primitive-types", "const-varint/primitive-types"]
 ruint = ["dep:ruint", "const-varint/ruint"]
+chrono = ["dep:chrono", "const-varint/chrono"]
 
 [dependencies]
 arbitrary = { version = "1", features = ["derive"] }
@@ -19,6 +20,7 @@ paste = "1"
 ethereum-types = { version = "0.15", features = ["arbitrary"], optional = true }
 primitive-types = { version = "0.13", features = ["arbitrary"], optional = true }
 ruint = { version = "1", features = ["arbitrary"], optional = true }
+chrono = { version = "0.4", optional = true, features = ["arbitrary"] }
 
 [dependencies.const-varint]
 path = ".."
@@ -61,3 +63,11 @@ test = false
 doc = false
 bench = false
 required-features = ["ruint"]
+
+[[bin]]
+name = "chrono"
+path = "fuzz_targets/chrono.rs"
+test = false
+doc = false
+bench = false
+required-features = ["chrono"]
