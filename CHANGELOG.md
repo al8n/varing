@@ -1,5 +1,11 @@
 # RELEASED
 
+## 0.4.1 (Mar 29th, 2025)
+
+FEATURES
+
+- Add `chrono` and `time` support
+
 ## 0.4.0 (Mar 22nd, 2025)
 
 FEATURES

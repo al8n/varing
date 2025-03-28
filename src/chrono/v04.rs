@@ -195,3 +195,141 @@ impl Varint for DateTime<Utc> {
     Ok((read, DateTime::from_naive_utc_and_offset(naive_utc, Utc)))
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  type TimeTime = time_0_3::Time;
+  type TimeDate = time_0_3::Date;
+  type TimeDateTime = time_0_3::PrimitiveDateTime;
+  type TimeUtc = time_0_3::UtcDateTime;
+
+  trait IntoChrono {
+    type Target;
+    fn into_chrono(self) -> Self::Target;
+  }
+
+  impl IntoChrono for TimeTime {
+    type Target = NaiveTime;
+    fn into_chrono(self) -> Self::Target {
+      NaiveTime::from_hms_nano_opt(self.hour() as u32, self.minute() as u32, self.second() as u32, self.nanosecond()).unwrap()
+    }
+  }
+
+  impl IntoChrono for TimeDate {
+    type Target = NaiveDate;
+    fn into_chrono(self) -> Self::Target {
+      NaiveDate::from_ymd_opt(self.year(), self.month() as u32, self.day() as u32).unwrap()
+    }
+  }
+
+  impl IntoChrono for TimeDateTime {
+    type Target = NaiveDateTime;
+    fn into_chrono(self) -> Self::Target {
+      NaiveDateTime::new(self.date().into_chrono(), self.time().into_chrono())
+    }
+  }
+
+  impl IntoChrono for TimeUtc {
+    type Target = DateTime<Utc>;
+    fn into_chrono(self) -> Self::Target {
+      DateTime::<Utc>::from_naive_utc_and_offset(TimeDateTime::new(self.date(), self.time()).into_chrono(), Utc)
+    }
+  }
+
+  macro_rules! fuzzy_chrono_types {
+    ($($ty:ident), +$(,)?) => {
+      paste::paste! {
+        $(
+          #[quickcheck_macros::quickcheck]
+          fn [< fuzzy_ $ty:snake >](value: [< Time $ty >]) -> bool {
+            let value = value.into_chrono();
+            let mut buf = [0; <<[< Time $ty >] as IntoChrono>::Target>::MAX_ENCODED_LEN];
+            let Ok(encoded_len) = value.encode(&mut buf) else {
+              return false;
+            };
+            if encoded_len != value.encoded_len() || (value.encoded_len() > <Duration>::MAX_ENCODED_LEN) {
+              return false;
+            }
+
+            let Ok(consumed) = crate::consume_varint(&buf) else {
+              return false;
+            };
+            if consumed != encoded_len {
+              return false;
+            }
+
+            if let Ok((bytes_read, decoded)) = <<[< Time $ty >] as IntoChrono>::Target>::decode(&buf) {
+              value == decoded && encoded_len == bytes_read
+            } else {
+              false
+            }
+          }
+        )*
+      }
+    };
+  }
+  
+  fuzzy_chrono_types!(Time, Date, DateTime, Utc);
+
+  #[derive(Debug, Clone, Copy)]
+  struct DurationWrapper(Duration);
+
+  impl quickcheck::Arbitrary for DurationWrapper {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+      let d: core::time::Duration = quickcheck::Arbitrary::arbitrary(g);
+
+      Self(Duration::new(d.as_secs() as i64, d.subsec_nanos()).unwrap())
+    }
+  }
+
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_duration(value: DurationWrapper) -> bool {
+    let value = value.0;
+    let encoded = encode_duration(&value);
+    if encoded.len() != encoded_duration_len(&value)
+      || (encoded.len() > <Duration>::MAX_ENCODED_LEN)
+    {
+      return false;
+    }
+
+    let Ok(consumed) = crate::consume_varint(&encoded) else {
+      return false;
+    };
+    if consumed != encoded.len() {
+      return false;
+    }
+
+    if let Ok((bytes_read, decoded)) = decode_duration(&encoded) {
+      value == decoded && encoded.len() == bytes_read
+    } else {
+      false
+    }
+  }
+
+  #[quickcheck_macros::quickcheck]
+  fn fuzzy_duration_varint(value: DurationWrapper) -> bool {
+    let value = value.0;
+    let mut buf = [0; <Duration>::MAX_ENCODED_LEN];
+    let Ok(encoded_len) = value.encode(&mut buf) else {
+      return false;
+    };
+    if encoded_len != value.encoded_len() || (value.encoded_len() > <Duration>::MAX_ENCODED_LEN) {
+      return false;
+    }
+
+    let Ok(consumed) = crate::consume_varint(&buf) else {
+      return false;
+    };
+    if consumed != encoded_len {
+      return false;
+    }
+
+    if let Ok((bytes_read, decoded)) = <Duration>::decode(&buf) {
+      value == decoded && encoded_len == bytes_read
+    } else {
+      false
+    }
+  }
+}

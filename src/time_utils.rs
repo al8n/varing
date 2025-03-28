@@ -170,7 +170,7 @@ pub(crate) const fn encode_time(nano: u32, second: u8, minute: u8, hour: u8) -> 
   let merged = time_to_merged(nano, second, minute, hour);
   let mut buf = [0; TimeBuffer::CAPACITY + 1];
   let (data_buf, len_buf) = buf.split_at_mut(TimeBuffer::CAPACITY);
-  let len = match encode_i32_varint_to(merged as i32, data_buf) {
+  let len = match encode_u64_varint_to(merged, data_buf) {
     Ok(len) => len,
     Err(_) => panic!("invalid time"),
   };
@@ -282,55 +282,6 @@ pub(crate) const fn decode_secs_and_subsec_nanos(buf: &[u8]) -> Result<(usize, i
   }
 }
 
-#[inline]
-pub(crate) const fn secs_and_unsigned_subsec_nanos_to_merged(secs: i64, nanos: u32) -> u128 {
-  // zigzag encode the values
-  let secs = ((secs << 1) ^ (secs >> 63)) as u128;
-  let nanos = nanos as u128;
-
-  // Place smallest values in lower bits for LEB128 efficiency
-  nanos | (secs << 32)
-}
-
-#[inline]
-pub(crate) const fn merged_to_secs_and_unsigned_subsec_nanos(merged: u128) -> (i64, u32) {
-  // 1. Split out nanos (lower 32 bits) and secs (upper bits)
-  let nanos = (merged & 0xFFFF_FFFF) as u32;
-  let secs_zz  = (merged >> 32) as u64;
-
-  // 2. ZigZag decode each component
-  let secs  = ((secs_zz >> 1) as i64) ^ -((secs_zz & 1) as i64);
-  (secs, nanos)
-}
-
-#[inline]
-pub(crate) const fn encode_secs_and_unsigned_subsec_nanos(secs: i64, nanos: u32) -> U128VarintBuffer {
-  encode_u128_varint(secs_and_unsigned_subsec_nanos_to_merged(secs, nanos))
-}
-
-#[inline]
-pub(crate) const fn encode_secs_and_unsigned_subsec_nanos_to(secs: i64, nanos: u32, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  let merged = secs_and_unsigned_subsec_nanos_to_merged(secs, nanos);
-  encode_u128_varint_to(merged, buf)
-}
-
-#[inline]
-pub(crate) const fn encoded_secs_and_unsigned_subsec_nanos_len(secs: i64, nanos: u32) -> usize {
-  let merged = secs_and_unsigned_subsec_nanos_to_merged(secs, nanos);
-  encoded_u128_varint_len(merged)
-}
-
-#[inline]
-pub(crate) const fn decode_secs_and_unsigned_subsec_nanos(buf: &[u8]) -> Result<(usize, i64, u32), DecodeError> {
-  match decode_u128_varint(buf) {
-    Ok((bytes_read, merged)) => {
-      let (secs, nanos) = merged_to_secs_and_unsigned_subsec_nanos(merged);
-      Ok((bytes_read, secs, nanos))
-    },
-    Err(e) => Err(e),
-  }
-}
-
 macro_rules! time_buffer {
   ($(
     $(#[$meta:meta])*
@@ -400,7 +351,7 @@ time_buffer!(
   /// [`NaiveDate`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDate.html
   /// [`Date`]: https://docs.rs/time/latest/time/struct.Date.html
   #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-  DateBuffer(4),
+  DateBuffer(5),
   /// A buffer for storing LEB128 encoded [`NaiveTime`] or [`Time`] value.
   /// 
   /// [`NaiveTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveTime.html
@@ -412,5 +363,6 @@ time_buffer!(
   /// [`NaiveDateTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDateTime.html
   /// [`PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
   #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-  DateTimeBuffer(11),
+  DateTimeBuffer(12),
 );
+

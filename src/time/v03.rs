@@ -1,7 +1,7 @@
 use time_0_3::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
 
 use crate::{
-  time_utils, DecodeError, EncodeError, I128VarintBuffer, U128VarintBuffer, Varint
+  time_utils, DecodeError, EncodeError, U128VarintBuffer, Varint
 };
 
 pub use time_utils::{DateBuffer, DateTimeBuffer, TimeBuffer};
@@ -43,11 +43,6 @@ macro_rules! impl_varint_for_time {
   };
 }
 
-/// A buffer for storing LEB128 encoded [`Duration`] value.
-pub type DurationBuffer = I128VarintBuffer;
-
-/// A buffer for storing LEB128 encoded [`UtcDateTime`] value.
-pub type UtcDateTimeBuffer = I128VarintBuffer;
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`Duration::ENCODED_LEN_RANGE`].
