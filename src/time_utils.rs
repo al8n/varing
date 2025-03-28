@@ -26,12 +26,12 @@ pub(crate) const fn date_time_to_merged(
   let nano = nano as i128;
 
   // Place components with likely smaller values in the lower bits
-  nano & 0x7FFFFFFF |              // Nanoseconds in lowest 31 bits
-  (second & 0x3F) << 31 |          // Seconds (6 bits) shifted by 31 bits
-  (minute & 0x3F) << 37 |          // Minutes (6 bits) shifted by 37 bits
-  (hour & 0x1F) << 43 |            // Hours (5 bits) shifted by 43 bits
-  (day & 0x1F) << 48 |             // Day (5 bits) shifted by 48 bits
-  (month & 0xF) << 53 |            // Month (4 bits) shifted by 53 bits
+  (nano & 0x7FFFFFFF) |              // Nanoseconds in lowest 31 bits
+  ((second & 0x3F) << 31) |          // Seconds (6 bits) shifted by 31 bits
+  ((minute & 0x3F) << 37) |          // Minutes (6 bits) shifted by 37 bits
+  ((hour & 0x1F) << 43) |            // Hours (5 bits) shifted by 43 bits
+  ((day & 0x1F) << 48) |             // Day (5 bits) shifted by 48 bits
+  ((month & 0xF) << 53) |            // Month (4 bits) shifted by 53 bits
   (year << 57) // Year in highest bits (from bit 57)
 }
 
