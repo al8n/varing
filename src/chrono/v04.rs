@@ -227,43 +227,45 @@ mod tests {
 
   trait IntoChrono {
     type Target;
-    fn into_chrono(self) -> Self::Target;
+    fn into_chrono(self) -> Option<Self::Target>;
   }
 
   impl IntoChrono for TimeTime {
     type Target = NaiveTime;
-    fn into_chrono(self) -> Self::Target {
+    fn into_chrono(self) -> Option<Self::Target> {
       NaiveTime::from_hms_nano_opt(
         self.hour() as u32,
         self.minute() as u32,
         self.second() as u32,
         self.nanosecond(),
       )
-      .unwrap()
     }
   }
 
   impl IntoChrono for TimeDate {
     type Target = NaiveDate;
-    fn into_chrono(self) -> Self::Target {
-      NaiveDate::from_ymd_opt(self.year(), self.month() as u32, self.day() as u32).unwrap()
+    fn into_chrono(self) -> Option<Self::Target> {
+      NaiveDate::from_ymd_opt(self.year(), self.month() as u32, self.day() as u32)
     }
   }
 
   impl IntoChrono for TimeDateTime {
     type Target = NaiveDateTime;
-    fn into_chrono(self) -> Self::Target {
-      NaiveDateTime::new(self.date().into_chrono(), self.time().into_chrono())
+    fn into_chrono(self) -> Option<Self::Target> {
+      Some(NaiveDateTime::new(
+        self.date().into_chrono()?,
+        self.time().into_chrono()?,
+      ))
     }
   }
 
   impl IntoChrono for TimeUtc {
     type Target = DateTime<Utc>;
-    fn into_chrono(self) -> Self::Target {
-      DateTime::<Utc>::from_naive_utc_and_offset(
-        TimeDateTime::new(self.date(), self.time()).into_chrono(),
+    fn into_chrono(self) -> Option<Self::Target> {
+      Some(DateTime::<Utc>::from_naive_utc_and_offset(
+        TimeDateTime::new(self.date(), self.time()).into_chrono()?,
         Utc,
-      )
+      ))
     }
   }
 
@@ -273,7 +275,11 @@ mod tests {
         $(
           #[quickcheck_macros::quickcheck]
           fn [< fuzzy_ $ty:snake >](value: [< Time $ty >]) -> bool {
-            let value = value.into_chrono();
+            let value = match value.into_chrono() {
+              Some(value) => value,
+              None => return true,
+            };
+
             let mut buf = [0; <<[< Time $ty >] as IntoChrono>::Target>::MAX_ENCODED_LEN];
             let Ok(encoded_len) = value.encode(&mut buf) else {
               return false;
