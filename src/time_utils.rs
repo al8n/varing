@@ -59,6 +59,7 @@ pub(crate) const fn merged_to_date_time(
   (year, month, day, hour, minute, second, nano)
 }
 
+#[allow(unused)]
 #[inline]
 pub(crate) const fn encode_datetime(
   year: i32,
@@ -174,6 +175,7 @@ pub(crate) const fn encode_time_to(
   encode_u64_varint_to(merged, buf)
 }
 
+#[allow(unused)]
 #[inline]
 pub(crate) const fn encode_time(nano: u32, second: u8, minute: u8, hour: u8) -> TimeBuffer {
   let merged = time_to_merged(nano, second, minute, hour);
@@ -233,6 +235,7 @@ pub(crate) const fn encode_date_to(
   encode_i32_varint_to(merged, buf)
 }
 
+#[allow(unused)]
 #[inline]
 pub(crate) const fn encode_date(year: i32, month: u8, day: u8) -> DateBuffer {
   let merged = date_to_merged(year, month, day);
