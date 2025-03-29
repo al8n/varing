@@ -79,6 +79,8 @@ macro_rules! impl_varint_for_complex {
 impl_varint_for_complex!(8(u16), 16(u32), 32(u64), 64(u128));
 impl_varint_for_complex!(@const 8(u16), 16(u32), 32(u64), 64(u128));
 
+#[cfg(feature = "bnum_0_13")]
+mod bnum_0_13;
 #[cfg(feature = "ruint_1")]
 mod ruint_1;
 

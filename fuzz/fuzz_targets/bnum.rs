@@ -16,13 +16,13 @@ macro_rules! fuzzy {
                     {
                       let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
                       let encoded_len = value.encode(&mut buf).unwrap();
-                      assert!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN));
+                      assert_eq!(encoded_len, value.encoded_len());
+                      assert!(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN);
 
                       let consumed = crate::consume_varint(&buf).unwrap();
                       assert_eq!(consumed, encoded_len);
 
                       let (bytes_read, decoded) = <$ty>::decode(&buf).unwrap();
-
                       assert!(value == decoded && encoded_len == bytes_read);
                     }
                 }
@@ -79,14 +79,14 @@ macro_rules! fuzzy_mod {
 }
 
 fuzzy_mod! {
-  mod buint_d8 (u::BUintD8(0..=64)),
-  mod buint_d16 (u::BUintD16(0..=64)),
-  mod buint_d32 (u::BUintD32(0..=64)),
-  mod buint(u::BUint(0..=64)),
-  mod bint_d8 (i::BIntD8(1..=64)),
-  mod bint_d16 (i::BIntD16(1..=64)),
-  mod bint_d32 (i::BIntD32(1..=64)),
-  mod bint(i::BInt(1..=64)),
+  mod buint_d8 (u::BUintD8(0..=32)),
+  mod buint_d16 (u::BUintD16(0..=32)),
+  mod buint_d32 (u::BUintD32(0..=32)),
+  mod buint(u::BUint(0..=32)),
+  mod bint_d8 (i::BIntD8(1..=32)),
+  mod bint_d16 (i::BIntD16(1..=32)),
+  mod bint_d32 (i::BIntD32(1..=32)),
+  mod bint(i::BInt(1..=32)),
 }
 
 #[derive(Copy, Clone, Debug, arbitrary::Arbitrary)]

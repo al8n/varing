@@ -3,6 +3,11 @@ codecov:
 
 ignore:
   - fuzz/
+  - src/num_rational/tests.rs
+  - src/num_rational/tests/
+  - src/num_complex/tests.rs
+  - src/num_complex/tests/
+
 coverage:
   status:
     project: # Overall project status
