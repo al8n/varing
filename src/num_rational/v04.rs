@@ -91,6 +91,8 @@ mod ruint_1;
 
 #[cfg(test)]
 mod tests {
+  #![allow(warnings)]
+
   use super::*;
 
   use quickcheck::{Arbitrary, Gen};
@@ -167,16 +169,20 @@ mod tests {
     RatioU16(Ratio<u16>),
     RatioU32(Ratio<u32>),
     RatioU64(Ratio<u64>),
-    RatioU128(Ratio<u128>),
     RatioI8(Ratio<i8>),
     RatioI16(Ratio<i16>),
     RatioI32(Ratio<i32>),
     RatioI64(Ratio<i64>),
-    RatioI128(Ratio<i128>),
   ));
 
   #[cfg(feature = "ruint_1")]
   impl_arbitrary_ratio!(@ruint (U64, U128, U192, U256, U384, U448, U512, U768, U1024, U2048, U4096,));
+
+  #[cfg(feature = "ruint_1")]
+  fuzzy!(@varint_into (
+    RatioU128(Ratio<u128>),
+    RatioI128(Ratio<i128>),
+  ));
 
   #[cfg(feature = "ruint_1")]
   macro_rules! ratio_ruint_fuzzy {

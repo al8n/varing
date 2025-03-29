@@ -1,11 +1,11 @@
 #![no_main]
 #![allow(clippy::large_enum_variant)]
 
-use varing::{consume_varint, num_rational::*, Varint};
 use libfuzzer_sys::fuzz_target;
 use num_rational::Ratio;
 use num_traits::{One, Zero};
 use ruint::aliases::*;
+use varing::{consume_varint, num_rational::*, Varint};
 
 fuzz_target!(|data: Sum| {
   data.check();

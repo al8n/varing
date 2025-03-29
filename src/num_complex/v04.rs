@@ -84,6 +84,8 @@ mod ruint_1;
 
 #[cfg(test)]
 mod tests {
+  #![allow(warnings)]
+
   use super::*;
 
   use quickcheck::{Arbitrary, Gen};
@@ -150,12 +152,16 @@ mod tests {
     ComplexU16(Complex<u16>),
     ComplexU32(Complex<u32>),
     ComplexU64(Complex<u64>),
-    ComplexU128(Complex<u128>),
     ComplexI8(Complex<i8>),
     ComplexI16(Complex<i16>),
     ComplexI32(Complex<i32>),
     ComplexI64(Complex<i64>),
+  ));
+
+  #[cfg(feature = "ruint_1")]
+  fuzzy!(@varint_into(
     ComplexI128(Complex<i128>),
+    ComplexU128(Complex<u128>),
   ));
 
   #[cfg(feature = "ruint_1")]

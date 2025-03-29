@@ -1,10 +1,10 @@
 #![no_main]
 #![allow(clippy::large_enum_variant)]
 
-use varing::{consume_varint, num_complex::*, Varint};
 use libfuzzer_sys::fuzz_target;
 use num_complex::Complex;
 use ruint::aliases::*;
+use varing::{consume_varint, num_complex::*, Varint};
 
 fuzz_target!(|data: Sum| {
   data.check();
