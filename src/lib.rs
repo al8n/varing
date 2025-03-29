@@ -803,6 +803,11 @@ pub mod num_rational;
 #[cfg_attr(docsrs, doc(cfg(feature = "num-complex_0_4")))]
 pub mod num_complex;
 
+/// LEB128 encoding/decoding for [`bnum`](https://crates.io/crates/bnum) types.
+#[cfg(feature = "bnum_0_13")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bnum_0_13")))]
+pub mod bnum;
+
 /// LEB128 encoding/decoding for [`chrono`](https://crates.io/crates/chrono) types.
 #[cfg(feature = "chrono_0_4")]
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono_0_4")))]

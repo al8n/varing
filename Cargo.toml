@@ -38,6 +38,9 @@ primitive-types = ["primitive-types_0_13"]
 ethereum-types_0_15 = ["dep:ethereum-types_0_15", "ruint"]
 ethereum-types = ["ethereum-types_0_15"]
 
+bnum_0_13 = ["dep:bnum_0_13"]
+bnum = ["bnum_0_13"]
+
 chrono_0_4 = ["dep:chrono_0_4"]
 chrono = ["chrono_0_4"]
 
@@ -49,14 +52,15 @@ thiserror = { version = "2", default-features = false }
 paste = "1"
 seq-macro = "0.3"
 
-chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
-ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
-time_0_3 = { package = "time", version = "0.3", default-features = false, optional = true }
 arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
-primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
+bnum_0_13 = { package = "bnum", version = "0.13", default-features = false, optional = true }
+chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
 num-rational_0_4 = { package = "num-rational", version = "0.4", default-features = false, optional = true }
 num-complex_0_4 = { package = "num-complex", version = "0.4", default-features = false, optional = true }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
+ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
+time_0_3 = { package = "time", version = "0.3", default-features = false, optional = true }
 
 
 [dev-dependencies]
@@ -67,6 +71,7 @@ primitive-types_0_13 = { package = "primitive-types", version = "0.13", features
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"] }
 time_0_3 = { package = "time", version = "0.3", features = ["quickcheck"], default-features = false }
 chrono_0_4 = { package = "chrono", version = "0.4", features = ["arbitrary"], default-features = false }
+bnum_0_13 = { package = "bnum", version = "0.13", features = ["quickcheck"] }
 
 [profile.bench]
 opt-level = 3

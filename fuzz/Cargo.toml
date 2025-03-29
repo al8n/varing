@@ -16,6 +16,7 @@ time = ["dep:time", "chrono", "varing/time"]
 arbitrary-int = ["dep:arbitrary-int", "varing/arbitrary-int"]
 num-rational = ["dep:num-rational", "varing/num-rational"]
 num-complex = ["dep:num-complex", "varing/num-complex"]
+bnum = ["dep:bnum", "varing/bnum"]
 
 [dependencies]
 arbitrary = { version = "1", features = ["derive"] }
@@ -28,6 +29,7 @@ ruint = { version = "1", features = ["arbitrary", "num-traits"], optional = true
 chrono = { version = "0.4", optional = true, features = ["arbitrary"] }
 time = { version = "0.3", optional = true, features = ["large-dates"] }
 num-traits = { version = "0.2" }
+bnum = { version = "0.13", optional = true, features = ["arbitrary"] }
 
 arbitrary-int = { version = "1", optional = true }
 num-rational = { version = "0.4", optional = true }
@@ -114,3 +116,11 @@ test = false
 doc = false
 bench = false
 required-features = ["num-complex", "ruint"]
+
+[[bin]]
+name = "bnum"
+path = "fuzz_targets/bnum.rs"
+test = false
+doc = false
+bench = false
+required-features = ["bnum"]

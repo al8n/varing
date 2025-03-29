@@ -265,11 +265,6 @@ mod tests_ruint_1 {
       )
     }
 
-    #[test]
-    fn t() {
-      std::println!("{} {}", U0::MAX, U0::MAX_ENCODED_LEN);
-    }
-
     #[quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
