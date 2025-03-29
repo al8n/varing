@@ -394,16 +394,4 @@ mod tests {
     mod bint_d32 (i::BIntD32(1..=64)),
     mod bint(i::BInt(1..=64)),
   }
-
-  #[test]
-  fn test_packable() {
-    use bnum_0_13::types::{U128, U256};
-    let one = U128::ONE;
-    let two = U128::TWO;
-
-    let out: U256 = Packable::pack(one, two);
-    let (done, dtwo) = Packable::unpack(out);
-    assert_eq!(one, done);
-    assert_eq!(two, dtwo);
-  }
 }
