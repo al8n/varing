@@ -1,6 +1,6 @@
 #![no_main]
 
-use const_varint::*;
+use varing::*;
 use libfuzzer_sys::fuzz_target;
 
 macro_rules! fuzzy {

@@ -1,7 +1,7 @@
 #![no_main]
 
 use ::chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc};
-use const_varint::*;
+use varing::*;
 use libfuzzer_sys::fuzz_target;
 
 macro_rules! fuzzy {

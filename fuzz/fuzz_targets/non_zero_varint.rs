@@ -1,6 +1,6 @@
 #![no_main]
 
-use const_varint::*;
+use varing::*;
 use core::num::*;
 use libfuzzer_sys::fuzz_target;
 
