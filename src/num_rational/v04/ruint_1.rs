@@ -6,7 +6,7 @@ use num_rational_0_4::Ratio;
 use ::ruint_1::aliases::U256;
 
 #[cfg(not(feature = "bnum_0_13"))]
-impl_varint_for_complex!(128(U256));
+impl_varint_for_ratio!(128(U256));
 
 macro_rules! impl_varint_for_ratio_ruint {
   ($($bits:literal),+$(,)?) => {

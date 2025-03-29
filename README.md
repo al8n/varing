@@ -24,6 +24,12 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 varing = "0.4"
 ```
 
+- For `u1`, `u2`, `u3`, .., `u127`, enable `arbitrary-int` support
+
+  ```toml
+  varing = { version = "0.4", features = "arbitrary-int" }
+  ```
+
 - Enable `chrono` support (not fully compatible in `const` context)
 
   ```toml
@@ -52,12 +58,6 @@ varing = "0.4"
 
   ```toml
   varing =  { version = "0.4", features = "bnum" }
-  ```
-
-- For `u1`, `u2`, `u3`, .., `u127`, enable `arbitrary-int` support
-
-  ```toml
-  varing = { version = "0.4", features = "arbitrary-int" }
   ```
 
 - For `ruint::Uint<BITS, LBITS>` support (not compatible in `const` context)
