@@ -140,7 +140,7 @@ impl<const BITS: usize, const LIMBS: usize, const OBITS: usize, const OLIMBS: us
 {
   fn pack(low: Self, high: Self) -> Uint<OBITS, OLIMBS> {
     debug_assert_eq!(BITS * 2, OBITS, "BITS * 2 != OBITS");
-    Uint::<OBITS, OLIMBS>::from(low) | Uint::<OBITS, OLIMBS>::from(high) << Self::BITS
+    Uint::<OBITS, OLIMBS>::from(low) | (Uint::<OBITS, OLIMBS>::from(high) << Self::BITS)
   }
 
   fn unpack(value: Uint<OBITS, OLIMBS>) -> (Self, Self) {

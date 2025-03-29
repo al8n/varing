@@ -112,7 +112,7 @@ pack_unpack!(@signed 8(u16), 16(u32), 32(u64), 64(u128));
 pub fn pack_u128(low: u128, high: u128) -> ::ruint_1::aliases::U256 {
   use ::ruint_1::aliases::U256;
 
-  U256::from(low) | U256::from(high) << 128
+  U256::from(low) | (U256::from(high) << 128)
 }
 
 /// Unpack a single `U256` into two `u128`s
