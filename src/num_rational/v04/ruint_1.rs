@@ -1,8 +1,12 @@
 use crate::{ruint_impl::Packable, DecodeError, EncodeError, Varint};
-use ::ruint_1::{aliases::*, Uint};
+use ::ruint_1::Uint;
 use num_rational_0_4::Ratio;
 
-impl_varint_for_ratio!(128(U256));
+#[cfg(not(feature = "bnum_0_13"))]
+use ::ruint_1::aliases::U256;
+
+#[cfg(not(feature = "bnum_0_13"))]
+impl_varint_for_complex!(128(U256));
 
 macro_rules! impl_varint_for_ratio_ruint {
   ($($bits:literal),+$(,)?) => {

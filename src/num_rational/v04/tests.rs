@@ -67,7 +67,7 @@ macro_rules! impl_arbitrary_ratio {
 
 impl_arbitrary_ratio!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128,);
 
-fuzzy!(@varing_into (RatioU8(Ratio<u8>), RatioU16(Ratio<u16>), RatioU32(Ratio<u32>), RatioU64(Ratio<u64>), RatioI8(Ratio<i8>), RatioI16(Ratio<i16>), RatioI32(Ratio<i32>), RatioI64(Ratio<i64>),));
+fuzzy!(@const_varint_into (RatioU8(Ratio<u8>), RatioU16(Ratio<u16>), RatioU32(Ratio<u32>), RatioU64(Ratio<u64>), RatioI8(Ratio<i8>), RatioI16(Ratio<i16>), RatioI32(Ratio<i32>), RatioI64(Ratio<i64>),));
 fuzzy!(@varint_into (
   RatioU8(Ratio<u8>),
   RatioU16(Ratio<u16>),
@@ -78,7 +78,6 @@ fuzzy!(@varint_into (
   RatioI32(Ratio<i32>),
   RatioI64(Ratio<i64>),
 ));
-
 
 #[cfg(feature = "ruint_1")]
 mod ruint_1;

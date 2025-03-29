@@ -676,7 +676,7 @@ macro_rules! fuzzy {
       )*
     }
   };
-  (@varing_into ($($ty:ident($target:ty) $( => $suffix:ident)? ), +$(,)?)) => {
+  (@const_varint_into ($($ty:ident($target:ty) $( => $suffix:ident)? ), +$(,)?)) => {
     paste::paste! {
       $(
         #[quickcheck_macros::quickcheck]

@@ -1,7 +1,11 @@
 use crate::{ruint_impl::Packable, DecodeError, EncodeError, Varint};
-use ::ruint_1::{aliases::*, Uint};
+use ::ruint_1::Uint;
 use num_complex_0_4::Complex;
 
+#[cfg(not(feature = "bnum_0_13"))]
+use ::ruint_1::aliases::U256;
+
+#[cfg(not(feature = "bnum_0_13"))]
 impl_varint_for_complex!(128(U256));
 
 macro_rules! impl_varint_for_complex_ruint {

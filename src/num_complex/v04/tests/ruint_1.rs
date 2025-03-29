@@ -1,14 +1,15 @@
 use super::*;
+
 use ::ruint_1::aliases::*;
 
-impl_arbitrary_ratio!(@ruint (U64, U128, U192, U256, U384, U448, U512, U768, U1024, U2048, U4096,));
-
-fuzzy!(@varint_into (
-  RatioU128(Ratio<u128>),
-  RatioI128(Ratio<i128>),
+fuzzy!(@varint_into(
+  ComplexI128(Complex<i128>),
+  ComplexU128(Complex<u128>),
 ));
 
-macro_rules! ratio_ruint_fuzzy {
+impl_arbitrary_complex!(@ruint (U64, U128, U192, U256, U384, U448, U512, U768, U1024, U2048, U4096,));
+
+macro_rules! complex_ruint_fuzzy {
   (@varint_into ($($ty:ident($target:ty)), +$(,)?)) => {
     $(
       paste::paste! {
@@ -29,7 +30,7 @@ macro_rules! ratio_ruint_fuzzy {
           }
 
           if let Ok((bytes_read, decoded)) = <$target>::decode(&buf) {
-            value.numer() == decoded.numer() && value.denom() == decoded.denom() && encoded_len == bytes_read
+            value.re == decoded.re && value.im == decoded.im && encoded_len == bytes_read
           } else {
             false
           }
@@ -39,16 +40,16 @@ macro_rules! ratio_ruint_fuzzy {
   };
 }
 
-ratio_ruint_fuzzy!(@varint_into (
-  RUintRatioU64(Ratio<U64>),
-  RUintRatioU128(Ratio<U128>),
-  RUintRatioU192(Ratio<U192>),
-  RUintRatioU256(Ratio<U256>),
-  RUintRatioU384(Ratio<U384>),
-  RUintRatioU448(Ratio<U448>),
-  RUintRatioU512(Ratio<U512>),
-  RUintRatioU768(Ratio<U768>),
-  RUintRatioU1024(Ratio<U1024>),
-  RUintRatioU2048(Ratio<U2048>),
-  RUintRatioU4096(Ratio<U4096>),
+complex_ruint_fuzzy!(@varint_into (
+  RUintComplexU64(Complex<U64>),
+  RUintComplexU128(Complex<U128>),
+  RUintComplexU192(Complex<U192>),
+  RUintComplexU256(Complex<U256>),
+  RUintComplexU384(Complex<U384>),
+  RUintComplexU448(Complex<U448>),
+  RUintComplexU512(Complex<U512>),
+  RUintComplexU768(Complex<U768>),
+  RUintComplexU1024(Complex<U1024>),
+  RUintComplexU2048(Complex<U2048>),
+  RUintComplexU4096(Complex<U4096>),
 ));

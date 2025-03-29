@@ -3,7 +3,7 @@
 </div>
 <div align="center">
 
-Protobuf's varint encoding/decoding with full const context operations supports.
+Protobuf's varint encoding/decoding for LEB128 friendly types with full const context operations supports.
 
 [<img alt="github" src="https://img.shields.io/badge/github-al8n/const--varint-8da0cb?style=for-the-badge&logo=Github" height="22">][Github-url]
 <img alt="LoC" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2Fal8n%2F327b2a8aef9003246e45c6e47fe63937%2Fraw%2Fvaring" height="22">
@@ -24,7 +24,7 @@ Protobuf's varint encoding/decoding with full const context operations supports.
 varing = "0.4"
 ```
 
-- Enable `chrono` support
+- Enable `chrono` support (not fully compatible in `const` context)
 
   ```toml
   varing = { version = "0.4", features = "chrono" }
@@ -36,7 +36,25 @@ varing = "0.4"
   varing =  { version = "0.4", features = "time" }
   ```
 
-- For `u1`, `u2`, `u3`, .., `u127`
+- Enable `num-rational` support (not fully compatible in `const` context)
+
+  ```toml
+  varing =  { version = "0.4", features = "num-rational" }
+  ```
+
+- Enable `num-complex` support (not fully compatible in `const` context)
+
+  ```toml
+  varing =  { version = "0.4", features = "num-complex" }
+  ```
+
+- Enable `bnum` support
+
+  ```toml
+  varing =  { version = "0.4", features = "bnum" }
+  ```
+
+- For `u1`, `u2`, `u3`, .., `u127`, enable `arbitrary-int` support
 
   ```toml
   varing = { version = "0.4", features = "arbitrary-int" }

@@ -5,7 +5,7 @@
 FEATURES
 
 - Add `chrono` and `time` support
-- Add `num-rational` and `num-complex` support
+- Add `num-rational`, `num-complex` and `bnum` support
 - Rename the crate from `const-varint` to `varing`
 
 ## 0.4.0 (Mar 22nd, 2025)

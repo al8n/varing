@@ -107,8 +107,74 @@ pack_unpack!(@unsigned 8(u16), 16(u32), 32(u64), 64(u128));
 pack_unpack!(@signed 8(u16), 16(u32), 32(u64), 64(u128));
 
 /// Pack two `u128`s into a single `U256`
-#[cfg(feature = "ruint_1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ruint_1")))]
+#[cfg(feature = "bnum_0_13")]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
+pub const fn pack_u128(low: u128, high: u128) -> ::bnum_0_13::BUintD8<32> {
+  use ::bnum_0_13::BUintD8;
+
+  // low.copy_from_slice(low.to_le_bytes().as_slice());
+  let Some(low) = BUintD8::<32>::from_le_slice(&low.to_le_bytes()) else {
+    unreachable!();
+  };
+
+  let Some(high) = BUintD8::<32>::from_le_slice(&high.to_le_bytes()) else {
+    unreachable!();
+  };
+
+  low.bitor(high.shl(128))
+}
+
+/// Unpack a single `U256` into two `u128`s
+#[cfg(feature = "bnum_0_13")]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
+pub const fn unpack_u128(value: ::bnum_0_13::BUintD8<32>) -> (u128, u128) {
+  use ::bnum_0_13::BUintD8;
+  use core::ptr::copy;
+
+  let Some(max_u128) = ::bnum_0_13::BUintD8::from_le_slice(&u128::MAX.to_le_bytes()) else {
+    unreachable!();
+  };
+  let low = value.bitand(max_u128);
+  let high: BUintD8<32> = value.shr(128).bitand(max_u128);
+
+  let (low, _) = low.digits().split_at(16);
+  let mut buf = [0u8; 16];
+  // SAFETY: `low` is always 16 bytes long
+  unsafe {
+    copy(low.as_ptr(), buf.as_mut_ptr(), 16);
+
+    let low = u128::from_le_bytes(buf);
+    let (high, _) = high.digits().split_at(16);
+    copy(high.as_ptr(), buf.as_mut_ptr(), 16);
+
+    let high = u128::from_le_bytes(buf);
+    (low, high)
+  }
+}
+
+/// Pack two `i128`s into a single `U256`
+#[cfg(feature = "bnum_0_13")]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
+pub const fn pack_i128(low: i128, high: i128) -> ::bnum_0_13::BUintD8<32> {
+  let low = zigzag_encode_i128(low);
+  let high = zigzag_encode_i128(high);
+  pack_u128(low, high)
+}
+
+/// Unpack a single `U256` into two `i128`s
+#[cfg(feature = "bnum_0_13")]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
+pub const fn unpack_i128(value: ::bnum_0_13::BUintD8<32>) -> (i128, i128) {
+  let (low, high) = unpack_u128(value);
+  let low = zigzag_decode_i128(low);
+  let high = zigzag_decode_i128(high);
+
+  (low, high)
+}
+
+/// Pack two `u128`s into a single `U256`
+#[cfg(all(feature = "ruint_1", not(feature = "bnum_0_13")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
 pub fn pack_u128(low: u128, high: u128) -> ::ruint_1::aliases::U256 {
   use ::ruint_1::aliases::U256;
 
@@ -116,8 +182,8 @@ pub fn pack_u128(low: u128, high: u128) -> ::ruint_1::aliases::U256 {
 }
 
 /// Unpack a single `U256` into two `u128`s
-#[cfg(feature = "ruint_1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ruint_1")))]
+#[cfg(all(feature = "ruint_1", not(feature = "bnum_0_13")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
 pub fn unpack_u128(value: ::ruint_1::aliases::U256) -> (u128, u128) {
   use ::ruint_1::aliases::U256;
   let low = value & U256::from(u128::MAX);
@@ -127,8 +193,8 @@ pub fn unpack_u128(value: ::ruint_1::aliases::U256) -> (u128, u128) {
 }
 
 /// Pack two `i128`s into a single `U256`
-#[cfg(feature = "ruint_1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ruint_1")))]
+#[cfg(all(feature = "ruint_1", not(feature = "bnum_0_13")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
 pub fn pack_i128(low: i128, high: i128) -> ::ruint_1::aliases::U256 {
   let low = zigzag_encode_i128(low);
   let high = zigzag_encode_i128(high);
@@ -136,8 +202,8 @@ pub fn pack_i128(low: i128, high: i128) -> ::ruint_1::aliases::U256 {
 }
 
 /// Unpack a single `U256` into two `i128`s
-#[cfg(feature = "ruint_1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ruint_1")))]
+#[cfg(all(feature = "ruint_1", not(feature = "bnum_0_13")))]
+#[cfg_attr(docsrs, doc(cfg(any(feature = "ruint_1", feature = "bnum_0_13"))))]
 pub fn unpack_i128(value: ::ruint_1::aliases::U256) -> (i128, i128) {
   let (low, high) = unpack_u128(value);
   let low = zigzag_decode_i128(low);

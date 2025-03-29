@@ -9,7 +9,7 @@ macro_rules! unsigned {
         /// Returns the encoded length of the value in LEB128 variable length format.
         #[doc = "The returned value will be in range of [`" $base "::<N>::ENCODED_LEN_RANGE`](Varint::ENCODED_LEN_RANGE)."]
         #[inline]
-        pub const fn [< encoded_ $base:snake _len >]<const N: usize>(val: &$base<N>) -> usize {
+        pub const fn [< encoded_uint_d $storage _len >]<const N: usize>(val: &$base<N>) -> usize {
           if N == 0 {
             return 0;
           }
@@ -29,7 +29,7 @@ macro_rules! unsigned {
 
         #[doc = "Encodes an `" $base "<N>` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ $base:snake _to >]<const N: usize>(
+        pub const fn [< encode_uint_d $storage _to >]<const N: usize>(
           mut value: $base<N>,
           buf: &mut [u8],
         ) -> Result<usize, EncodeError> {
@@ -37,7 +37,7 @@ macro_rules! unsigned {
             return Ok(0);
           }
 
-          let len = [< encoded_ $base:snake _len >](&value);
+          let len = [< encoded_uint_d $storage _len >](&value);
           let buf_len = buf.len();
           if buf_len < len {
             return Err(EncodeError::underflow(len, buf_len));
@@ -67,7 +67,7 @@ macro_rules! unsigned {
         #[doc = "Decodes an `" $base "<N>` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ $base:snake >]<const N: usize>(
+        pub const fn [< decode_uint_d $storage >]<const N: usize>(
           buf: &[u8],
         ) -> Result<(usize, $base<N>), DecodeError> {
           if N == 0 {
@@ -126,18 +126,18 @@ macro_rules! unsigned {
           const MAX_ENCODED_LEN: usize = { (N * $storage).div_ceil(7) };
 
           fn encoded_len(&self) -> usize {
-            [< encoded_ $base:snake _len >](self)
+            [< encoded_uint_d $storage _len >](self)
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-            [< encode_ $base:snake _to >](*self, buf)
+            [< encode_uint_d $storage _to >](*self, buf)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
-            [< decode_ $base:snake >](buf)
+            [< decode_uint_d $storage >](buf)
           }
         }
 
@@ -183,8 +183,9 @@ macro_rules! signed {
   ($($storage:literal($i:ident <=> $u:ident)), +$(,)?) => {
     paste::paste! {
       $(
+        #[doc = "Zigzag encode `" $i "<N>` value"]
         #[inline]
-        const fn [< zigzag_encode_bint_d $storage >]<const N: usize>(value: &$i<N>) -> $u<N> {
+        pub const fn [< zigzag_encode_int_d $storage >]<const N: usize>(value: &$i<N>) -> $u<N> {
           if N == 0 {
             return $u::<N>::ZERO;
           }
@@ -197,8 +198,13 @@ macro_rules! signed {
           value.shl(1).bitxor(value.shr(bits as u32)).to_bits()
         }
 
+        #[doc = "Zigzag decode `" $i "<N>` value"]
         #[inline]
-        const fn [< zigzag_decode_bint_d $storage >]<const N: usize>(value: &$u<N>) -> $i<N> {
+        pub const fn [< zigzag_decode_int_d $storage >]<const N: usize>(value: &$u<N>) -> $i<N> {
+          if N == 0 {
+            return $i::<N>::ZERO;
+          }
+
           let a = $i::<N>::from_bits(value.shr(1));
           let b = $i::<N>::from_bits(value.bitand($u::<N>::from_digit(1))).neg();
           a.bitxor(b)
@@ -207,17 +213,17 @@ macro_rules! signed {
         /// Returns the encoded length of the value in LEB128 variable length format.
         #[doc = "The returned value will be in range of [`" $i "::<N>::ENCODED_LEN_RANGE`](Varint::ENCODED_LEN_RANGE)."]
         #[inline]
-        pub const fn [< encoded_ $i:snake _len >]<const N: usize>(val: &$i<N>) -> usize {
+        pub const fn [< encoded_int_d $storage _len >]<const N: usize>(val: &$i<N>) -> usize {
           if N == 0 {
             return 0;
           }
 
-          [< encoded_ $u:snake _len >](&[< zigzag_encode_bint_d $storage>](&val))
+          [< encoded_uint_d $storage _len >](&[< zigzag_encode_int_d $storage>](&val))
         }
 
         #[doc = "Encodes an `" $i "<N>` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ $i:snake _to >]<const N: usize>(
+        pub const fn [< encode_int_d $storage _to >]<const N: usize>(
           value: $i<N>,
           buf: &mut [u8],
         ) -> Result<usize, EncodeError> {
@@ -225,13 +231,13 @@ macro_rules! signed {
             return Ok(0);
           }
 
-          [< encode_ $u:snake _to>]([< zigzag_encode_bint_d $storage>](&value), buf)
+          [< encode_uint_d $storage _to>]([< zigzag_encode_int_d $storage>](&value), buf)
         }
 
         #[doc = "Decodes an `" $i "<N>` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ $i:snake >]<const N: usize>(
+        pub const fn [< decode_int_d $storage >]<const N: usize>(
           buf: &[u8],
         ) -> Result<(usize, $i<N>), DecodeError> {
           if N == 0 {
@@ -242,9 +248,9 @@ macro_rules! signed {
             return Err(DecodeError::Underflow);
           }
 
-          match [< decode_ $u:snake >]::<N>(buf) {
+          match [< decode_uint_d $storage >]::<N>(buf) {
             Ok((read, val)) => {
-              let val = [<zigzag_decode_bint_d $storage>](&val);
+              let val = [<zigzag_decode_int_d $storage>](&val);
               Ok((read, val))
             },
             Err(e) => Err(e),
@@ -257,18 +263,18 @@ macro_rules! signed {
           const MAX_ENCODED_LEN: usize = $u::<N>::MAX_ENCODED_LEN;
 
           fn encoded_len(&self) -> usize {
-            [< encoded_ $i:snake _len >](self)
+            [< encoded_int_d $storage _len >](self)
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-            [< encode_ $i:snake _to >](*self, buf)
+            [< encode_int_d $storage _to >](*self, buf)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
-            [< decode_ $i:snake >](buf)
+            [< decode_int_d $storage >](buf)
           }
         }
 
@@ -279,8 +285,8 @@ macro_rules! signed {
           fn pack(low: Self, high: Self) -> $u<OBYTES> {
             debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
 
-            let low = [<zigzag_encode_bint_d $storage>](&low);
-            let high = [<zigzag_encode_bint_d $storage>](&high);
+            let low = [<zigzag_encode_int_d $storage>](&low);
+            let high = [<zigzag_encode_int_d $storage>](&high);
             Packable::pack(low, high)
           }
 
@@ -291,8 +297,8 @@ macro_rules! signed {
             debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
 
             let (low, high) = Packable::unpack(value);
-            let low = [<zigzag_decode_bint_d $storage>](&low);
-            let high = [<zigzag_decode_bint_d $storage>](&high);
+            let low = [<zigzag_decode_int_d $storage>](&low);
+            let high = [<zigzag_decode_int_d $storage>](&high);
             (low, high)
           }
         }
