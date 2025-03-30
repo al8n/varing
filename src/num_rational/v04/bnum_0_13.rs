@@ -18,7 +18,7 @@ pub const fn encoded_ratio_u128_len(val: &Ratio<u128>) -> usize {
 
 /// Encodes the `Ratio<u128>` value.
 #[inline]
-pub const fn encode_ratio_u128(val: &Ratio<u128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_ratio_u128_to(val: &Ratio<u128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
   encode_uint_d8_to(pack_u128(*val.numer(), *val.denom()), buf)
 }
 
@@ -47,7 +47,7 @@ pub const fn encoded_ratio_i128_len(val: &Ratio<i128>) -> usize {
 
 /// Encodes the `Ratio<i128>` value.
 #[inline]
-pub const fn encode_ratio_i128(val: &Ratio<i128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_ratio_i128_to(val: &Ratio<i128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
   encode_uint_d8_to(pack_i128(*val.numer(), *val.denom()), buf)
 }
 

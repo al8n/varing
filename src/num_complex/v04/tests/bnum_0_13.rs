@@ -7,6 +7,52 @@ fuzzy!(@varint_into(
   ComplexU128(Complex<u128>),
 ));
 
+#[quickcheck_macros::quickcheck]
+fn fuzzy_complex_u128(value: ArbitraryComplex<u128>) -> bool {
+  let value = ::core::convert::Into::into(value);
+  let mut buf = [0; <Complex<u128>>::MAX_ENCODED_LEN];
+  let encoded = encode_complex_u128_to(&value, &mut buf).unwrap();
+  if encoded != encoded_complex_u128_len(&value) || !(encoded <= <Complex<u128>>::MAX_ENCODED_LEN) {
+    return false;
+  }
+
+  let Ok(consumed) = crate::consume_varint(&buf) else {
+    return false;
+  };
+  if consumed != encoded {
+    return false;
+  }
+
+  if let Ok((bytes_read, decoded)) = decode_complex_u128(&buf) {
+    value == decoded && encoded == bytes_read
+  } else {
+    false
+  }
+}
+
+#[quickcheck_macros::quickcheck]
+fn fuzzy_complex_i128(value: ArbitraryComplex<i128>) -> bool {
+  let value = ::core::convert::Into::into(value);
+  let mut buf = [0; <Complex<i128>>::MAX_ENCODED_LEN];
+  let encoded = encode_complex_i128_to(&value, &mut buf).unwrap();
+  if encoded != encoded_complex_i128_len(&value) || !(encoded <= <Complex<i128>>::MAX_ENCODED_LEN) {
+    return false;
+  }
+
+  let Ok(consumed) = crate::consume_varint(&buf) else {
+    return false;
+  };
+  if consumed != encoded {
+    return false;
+  }
+
+  if let Ok((bytes_read, decoded)) = decode_complex_i128(&buf) {
+    value == decoded && encoded == bytes_read
+  } else {
+    false
+  }
+}
+
 macro_rules! complex_bnum_fuzzy {
   (@varint_into ($($ty:ident($target:ty)), +$(,)?)) => {
     $(

@@ -24,59 +24,21 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 varing = "0.4"
 ```
 
-- For `u1`, `u2`, `u3`, .., `u127`, enable `arbitrary-int` support
+## Features
 
-  ```toml
-  varing = { version = "0.4", features = "arbitrary-int" }
-  ```
+- [`arbitrary-int`]: Support encode/decode [`arbitrary-int`] types by using LEB128.
+- [`bnum`]: Support encode/decode [`bnum`] types by using LEB128.
+- [`chrono`]: Support encode/decode [`chrono`] types by using LEB128 (not fully compatible in `const` context).
+- [`num-complex`]: Support encode/decode [`num-complex`] types by using LEB128.
+- [`num-rational`]: Support encode/decode [`num-rational`] types by using LEB128.
+- [`ruint`]: Support encode/decode [`ruint`] types by using LEB128 (not compatible in `const` context).
+- [`time`]: Support encode/decode [`time`] types by using LEB128.
+- [`primitive-types`]: Support encode/decode [`primitive-types`] types by using LEB128.
+- [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
 
-- Enable `chrono` support (not fully compatible in `const` context)
+## Testing
 
-  ```toml
-  varing = { version = "0.4", features = "chrono" }
-  ```
-
-- Enable `time` support
-
-  ```toml
-  varing =  { version = "0.4", features = "time" }
-  ```
-
-- Enable `num-rational` support (not fully compatible in `const` context)
-
-  ```toml
-  varing =  { version = "0.4", features = "num-rational" }
-  ```
-
-- Enable `num-complex` support (not fully compatible in `const` context)
-
-  ```toml
-  varing =  { version = "0.4", features = "num-complex" }
-  ```
-
-- Enable `bnum` support
-
-  ```toml
-  varing =  { version = "0.4", features = "bnum" }
-  ```
-
-- For `ruint::Uint<BITS, LBITS>` support (not compatible in `const` context)
-
-  ```toml
-  varing = { version = "0.4", features = ["ruint"] }
-  ```
-
-- For `primitive-types` support (not compatible in `const` context)
-
-  ```toml
-  varing = { version = "0.4", features = ["primitive-types"] }
-  ```
-
-- For `ethereum-types` support (not compatible in `const` context)
-
-  ```toml
-  varing = { version = "0.4", features = ["ethereum-types"] }
-  ```
+This crate is tested with the [`quickcheck`](https://docs.rs/quickcheck/latest/quickcheck/) crate and `cargo fuzz` (including all optional features).
 
 #### License
 
@@ -92,3 +54,13 @@ Copyright (c) 2025 Al Liu.
 [doc-url]: https://docs.rs/varing
 [crates-url]: https://crates.io/crates/varing
 [codecov-url]: https://app.codecov.io/gh/al8n/varing/
+
+[`arbitrary-int`]: https://docs.rs/arbitrary-int
+[`bnum`]: https://docs.rs/bnum
+[`chrono`]: https://docs.rs/chrono
+[`num-complex`]: https://docs.rs/num-complex
+[`num-rational`]: https://docs.rs/num-rational
+[`ruint`]: https://docs.rs/ruint
+[`time`]: https://docs.rs/time
+[`primitive-types`]: https://docs.rs/primitive-types
+[`ethereum-types`]: https://docs.rs/ethereum-types

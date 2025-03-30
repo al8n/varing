@@ -3,10 +3,10 @@ codecov:
 
 ignore:
   - fuzz/
-  - src/num_rational/tests.rs
-  - src/num_rational/tests/
-  - src/num_complex/tests.rs
-  - src/num_complex/tests/
+  - src/num_rational/v04/tests.rs
+  - src/num_rational/v04/tests/
+  - src/num_complex/v04/tests.rs
+  - src/num_complex/v04/tests/
 
 coverage:
   status:

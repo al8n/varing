@@ -19,7 +19,7 @@ pub const fn encoded_complex_u128_len(val: &Complex<u128>) -> usize {
 
 /// Encodes the `Complex<u128>` value.
 #[inline]
-pub const fn encode_complex_u128(
+pub const fn encode_complex_u128_to(
   val: &Complex<u128>,
   buf: &mut [u8],
 ) -> Result<usize, EncodeError> {
@@ -48,7 +48,7 @@ pub const fn encoded_complex_i128_len(val: &Complex<i128>) -> usize {
 
 /// Encodes the `Complex<i128>` value.
 #[inline]
-pub const fn encode_complex_i128(
+pub const fn encode_complex_i128_to(
   val: &Complex<i128>,
   buf: &mut [u8],
 ) -> Result<usize, EncodeError> {
