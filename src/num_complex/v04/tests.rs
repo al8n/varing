@@ -53,6 +53,27 @@ macro_rules! impl_arbitrary_complex {
         )*
       }
     };
+    (@bnum ($($ty:ty),+$(,)?)) => {
+      paste::paste! {
+        $(
+          impl Arbitrary for ArbitraryComplex<$ty> {
+            fn arbitrary(g: &mut Gen) -> Self {
+              let re = <$ty>::arbitrary(g);
+              let im = <$ty>::arbitrary(g);
+              Self { re, im }
+            }
+          }
+
+          impl From<ArbitraryComplex<$ty>> for Complex<$ty> {
+            fn from(arbitrary: ArbitraryComplex<$ty>) -> Self {
+              Complex { re: arbitrary.re, im: arbitrary.im }
+            }
+          }
+
+          type [< BnumComplex $ty:camel >] = ArbitraryComplex<$ty>;
+        )*
+      }
+    };
   }
 
 impl_arbitrary_complex!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128,);
@@ -72,3 +93,6 @@ fuzzy!(@varint_into (
 
 #[cfg(feature = "ruint_1")]
 mod ruint_1;
+
+#[cfg(feature = "bnum_0_13")]
+mod bnum_0_13;
