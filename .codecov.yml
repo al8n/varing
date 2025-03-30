@@ -1,0 +1,28 @@
+codecov:
+  require_ci_to_pass: false
+
+ignore:
+  - fuzz/
+  - src/num_rational/v04/tests.rs
+  - src/num_rational/v04/tests/
+  - src/num_complex/v04/tests.rs
+  - src/num_complex/v04/tests/
+
+coverage:
+  status:
+    project: # Overall project status
+      default:
+        target: auto
+        if_not_found: success
+        only_pulls: false
+    patch: # Status for the patch in pull requests
+      default:
+        target: auto
+        if_not_found: success
+        only_pulls: true
+    changes: false # Whether to comment on the coverage changes in pull requests
+
+comment:
+  layout: "header, diff, files, footer"
+  behavior: default
+  require_changes: false

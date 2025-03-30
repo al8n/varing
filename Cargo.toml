@@ -1,15 +1,15 @@
 [package]
-name = "const-varint"
-version = "0.4.0"
+name = "varing"
+version = "0.4.1"
 edition = "2021"
-repository = "https://github.com/al8n/const-varint"
-homepage = "https://github.com/al8n/const-varint"
-documentation = "https://docs.rs/const-varint"
-description = "Protobuf's varint encoding/decoding with full const context operations supports."
+repository = "https://github.com/al8n/varing"
+homepage = "https://github.com/al8n/varing"
+documentation = "https://docs.rs/varing"
+description = "Protobuf's varint encoding/decoding for LEB128 friendly types with full const context operations supports."
 license = "MIT OR Apache-2.0"
 rust-version = "1.81.0"
 keywords = ["leb128", "varint", "protobuf"]
-categories = ["no-std", "data-structures", "network-programming"]
+categories = ["no-std", "no-std::no-alloc", "encoding", "data-structures", "network-programming"]
 
 [workspace]
 members = [".", "fuzz"]
@@ -24,11 +24,22 @@ ruint = ["ruint_1"]
 arbitrary-int_1 = ["dep:arbitrary-int_1"]
 arbitrary-int = ["arbitrary-int_1"]
 
-primitive-types_0_13 = ["dep:primitive-types_0_13", "ruint"]
+num-rational_0_4 = ["dep:num-rational_0_4"]
+num-rational = ["num-rational_0_4"]
+
+num-complex_0_4 = ["dep:num-complex_0_4"]
+num-complex = ["num-complex_0_4"]
+
+num-traits = ["ruint_1?/num-traits"]
+
+primitive-types_0_13 = ["dep:primitive-types_0_13", "bnum"]
 primitive-types = ["primitive-types_0_13"]
 
-ethereum-types_0_15 = ["dep:ethereum-types_0_15", "ruint"]
+ethereum-types_0_15 = ["dep:ethereum-types_0_15", "bnum"]
 ethereum-types = ["ethereum-types_0_15"]
+
+bnum_0_13 = ["dep:bnum_0_13"]
+bnum = ["bnum_0_13"]
 
 chrono_0_4 = ["dep:chrono_0_4"]
 chrono = ["chrono_0_4"]
@@ -41,12 +52,15 @@ thiserror = { version = "2", default-features = false }
 paste = "1"
 seq-macro = "0.3"
 
+arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
+bnum_0_13 = { package = "bnum", version = "0.13", default-features = false, optional = true }
 chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
+num-rational_0_4 = { package = "num-rational", version = "0.4", default-features = false, optional = true }
+num-complex_0_4 = { package = "num-complex", version = "0.4", default-features = false, optional = true }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
 ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
 time_0_3 = { package = "time", version = "0.3", default-features = false, optional = true }
-arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
-primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
-ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
 
 
 [dev-dependencies]
@@ -57,6 +71,7 @@ primitive-types_0_13 = { package = "primitive-types", version = "0.13", features
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"] }
 time_0_3 = { package = "time", version = "0.3", features = ["quickcheck"], default-features = false }
 chrono_0_4 = { package = "chrono", version = "0.4", features = ["arbitrary"], default-features = false }
+bnum_0_13 = { package = "bnum", version = "0.13", features = ["quickcheck"] }
 
 [profile.bench]
 opt-level = 3

@@ -2,8 +2,8 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use const_varint::{consume_varint, Varint};
 use primitive_types::{U128, U256, U512};
+use varing::{consume_varint, primitive_types::*, Varint};
 
 macro_rules! fuzzy {
     ($($ty:ident), +$(,)?) => {
@@ -11,6 +11,18 @@ macro_rules! fuzzy {
             paste::paste! {
                 fn [<check_ $ty:snake>](value: $ty) {
                     {
+                        {
+                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                            let encoded = [< encode_ $ty:snake _to>](&value, &mut buf).unwrap();
+                            assert!(!(encoded != [< encoded_ $ty:snake _len >] (&value) || !(encoded <= <$ty>::MAX_ENCODED_LEN)));
+
+                            let consumed = consume_varint(&buf).unwrap();
+                            assert_eq!(consumed, encoded);
+
+                            let (bytes_read, decoded) = [< decode_ $ty:snake >](&buf).unwrap();
+                            assert!(value == decoded && encoded == bytes_read);
+                        }
+
                         {
                             let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
                             let encoded_len = value.encode(&mut buf).unwrap();
