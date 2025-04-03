@@ -183,73 +183,7 @@ macro_rules! buffer {
     $(
       paste::paste! {
         #[doc = "A buffer for storing LEB128 encoded " $ty " values."]
-        #[derive(Copy, Clone, Eq)]
-        pub struct [< $ty:camel VarintBuffer >]([u8; $ty::MAX_ENCODED_LEN + 1]);
-
-        impl core::fmt::Debug for [< $ty:camel VarintBuffer >] {
-          fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            self.0[..self.len()].fmt(f)
-          }
-        }
-
-        impl PartialEq for [< $ty:camel VarintBuffer >] {
-          fn eq(&self, other: &Self) -> bool {
-            self.as_bytes().eq(other.as_bytes())
-          }
-        }
-
-        impl core::hash::Hash for [< $ty:camel VarintBuffer >] {
-          fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-            self.as_bytes().hash(state)
-          }
-        }
-
-        impl [< $ty:camel VarintBuffer >] {
-          const LAST_INDEX: usize = $ty::MAX_ENCODED_LEN;
-
-          #[allow(dead_code)]
-          #[inline]
-          const fn new(mut val: $ty) -> Self {
-            let mut buf = [0; $ty::MAX_ENCODED_LEN + 1];
-            let mut_buf = &mut buf;
-            let len = encode_varint!(mut_buf[val]);
-            buf[Self::LAST_INDEX] = len as u8;
-            Self(buf)
-          }
-
-          /// Returns the number of bytes in the buffer.
-          #[inline]
-          #[allow(clippy::len_without_is_empty)]
-          pub const fn len(&self) -> usize {
-            self.0[Self::LAST_INDEX] as usize
-          }
-
-          /// Extracts a slice from the buffer.
-          #[inline]
-          pub const fn as_bytes(&self) -> &[u8] {
-            self.0.split_at(self.len()).0
-          }
-        }
-
-        impl core::ops::Deref for [< $ty:camel VarintBuffer >] {
-          type Target = [u8];
-
-          fn deref(&self) -> &Self::Target {
-            &self.0[..self.len()]
-          }
-        }
-
-        impl core::borrow::Borrow<[u8]> for [< $ty:camel VarintBuffer >] {
-          fn borrow(&self) -> &[u8] {
-            self
-          }
-        }
-
-        impl AsRef<[u8]> for [< $ty:camel VarintBuffer >] {
-          fn as_ref(&self) -> &[u8] {
-            self
-          }
-        }
+        pub type [< $ty:camel VarintBuffer >] = $crate::utils::Buffer<{ $ty::MAX_ENCODED_LEN + 1 }>;
       }
     )*
   };
@@ -261,15 +195,19 @@ macro_rules! encode {
       paste::paste! {
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _varint >](x: [< u $ty >]) -> [< U $ty:camel VarintBuffer >] {
-          [< U $ty:camel VarintBuffer >]::new(x)
+        pub const fn [< encode_ u $ty _varint >](mut x: [< u $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
+          let mut buf = [0; [<u $ty>]::MAX_ENCODED_LEN + 1];
+          let mut_buf = &mut buf;
+          let len = encode_varint!(mut_buf[x]);
+          buf[$crate::utils::Buffer::<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
+          $crate::utils::Buffer::new(buf)
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> [< I $ty:camel VarintBuffer >] {
+        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
           let x = utils::[< zigzag_encode_i $ty>](x);
-          [< I $ty:camel VarintBuffer >]([< U $ty:camel VarintBuffer >]::new(x as [< u $ty >]).0)
+          [< encode_ u $ty _varint >](x as [< u $ty >])
         }
 
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
@@ -321,56 +259,8 @@ impl_varint!(8, 16, 32, 64, 128,);
 varint_len!(u8, u16, u32,);
 varint_len!(@zigzag i8, i16, i32,);
 buffer!(u8, u16, u32, u64, u128, i16, i32, i64, i128);
-encode!(128, 64, 32, 16);
+encode!(128, 64, 32, 16, 8);
 decode!(128, 64, 32, 16, 8);
-
-#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_u8_varint_to(mut x: u8, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  encode_varint!(@to_buf u8::buf[x])
-}
-
-#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_i8_varint_to(orig: i8, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  let mut n = utils::zigzag_encode_i8(orig);
-  let mut i = 0;
-
-  while n > 0x7F {
-    if i >= buf.len() {
-      return Err(EncodeError::underflow(
-        encoded_i8_varint_len(orig),
-        buf.len(),
-      ));
-    }
-
-    // Store 7 bits and set the high bit to indicate more bytes follow
-    buf[i] = (n & 0x7F) | 0x80;
-    i += 1;
-    n >>= 7;
-  }
-
-  // Check buffer capacity before writing final byte
-  if i >= buf.len() {
-    return Err(EncodeError::underflow(i + 1, buf.len()));
-  }
-
-  buf[i] = n;
-  Ok(i + 1)
-}
-
-#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_u8_varint(x: u8) -> U8VarintBuffer {
-  U8VarintBuffer::new(x)
-}
-
-#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_i8_varint(x: i8) -> I8VarintBuffer {
-  let x = utils::zigzag_encode_i8(x);
-  I8VarintBuffer(U8VarintBuffer::new(x).0)
-}
 
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
@@ -570,78 +460,6 @@ impl DecodeError {
   #[inline]
   pub const fn custom(msg: &'static str) -> Self {
     Self::Custom(msg)
-  }
-}
-
-///A buffer for storing LEB128 encoded i8 values.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct I8VarintBuffer([u8; i8::MAX_ENCODED_LEN + 1]);
-
-impl core::fmt::Debug for I8VarintBuffer {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    self.0[..self.len()].fmt(f)
-  }
-}
-impl I8VarintBuffer {
-  const LAST_INDEX: usize = i8::MAX_ENCODED_LEN;
-  #[allow(dead_code)]
-  #[inline]
-  const fn new(val: i8) -> Self {
-    let mut buf = [0; i8::MAX_ENCODED_LEN + 1];
-    let mut_buf = &mut buf;
-    let len = {
-      let mut n = utils::zigzag_encode_i8(val);
-
-      let mut i = 0;
-      while n > 0x7F {
-        if i >= mut_buf.len() {
-          panic!("insufficient buffer capacity");
-        }
-
-        // Store 7 bits and set the high bit to indicate more bytes follow
-        mut_buf[i] = (n & 0x7F) | 0x80;
-        i += 1;
-        n >>= 7;
-      }
-
-      // Check buffer capacity before writing final byte
-      if i >= mut_buf.len() {
-        panic!("insufficient buffer capacity");
-      }
-
-      mut_buf[i] = n;
-      i + 1
-    };
-    buf[Self::LAST_INDEX] = len as u8;
-    Self(buf)
-  }
-  /// Returns the number of bytes in the buffer.
-  #[inline]
-  #[allow(clippy::len_without_is_empty)]
-  pub const fn len(&self) -> usize {
-    self.0[Self::LAST_INDEX] as usize
-  }
-  /// Extracts a slice from the buffer.
-  #[inline]
-  pub const fn as_bytes(&self) -> &[u8] {
-    self.0.split_at(self.len()).0
-  }
-}
-
-impl core::ops::Deref for I8VarintBuffer {
-  type Target = [u8];
-  fn deref(&self) -> &Self::Target {
-    &self.0[..self.len()]
-  }
-}
-impl core::borrow::Borrow<[u8]> for I8VarintBuffer {
-  fn borrow(&self) -> &[u8] {
-    self
-  }
-}
-impl AsRef<[u8]> for I8VarintBuffer {
-  fn as_ref(&self) -> &[u8] {
-    self
   }
 }
 

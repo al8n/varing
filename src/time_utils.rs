@@ -2,7 +2,7 @@ use crate::{
   decode_i128_varint, decode_i32_varint, decode_u128_varint, decode_u64_varint,
   encode_i128_varint_to, encode_i32_varint_to, encode_u128_varint, encode_u128_varint_to,
   encode_u64_varint_to, encoded_i128_varint_len, encoded_i32_varint_len, encoded_u128_varint_len,
-  encoded_u64_varint_len, DecodeError, EncodeError, U128VarintBuffer,
+  encoded_u64_varint_len, utils::Buffer, DecodeError, EncodeError, U128VarintBuffer,
 };
 
 #[inline]
@@ -305,86 +305,20 @@ pub(crate) const fn decode_secs_and_subsec_nanos(
   }
 }
 
-macro_rules! time_buffer {
-  ($(
-    $(#[$meta:meta])*
-    $ty:ident($len: literal)
-  ),+$(,)?) => {
-    $(
-      $(#[$meta])*
-      pub struct $ty([u8; { $len + 1 }]);
+/// A buffer for storing LEB128 encoded [`NaiveDate`] or [`Date`] value.
+///
+/// [`NaiveDate`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDate.html
+/// [`Date`]: https://docs.rs/time/latest/time/struct.Date.html
+pub type DateBuffer = Buffer<{ 5 + 1 }>;
 
-      impl AsRef<[u8]> for $ty {
-        #[inline]
-        fn as_ref(&self) -> &[u8] {
-          self
-        }
-      }
+/// A buffer for storing LEB128 encoded [`NaiveTime`] or [`Time`] value.
+///
+/// [`NaiveTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveTime.html
+/// [`Time`]: https://docs.rs/time/latest/time/struct.Time.html
+pub type TimeBuffer = Buffer<{ 7 + 1 }>;
 
-      impl core::ops::Deref for $ty {
-        type Target = [u8];
-
-        #[inline]
-        fn deref(&self) -> &Self::Target {
-          let len = self.0[$len] as usize;
-          &self.0[..len]
-        }
-      }
-
-      impl core::borrow::Borrow<[u8]> for $ty {
-        #[inline]
-        fn borrow(&self) -> &[u8] {
-          self
-        }
-      }
-
-      impl $ty {
-        pub(crate) const CAPACITY: usize = $len;
-
-        pub(crate) const fn new(buffer: [u8; { $len + 1 }]) -> Self {
-          Self(buffer)
-        }
-
-        /// Returns the length of buffer.
-        #[inline]
-        pub const fn len(&self) -> usize {
-          self.0[$len] as usize
-        }
-
-        /// Returns `true` if the buffer is empty.
-        #[inline]
-        pub const fn is_empty(&self) -> bool {
-          self.0[$len] == 0
-        }
-
-        /// Returns the buffer as a slice.
-        #[inline]
-        pub const fn as_slice(&self) -> &[u8] {
-          let (data, _) = self.0.split_at($len);
-          data
-        }
-      }
-    )*
-  };
-}
-
-time_buffer!(
-  /// A buffer for storing LEB128 encoded [`NaiveDate`] or [`Date`] value.
-  ///
-  /// [`NaiveDate`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDate.html
-  /// [`Date`]: https://docs.rs/time/latest/time/struct.Date.html
-  #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-  DateBuffer(5),
-  /// A buffer for storing LEB128 encoded [`NaiveTime`] or [`Time`] value.
-  ///
-  /// [`NaiveTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveTime.html
-  /// [`Time`]: https://docs.rs/time/latest/time/struct.Time.html
-  #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-  TimeBuffer(7),
-  /// A buffer for storing LEB128 encoded [`NaiveDateTime`] or [`PrimitiveDateTime`] value.
-  ///
-  /// [`NaiveDateTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDateTime.html
-  /// [`PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
-  #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-  DateTimeBuffer(12),
-);
+/// A buffer for storing LEB128 encoded [`NaiveDateTime`] or [`PrimitiveDateTime`] value.
+///
+/// [`NaiveDateTime`]: https://docs.rs/chrono/latest/chrono/struct.NaiveDateTime.html
+/// [`PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
+pub type DateTimeBuffer = Buffer<{ 12 + 1 }>;
