@@ -24,7 +24,7 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 varing = "0.5"
 ```
 
-## Features
+## Optional Features
 
 - [`arbitrary-int`]: Support encode/decode [`arbitrary-int`] types by using LEB128.
 - [`bnum`]: Support encode/decode [`bnum`] types by using LEB128.
