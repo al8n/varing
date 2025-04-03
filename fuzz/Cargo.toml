@@ -12,6 +12,7 @@ ethereum-types = ["dep:ethereum-types", "varing/ethereum-types"]
 primitive-types = ["dep:primitive-types", "varing/primitive-types"]
 ruint = ["dep:ruint", "varing/ruint"]
 chrono = ["dep:chrono", "varing/chrono"]
+chrono-tz = ["dep:chrono-tz", "varing/chrono-tz"]
 time = ["dep:time", "chrono", "varing/time"]
 arbitrary-int = ["dep:arbitrary-int", "varing/arbitrary-int"]
 num-rational = ["dep:num-rational", "varing/num-rational"]
@@ -27,6 +28,7 @@ ethereum-types = { version = "0.15", features = ["arbitrary"], optional = true }
 primitive-types = { version = "0.13", features = ["arbitrary"], optional = true }
 ruint = { version = "1", features = ["arbitrary", "num-traits"], optional = true }
 chrono = { version = "0.4", optional = true, features = ["arbitrary"] }
+chrono-tz = { version = "0.10", optional = true, features = ["arbitrary"] }
 time = { version = "0.3", optional = true, features = ["large-dates"] }
 num-traits = { version = "0.2" }
 bnum = { version = "0.13", optional = true, features = ["arbitrary"] }
@@ -84,6 +86,14 @@ test = false
 doc = false
 bench = false
 required-features = ["chrono"]
+
+[[bin]]
+name = "chrono-tz"
+path = "fuzz_targets/chrono_tz.rs"
+test = false
+doc = false
+bench = false
+required-features = ["chrono-tz"]
 
 [[bin]]
 name = "time"
