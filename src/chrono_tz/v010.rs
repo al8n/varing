@@ -1,15 +1,15 @@
 use chrono_tz_0_10::{Tz, TZ_VARIANTS};
 
 use crate::{
-  decode_u16_varint, encode_u16_varint_to, encoded_u16_varint_len, utils::Buffer, DecodeError,
+  decode_i16_varint, encode_i16_varint_to, encoded_i16_varint_len, utils::Buffer, DecodeError,
   EncodeError, Varint,
 };
 
-const TZ_VALUES: [u16; TZ_VARIANTS.len()] = const {
+const TZ_VALUES: [i16; TZ_VARIANTS.len()] = const {
   let mut values = [0; TZ_VARIANTS.len()];
   let mut i = 0;
   while i < TZ_VARIANTS.len() {
-    values[i] = TZ_VARIANTS[i] as u16;
+    values[i] = TZ_VARIANTS[i] as i16;
     i += 1;
   }
   values
@@ -18,7 +18,7 @@ const TZ_VALUES: [u16; TZ_VARIANTS.len()] = const {
 /// Returns the length of the encoded timezone value.
 #[inline]
 pub const fn encoded_tz_len(tz: Tz) -> usize {
-  encoded_u16_varint_len(tz as u16)
+  encoded_i16_varint_len(tz as i16)
 }
 
 /// Encodes the timezone value into the buffer.
@@ -26,7 +26,7 @@ pub const fn encoded_tz_len(tz: Tz) -> usize {
 /// Returns the number of bytes written to the buffer.
 #[inline]
 pub const fn encode_tz_to(tz: Tz, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  encode_u16_varint_to(tz as u16, buf)
+  encode_i16_varint_to(tz as i16, buf)
 }
 
 /// Encodes the timezone value into the buffer.
@@ -48,7 +48,7 @@ pub const fn encode_tz(tz: Tz) -> Buffer<{ Tz::MAX_ENCODED_LEN + 1 }> {
 /// Returns the number of bytes read and the decoded timezone value.
 #[inline]
 pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), DecodeError> {
-  match decode_u16_varint(buf) {
+  match decode_i16_varint(buf) {
     Ok((len, tz)) => {
       let mut i = 0;
       let mut found = None;
@@ -72,9 +72,9 @@ pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), DecodeError> {
 }
 
 impl Varint for Tz {
-  const MIN_ENCODED_LEN: usize = u16::MIN_ENCODED_LEN;
+  const MIN_ENCODED_LEN: usize = i16::MIN_ENCODED_LEN;
 
-  const MAX_ENCODED_LEN: usize = encoded_u16_varint_len(TZ_VALUES.len() as u16);
+  const MAX_ENCODED_LEN: usize = encoded_i16_varint_len(TZ_VALUES.len() as i16);
 
   #[inline]
   fn encoded_len(&self) -> usize {
@@ -112,7 +112,7 @@ mod tests {
 
   impl Arbitrary for Tz {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-      let val = u16::arbitrary(g) % super::TZ_VARIANTS.len() as u16;
+      let val = i16::arbitrary(g) % super::TZ_VARIANTS.len() as i16;
       let idx = TZ_VALUES.iter().position(|&v| v == val).unwrap();
       Self(TZ_VARIANTS[idx])
     }
