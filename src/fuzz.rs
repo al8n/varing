@@ -138,7 +138,7 @@ macro_rules! fuzzy {
   }
 
 fuzzy!(@varing(u8 => varint, u16 => varint, u32 => varint, u64 => varint, u128 => varint, i8 => varint, i16 => varint, i32 => varint, i64 => varint, i128 => varint));
-fuzzy!(@varint(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128));
+fuzzy!(@varint(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, bool));
 
 #[cfg(feature = "std")]
 mod with_std {

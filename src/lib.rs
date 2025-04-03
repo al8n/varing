@@ -451,6 +451,35 @@ impl DecodeError {
   }
 }
 
+impl Varint for bool {
+  const MIN_ENCODED_LEN: usize = 1;
+
+  const MAX_ENCODED_LEN: usize = 1;
+
+  #[inline]
+  fn encoded_len(&self) -> usize {
+    encoded_u8_varint_len(*self as u8)
+  }
+
+  #[inline]
+  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+    encode_u8_varint_to(*self as u8, buf)
+  }
+
+  #[inline]
+  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  where
+    Self: Sized,
+  {
+    decode_u8_varint(buf).and_then(|(bytes_read, value)| {
+      if value > 1 {
+        return Err(DecodeError::custom("invalid boolean value"));
+      }
+      Ok((bytes_read, value != 0))
+    })
+  }
+}
+
 #[cfg(test)]
 #[macro_use]
 mod fuzz;
