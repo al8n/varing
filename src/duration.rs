@@ -1,12 +1,11 @@
+use crate::utils::Buffer;
+
 use super::{
   decode_u128_varint, encode_u128_varint, encode_u128_varint_to, encoded_u128_varint_len,
-  DecodeError, EncodeError, U128VarintBuffer, Varint,
+  DecodeError, EncodeError, Varint,
 };
 
 use core::time::Duration;
-
-/// A buffer for storing LEB128 encoded [`Duration`] value.
-pub type DurationBuffer = U128VarintBuffer;
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`Duration::ENCODED_LEN_RANGE`].
@@ -19,7 +18,7 @@ pub const fn encoded_duration_len(duration: &Duration) -> usize {
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_duration(duration: &Duration) -> DurationBuffer {
+pub const fn encode_duration(duration: &Duration) -> Buffer<{ Duration::MAX_ENCODED_LEN + 1 }> {
   // Use lower 96 bits: 64 for seconds, 32 for nanos
   let value = ((duration.as_secs() as u128) << 32) | (duration.subsec_nanos() as u128);
   encode_u128_varint(value)

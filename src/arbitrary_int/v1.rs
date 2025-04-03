@@ -2,82 +2,22 @@ use arbitrary_int_1::*;
 
 use crate::*;
 
-macro_rules! generate_fns {
+macro_rules! generate {
+  ($($storage:ident($start:literal..=$end:literal)), +$(,)?) => {
+    $(
+      seq_macro::seq!(N in $start..=$end {
+        generate!($storage(
+          #(
+            u~N,
+          )*
+        ));
+      });
+    )*
+  };
   ($($underlying:ident($($inner:ident), +$(,)?)),+$(,)?) => {
     $(
       $(
         paste::paste! {
-          #[doc = "A buffer for storing LEB128 encoded " $inner " values."]
-          #[derive(Copy, Clone, Eq)]
-          pub struct [< $inner:camel VarintBuffer >]([u8; $inner::MAX_ENCODED_LEN + 1]);
-
-          impl PartialEq for [< $inner:camel VarintBuffer >] {
-            fn eq(&self, other: &Self) -> bool {
-              self.as_bytes().eq(other.as_bytes())
-            }
-          }
-
-          impl core::hash::Hash for [< $inner:camel VarintBuffer >] {
-            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-              self.as_bytes().hash(state)
-            }
-          }
-
-          impl core::fmt::Debug for [< $inner:camel VarintBuffer >] {
-            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-              self.0[..self.len()].fmt(f)
-            }
-          }
-
-          impl [< $inner:camel VarintBuffer >] {
-            const LAST_INDEX: usize = $inner::MAX_ENCODED_LEN;
-
-            #[allow(dead_code)]
-            #[inline]
-            const fn new(val: $inner) -> Self {
-              let mut buf = [0; $inner::MAX_ENCODED_LEN + 1];
-              let len = match [< encode_ $inner _varint_to >](val, &mut buf) {
-                Ok(len) => len,
-                Err(_) => panic!("buffer should be large enough"),
-              };
-              buf[Self::LAST_INDEX] = len as u8;
-              Self(buf)
-            }
-
-            /// Returns the number of bytes in the buffer.
-            #[inline]
-            #[allow(clippy::len_without_is_empty)]
-            pub const fn len(&self) -> usize {
-              self.0[Self::LAST_INDEX] as usize
-            }
-
-            /// Extracts a slice from the buffer.
-            #[inline]
-            pub const fn as_bytes(&self) -> &[u8] {
-              self.0.split_at(self.len()).0
-            }
-          }
-
-          impl core::ops::Deref for [< $inner:camel VarintBuffer >] {
-            type Target = [u8];
-
-            fn deref(&self) -> &Self::Target {
-              &self.0[..self.len()]
-            }
-          }
-
-          impl core::borrow::Borrow<[u8]> for [< $inner:camel VarintBuffer >] {
-            fn borrow(&self) -> &[u8] {
-              self
-            }
-          }
-
-          impl AsRef<[u8]> for [< $inner:camel VarintBuffer >] {
-            fn as_ref(&self) -> &[u8] {
-              self
-            }
-          }
-
           impl Varint for $inner {
             const MIN_ENCODED_LEN: usize = [< encoded_ $inner _varint_len >]($inner::MIN);
             const MAX_ENCODED_LEN: usize = [< encoded_ $inner _varint_len >]($inner::MAX);
@@ -106,8 +46,14 @@ macro_rules! generate_fns {
 
           #[doc = "Encodes an `" $inner "` value into LEB128 variable length format, and writes it to the buffer."]
           #[inline]
-          pub const fn [< encode_ $inner _varint >](x: $inner) -> [< $inner:camel VarintBuffer >] {
-            [< $inner:camel VarintBuffer >]::new(x)
+          pub const fn [< encode_ $inner _varint >](x: $inner) -> $crate::utils::Buffer<{ $inner::MAX_ENCODED_LEN + 1 }> {
+            let mut buf = [0; $inner::MAX_ENCODED_LEN + 1];
+            let len = match [< encode_ $inner _varint_to >](x, &mut buf) {
+              Ok(len) => len,
+              Err(_) => panic!("buffer should be large enough"),
+            };
+            buf[$crate::utils::Buffer::<{ $inner::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
+            $crate::utils::Buffer::new(buf)
           }
 
           #[doc = "Encodes an `" $inner "` value into LEB128 variable length format, and writes it to the buffer."]
@@ -132,6 +78,45 @@ macro_rules! generate_fns {
             }
           }
 
+          #[cfg(test)]
+          #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+          struct [< Fuzzy $inner:camel >]($inner);
+
+          #[cfg(test)]
+          const _: () = {
+            use quickcheck::{Arbitrary, Gen};
+
+            impl Arbitrary for [< Fuzzy $inner:camel >] {
+              fn arbitrary(g: &mut Gen) -> Self {
+                let val = loop {
+                  let val = $underlying::arbitrary(g);
+                  if val >= $inner::MIN.[<as_ $underlying>]() && val <= $inner::MAX.[<as_ $underlying>]() {
+                    break val;
+                  }
+                };
+                Self($inner::try_new(val).unwrap())
+              }
+            }
+          };
+
+          #[cfg(test)]
+          quickcheck::quickcheck! {
+            fn [< fuzzy_ $inner _varint >](x: [< Fuzzy $inner:camel >]) -> bool {
+              let x = x.0;
+              let mut buf = [0; $inner::MAX_ENCODED_LEN];
+              let len = [< encode_ $inner _varint_to >](x, &mut buf).unwrap();
+              let buffer = [< encode_ $inner _varint >](x);
+              assert_eq!(buffer.len(), len);
+              assert_eq!(buffer.as_slice(), &buf[..len]);
+
+              let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
+              assert_eq!(readed, len);
+              assert_eq!(val, x);
+
+              true
+            }
+          }
+
           #[test]
           fn [< test_ $inner _min_max_varint >]() {
             let min = $inner::MIN;
@@ -147,7 +132,7 @@ macro_rules! generate_fns {
             assert_eq!(len, min_encoded_len);
             let buffer = [< encode_ $inner _varint >](min);
             assert_eq!(buffer.len(), min_encoded_len);
-            assert_eq!(buffer.as_bytes(), &buf[..min_encoded_len]);
+            assert_eq!(buffer.as_slice(), &buf[..min_encoded_len]);
 
             let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
             assert_eq!(readed, len);
@@ -157,7 +142,7 @@ macro_rules! generate_fns {
             assert_eq!(len, max_encoded_len);
             let buffer = [< encode_ $inner _varint >](max);
             assert_eq!(buffer.len(), max_encoded_len);
-            assert_eq!(buffer.as_bytes(), &buf[..max_encoded_len]);
+            assert_eq!(buffer.as_slice(), &buf[..max_encoded_len]);
 
             let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
             assert_eq!(readed, len);
@@ -169,31 +154,10 @@ macro_rules! generate_fns {
   };
 }
 
-generate_fns!(
-  u8(u1, u2, u3, u4, u5, u6, u7),
-  u16(u9, u10, u11, u12, u13, u14, u15),
+generate!(
+  u8(1..=7),
+  u16(9..=15),
+  u32(17..=31),
+  u64(33..=63),
+  u128(65..=127),
 );
-
-seq_macro::seq!(N in 17..=31 {
-  generate_fns!(u32(
-    #(
-      u~N,
-    )*
-  ));
-});
-
-seq_macro::seq!(N in 33..=63 {
-  generate_fns!(u64(
-    #(
-      u~N,
-    )*
-  ));
-});
-
-seq_macro::seq!(N in 65..=127 {
-  generate_fns!(u128(
-    #(
-      u~N,
-    )*
-  ));
-});

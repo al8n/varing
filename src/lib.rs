@@ -178,98 +178,25 @@ macro_rules! varint_len {
   };
 }
 
-macro_rules! buffer {
-  ($($ty:ident), +$(,)?) => {
-    $(
-      paste::paste! {
-        #[doc = "A buffer for storing LEB128 encoded " $ty " values."]
-        #[derive(Copy, Clone, Eq)]
-        pub struct [< $ty:camel VarintBuffer >]([u8; $ty::MAX_ENCODED_LEN + 1]);
-
-        impl core::fmt::Debug for [< $ty:camel VarintBuffer >] {
-          fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            self.0[..self.len()].fmt(f)
-          }
-        }
-
-        impl PartialEq for [< $ty:camel VarintBuffer >] {
-          fn eq(&self, other: &Self) -> bool {
-            self.as_bytes().eq(other.as_bytes())
-          }
-        }
-
-        impl core::hash::Hash for [< $ty:camel VarintBuffer >] {
-          fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-            self.as_bytes().hash(state)
-          }
-        }
-
-        impl [< $ty:camel VarintBuffer >] {
-          const LAST_INDEX: usize = $ty::MAX_ENCODED_LEN;
-
-          #[allow(dead_code)]
-          #[inline]
-          const fn new(mut val: $ty) -> Self {
-            let mut buf = [0; $ty::MAX_ENCODED_LEN + 1];
-            let mut_buf = &mut buf;
-            let len = encode_varint!(mut_buf[val]);
-            buf[Self::LAST_INDEX] = len as u8;
-            Self(buf)
-          }
-
-          /// Returns the number of bytes in the buffer.
-          #[inline]
-          #[allow(clippy::len_without_is_empty)]
-          pub const fn len(&self) -> usize {
-            self.0[Self::LAST_INDEX] as usize
-          }
-
-          /// Extracts a slice from the buffer.
-          #[inline]
-          pub const fn as_bytes(&self) -> &[u8] {
-            self.0.split_at(self.len()).0
-          }
-        }
-
-        impl core::ops::Deref for [< $ty:camel VarintBuffer >] {
-          type Target = [u8];
-
-          fn deref(&self) -> &Self::Target {
-            &self.0[..self.len()]
-          }
-        }
-
-        impl core::borrow::Borrow<[u8]> for [< $ty:camel VarintBuffer >] {
-          fn borrow(&self) -> &[u8] {
-            self
-          }
-        }
-
-        impl AsRef<[u8]> for [< $ty:camel VarintBuffer >] {
-          fn as_ref(&self) -> &[u8] {
-            self
-          }
-        }
-      }
-    )*
-  };
-}
-
 macro_rules! encode {
   ($($ty:literal), +$(,)?) => {
     $(
       paste::paste! {
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _varint >](x: [< u $ty >]) -> [< U $ty:camel VarintBuffer >] {
-          [< U $ty:camel VarintBuffer >]::new(x)
+        pub const fn [< encode_ u $ty _varint >](mut x: [< u $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
+          let mut buf = [0; [<u $ty>]::MAX_ENCODED_LEN + 1];
+          let mut_buf = &mut buf;
+          let len = encode_varint!(mut_buf[x]);
+          buf[$crate::utils::Buffer::<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
+          $crate::utils::Buffer::new(buf)
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> [< I $ty:camel VarintBuffer >] {
+        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
           let x = utils::[< zigzag_encode_i $ty>](x);
-          [< I $ty:camel VarintBuffer >]([< U $ty:camel VarintBuffer >]::new(x as [< u $ty >]).0)
+          [< encode_ u $ty _varint >](x as [< u $ty >])
         }
 
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
@@ -320,57 +247,8 @@ macro_rules! decode {
 impl_varint!(8, 16, 32, 64, 128,);
 varint_len!(u8, u16, u32,);
 varint_len!(@zigzag i8, i16, i32,);
-buffer!(u8, u16, u32, u64, u128, i16, i32, i64, i128);
-encode!(128, 64, 32, 16);
+encode!(128, 64, 32, 16, 8);
 decode!(128, 64, 32, 16, 8);
-
-#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_u8_varint_to(mut x: u8, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  encode_varint!(@to_buf u8::buf[x])
-}
-
-#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_i8_varint_to(orig: i8, buf: &mut [u8]) -> Result<usize, EncodeError> {
-  let mut n = utils::zigzag_encode_i8(orig);
-  let mut i = 0;
-
-  while n > 0x7F {
-    if i >= buf.len() {
-      return Err(EncodeError::underflow(
-        encoded_i8_varint_len(orig),
-        buf.len(),
-      ));
-    }
-
-    // Store 7 bits and set the high bit to indicate more bytes follow
-    buf[i] = (n & 0x7F) | 0x80;
-    i += 1;
-    n >>= 7;
-  }
-
-  // Check buffer capacity before writing final byte
-  if i >= buf.len() {
-    return Err(EncodeError::underflow(i + 1, buf.len()));
-  }
-
-  buf[i] = n;
-  Ok(i + 1)
-}
-
-#[doc = "Encodes an `u8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_u8_varint(x: u8) -> U8VarintBuffer {
-  U8VarintBuffer::new(x)
-}
-
-#[doc = "Encodes an `i8` value into LEB128 variable length format, and writes it to the buffer."]
-#[inline]
-pub const fn encode_i8_varint(x: i8) -> I8VarintBuffer {
-  let x = utils::zigzag_encode_i8(x);
-  I8VarintBuffer(U8VarintBuffer::new(x).0)
-}
 
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
@@ -573,218 +451,41 @@ impl DecodeError {
   }
 }
 
-///A buffer for storing LEB128 encoded i8 values.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct I8VarintBuffer([u8; i8::MAX_ENCODED_LEN + 1]);
+impl Varint for bool {
+  const MIN_ENCODED_LEN: usize = 1;
 
-impl core::fmt::Debug for I8VarintBuffer {
-  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-    self.0[..self.len()].fmt(f)
-  }
-}
-impl I8VarintBuffer {
-  const LAST_INDEX: usize = i8::MAX_ENCODED_LEN;
-  #[allow(dead_code)]
+  const MAX_ENCODED_LEN: usize = 1;
+
   #[inline]
-  const fn new(val: i8) -> Self {
-    let mut buf = [0; i8::MAX_ENCODED_LEN + 1];
-    let mut_buf = &mut buf;
-    let len = {
-      let mut n = utils::zigzag_encode_i8(val);
+  fn encoded_len(&self) -> usize {
+    encoded_u8_varint_len(*self as u8)
+  }
 
-      let mut i = 0;
-      while n > 0x7F {
-        if i >= mut_buf.len() {
-          panic!("insufficient buffer capacity");
-        }
+  #[inline]
+  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+    encode_u8_varint_to(*self as u8, buf)
+  }
 
-        // Store 7 bits and set the high bit to indicate more bytes follow
-        mut_buf[i] = (n & 0x7F) | 0x80;
-        i += 1;
-        n >>= 7;
+  #[inline]
+  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  where
+    Self: Sized,
+  {
+    decode_u8_varint(buf).and_then(|(bytes_read, value)| {
+      if value > 1 {
+        return Err(DecodeError::custom("invalid boolean value"));
       }
-
-      // Check buffer capacity before writing final byte
-      if i >= mut_buf.len() {
-        panic!("insufficient buffer capacity");
-      }
-
-      mut_buf[i] = n;
-      i + 1
-    };
-    buf[Self::LAST_INDEX] = len as u8;
-    Self(buf)
-  }
-  /// Returns the number of bytes in the buffer.
-  #[inline]
-  #[allow(clippy::len_without_is_empty)]
-  pub const fn len(&self) -> usize {
-    self.0[Self::LAST_INDEX] as usize
-  }
-  /// Extracts a slice from the buffer.
-  #[inline]
-  pub const fn as_bytes(&self) -> &[u8] {
-    self.0.split_at(self.len()).0
+      Ok((bytes_read, value != 0))
+    })
   }
 }
-
-impl core::ops::Deref for I8VarintBuffer {
-  type Target = [u8];
-  fn deref(&self) -> &Self::Target {
-    &self.0[..self.len()]
-  }
-}
-impl core::borrow::Borrow<[u8]> for I8VarintBuffer {
-  fn borrow(&self) -> &[u8] {
-    self
-  }
-}
-impl AsRef<[u8]> for I8VarintBuffer {
-  fn as_ref(&self) -> &[u8] {
-    self
-  }
-}
-
-#[cfg(any(feature = "chrono_0_4", feature = "time_0_3"))]
-mod time_utils;
 
 #[cfg(test)]
-macro_rules! fuzzy {
-  (@varing ($($ty:ty $( => $suffix:ident)? ), +$(,)?)) => {
-    paste::paste! {
-      $(
-        #[quickcheck_macros::quickcheck]
-        fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
-          let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
-            return false;
-          }
+#[macro_use]
+mod fuzz;
 
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
-            return false;
-          };
-          if consumed != encoded.len() {
-            return false;
-          }
-
-          if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
-          } else {
-            false
-          }
-        }
-      )*
-    }
-  };
-  (@const_varint_into ($($ty:ident($target:ty) $( => $suffix:ident)? ), +$(,)?)) => {
-    paste::paste! {
-      $(
-        #[quickcheck_macros::quickcheck]
-        fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
-          let value = ::core::convert::Into::into(value);
-          let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$target>::MAX_ENCODED_LEN) {
-            return false;
-          }
-
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
-            return false;
-          };
-          if consumed != encoded.len() {
-            return false;
-          }
-
-          if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
-          } else {
-            false
-          }
-        }
-      )*
-    }
-  };
-  (@varing_ref ($($ty:ty$( => $suffix:ident)?), +$(,)?)) => {
-    paste::paste! {
-      $(
-        #[quickcheck_macros::quickcheck]
-        fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
-          let encoded = [< encode_ $ty:snake $(_$suffix)? >](&value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (&value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
-            return false;
-          }
-
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
-            return false;
-          };
-          if consumed != encoded.len() {
-            return false;
-          }
-
-          if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
-          } else {
-            false
-          }
-        }
-      )*
-    }
-  };
-  (@varint($($ty:ty), +$(,)?)) => {
-    $(
-      paste::paste! {
-        #[quickcheck_macros::quickcheck]
-        fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
-          let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
-          let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
-          if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
-            return false;
-          }
-
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
-            return false;
-          };
-          if consumed != encoded_len {
-            return false;
-          }
-
-          if let Ok((bytes_read, decoded)) = <$ty>::decode(&buf) {
-            value == decoded && encoded_len == bytes_read
-          } else {
-            false
-          }
-        }
-      }
-    )*
-  };
-  (@varint_into ($($ty:ident($target:ty)), +$(,)?)) => {
-    $(
-      paste::paste! {
-        #[quickcheck_macros::quickcheck]
-        fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
-          let value: $target = ::core::convert::Into::into(value);
-          let mut buf = [0; <$target>::MAX_ENCODED_LEN];
-          let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
-          if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$target>::MAX_ENCODED_LEN) {
-            return false;
-          }
-
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
-            return false;
-          };
-          if consumed != encoded_len {
-            return false;
-          }
-
-          if let Ok((bytes_read, decoded)) = <$target>::decode(&buf) {
-            value == decoded && encoded_len == bytes_read
-          } else {
-            false
-          }
-        }
-      }
-    )*
-  };
-}
+#[cfg(test)]
+mod tests;
 
 mod non_zero;
 
@@ -831,224 +532,5 @@ pub mod ethereum_types;
 #[cfg(feature = "ruint_1")]
 mod ruint_impl;
 
-#[cfg(test)]
-mod tests {
-  extern crate std;
-
-  use super::*;
-
-  fn check(value: u64, encoded: &[u8]) {
-    let a = encode_u64_varint(value);
-    assert_eq!(a.as_ref(), encoded);
-    assert_eq!(a.len(), encoded.len());
-    assert_eq!(a.len(), encoded_u64_varint_len(value));
-
-    let (read, decoded) = decode_u64_varint(&a).unwrap();
-    assert_eq!(decoded, value);
-    assert_eq!(read, encoded.len());
-    assert_eq!(a.len(), encoded_u64_varint_len(value));
-  }
-
-  #[test]
-  fn roundtrip_u64() {
-    check(2u64.pow(0) - 1, &[0x00]);
-    check(2u64.pow(0), &[0x01]);
-
-    check(2u64.pow(7) - 1, &[0x7F]);
-    check(2u64.pow(7), &[0x80, 0x01]);
-    check(300u64, &[0xAC, 0x02]);
-
-    check(2u64.pow(14) - 1, &[0xFF, 0x7F]);
-    check(2u64.pow(14), &[0x80, 0x80, 0x01]);
-
-    check(2u64.pow(21) - 1, &[0xFF, 0xFF, 0x7F]);
-    check(2u64.pow(21), &[0x80, 0x80, 0x80, 0x01]);
-
-    check(2u64.pow(28) - 1, &[0xFF, 0xFF, 0xFF, 0x7F]);
-    check(2u64.pow(28), &[0x80, 0x80, 0x80, 0x80, 0x01]);
-
-    check(2u64.pow(35) - 1, &[0xFF, 0xFF, 0xFF, 0xFF, 0x7F]);
-    check(2u64.pow(35), &[0x80, 0x80, 0x80, 0x80, 0x80, 0x01]);
-
-    check(2u64.pow(42) - 1, &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]);
-    check(2u64.pow(42), &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01]);
-
-    check(
-      2u64.pow(49) - 1,
-      &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
-    );
-    check(
-      2u64.pow(49),
-      &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
-    );
-
-    check(
-      2u64.pow(56) - 1,
-      &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
-    );
-    check(
-      2u64.pow(56),
-      &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
-    );
-
-    check(
-      2u64.pow(63) - 1,
-      &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F],
-    );
-    check(
-      2u64.pow(63),
-      &[0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x01],
-    );
-
-    check(
-      u64::MAX,
-      &[0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x01],
-    );
-  }
-
-  #[test]
-  fn test_large_number_encode_decode() {
-    let original = 30000u64;
-    let encoded = encode_u64_varint(original);
-    let (bytes_read, decoded) = decode_u64_varint(&encoded).unwrap();
-    assert_eq!(original, decoded);
-    assert_eq!(bytes_read, encoded.len());
-  }
-
-  #[test]
-  fn test_decode_overflow_error() {
-    let buffer = [0x80u8; 11]; // More than 10 bytes
-    match decode_u64_varint(&buffer) {
-      Err(DecodeError::Overflow) => (),
-      _ => panic!("Expected Overflow error"),
-    }
-
-    let buffer = [0x80u8; 6]; // More than 5 bytes
-    match decode_u32_varint(&buffer) {
-      Err(DecodeError::Overflow) => (),
-      _ => panic!("Expected Overflow error"),
-    }
-
-    let buffer = [0x80u8; 4]; // More than 3 bytes
-    match decode_u16_varint(&buffer) {
-      Err(DecodeError::Overflow) => (),
-      _ => panic!("Expected Overflow error"),
-    }
-  }
-
-  // Helper function for zig-zag encoding and decoding
-  fn test_zigzag_encode_decode<T>(value: T)
-  where
-    T: Copy
-      + PartialEq
-      + core::fmt::Debug
-      + core::ops::Shl<Output = T>
-      + core::ops::Shr<Output = T>
-      + Into<i64>
-      + core::convert::TryInto<usize>
-      + core::convert::TryFrom<usize>,
-  {
-    let encoded = encode_i64_varint(value.into());
-    let bytes_written = encoded.len();
-
-    // Decode
-    let decode_result = decode_i64_varint(&encoded);
-    assert!(decode_result.is_ok(), "Decoding failed");
-    let (decoded_bytes, decoded_value) = decode_result.unwrap();
-
-    assert_eq!(
-      decoded_bytes, bytes_written,
-      "Incorrect number of bytes decoded"
-    );
-    assert_eq!(
-      decoded_value,
-      value.into(),
-      "Decoded value does not match original"
-    );
-  }
-
-  #[test]
-  fn test_zigzag_encode_decode_i8() {
-    let values = [-1, 0, 1, -100, 100, i8::MIN, i8::MAX];
-    for &value in &values {
-      test_zigzag_encode_decode(value);
-    }
-  }
-
-  #[test]
-  fn test_zigzag_encode_decode_i16() {
-    let values = [-1, 0, 1, -100, 100, i16::MIN, i16::MAX];
-    for &value in &values {
-      test_zigzag_encode_decode(value);
-    }
-  }
-
-  #[test]
-  fn test_zigzag_encode_decode_i32() {
-    let values = [-1, 0, 1, -10000, 10000, i32::MIN, i32::MAX];
-    for &value in &values {
-      test_zigzag_encode_decode(value);
-    }
-  }
-
-  #[test]
-  fn test_zigzag_encode_decode_i64() {
-    let values = [-1, 0, 1, -1000000000, 1000000000, i64::MIN, i64::MAX];
-    for &value in &values {
-      test_zigzag_encode_decode(value);
-    }
-  }
-}
-
-#[cfg(test)]
-mod fuzzy {
-  use super::*;
-
-  fuzzy!(@varing(u8 => varint, u16 => varint, u32 => varint, u64 => varint, u128 => varint, i8 => varint, i16 => varint, i32 => varint, i64 => varint, i128 => varint));
-  fuzzy!(@varint(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128));
-
-  #[cfg(feature = "std")]
-  mod with_std {
-    use super::*;
-
-    extern crate std;
-
-    use std::{vec, vec::Vec};
-
-    #[quickcheck_macros::quickcheck]
-    fn fuzzy_buffer_underflow(value: u64, short_len: usize) -> bool {
-      let short_len = short_len % 9; // Keep length under max varint size
-      if short_len >= value.encoded_len() {
-        return true; // Skip test if buffer is actually large enough
-      }
-      let mut short_buffer = vec![0u8; short_len];
-      matches!(
-        value.encode(&mut short_buffer),
-        Err(EncodeError::Underflow { .. })
-      )
-    }
-
-    #[quickcheck_macros::quickcheck]
-    fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
-      if bytes.is_empty() {
-        return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
-      }
-
-      // Only test sequences up to max varint length
-      if bytes.len() > 10 {
-        return true;
-      }
-
-      // If all bytes have continuation bit set, should get Underflow
-      if bytes.iter().all(|b| b & 0x80 != 0) {
-        return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
-      }
-
-      // For other cases, we should get either a valid decode or an error
-      match decode_u64_varint(&bytes) {
-        Ok(_) => true,
-        Err(_) => true,
-      }
-    }
-  }
-}
+#[cfg(any(feature = "chrono_0_4", feature = "time_0_3"))]
+mod time_utils;

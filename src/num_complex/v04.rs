@@ -46,7 +46,7 @@ macro_rules! impl_varint_for_complex {
 
         #[doc = "Encodes the `Complex<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encode_complex_ $sign $bits >](val: Complex<[< $sign $bits >]>) -> $crate::[< $merged_ty:camel VarintBuffer>] {
+        pub const fn [< encode_complex_ $sign $bits >](val: Complex<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN + 1 }> {
           $crate::[< encode_ $merged_ty _varint>] ($crate::utils::[< pack_ $sign $bits >](val.re, val.im))
         }
 

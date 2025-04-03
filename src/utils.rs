@@ -1,3 +1,87 @@
+/// A read-only buffer for storing LEB128 encoded values.
+#[derive(Debug, Copy, Clone, Eq)]
+pub struct Buffer<const N: usize>([u8; N]);
+
+impl<const N: usize> PartialEq for Buffer<N> {
+  #[inline]
+  fn eq(&self, other: &Self) -> bool {
+    self.as_slice().eq(other.as_slice())
+  }
+}
+
+impl<const N: usize> core::hash::Hash for Buffer<N> {
+  #[inline]
+  fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+    self.as_slice().hash(state)
+  }
+}
+
+impl<const N: usize> PartialOrd for Buffer<N> {
+  #[inline]
+  fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl<const N: usize> Ord for Buffer<N> {
+  #[inline]
+  fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+    self.as_slice().cmp(other.as_slice())
+  }
+}
+
+impl<const N: usize> AsRef<[u8]> for Buffer<N> {
+  #[inline]
+  fn as_ref(&self) -> &[u8] {
+    self
+  }
+}
+
+impl<const N: usize> core::ops::Deref for Buffer<N> {
+  type Target = [u8];
+
+  #[inline]
+  fn deref(&self) -> &Self::Target {
+    let len = self.0[N - 1] as usize;
+    &self.0[..len]
+  }
+}
+
+impl<const N: usize> core::borrow::Borrow<[u8]> for Buffer<N> {
+  #[inline]
+  fn borrow(&self) -> &[u8] {
+    self
+  }
+}
+
+impl<const N: usize> Buffer<N> {
+  pub(crate) const CAPACITY: usize = N - 1;
+
+  pub(crate) const fn new(buffer: [u8; N]) -> Self {
+    Self(buffer)
+  }
+
+  /// Returns the length of buffer.
+  #[inline]
+  pub const fn len(&self) -> usize {
+    self.0[Self::CAPACITY] as usize
+  }
+
+  /// Returns `true` if the buffer is empty.
+  #[inline]
+  pub const fn is_empty(&self) -> bool {
+    self.0[Self::CAPACITY] == 0
+  }
+
+  /// Returns the buffer as a slice.
+  #[inline]
+  pub const fn as_slice(&self) -> &[u8] {
+    let len = self.len();
+    let (data, _) = self.0.split_at(len);
+    data
+  }
+}
+
 /// Zigzag encode `i8` value.
 #[inline]
 pub const fn zigzag_encode_i8(value: i8) -> u8 {
