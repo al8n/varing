@@ -1,5 +1,5 @@
 /// A read-only buffer for storing LEB128 encoded values.
-#[derive(Copy, Clone, Eq)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct Buffer<const N: usize>([u8; N]);
 
 impl<const N: usize> PartialEq for Buffer<N> {
