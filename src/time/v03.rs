@@ -1,6 +1,9 @@
 use time_0_3::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
 
-use crate::{time_utils, DecodeError, EncodeError, U128VarintBuffer, Varint};
+use crate::{
+  time_utils::{self, DurationBuffer},
+  DecodeError, EncodeError, Varint,
+};
 
 pub use time_utils::{DateBuffer, DateTimeBuffer, TimeBuffer};
 
@@ -53,7 +56,7 @@ pub const fn encoded_duration_len(duration: &Duration) -> usize {
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_duration(duration: &Duration) -> U128VarintBuffer {
+pub const fn encode_duration(duration: &Duration) -> DurationBuffer {
   time_utils::encode_secs_and_subsec_nanos(duration.whole_seconds(), duration.subsec_nanoseconds())
 }
 

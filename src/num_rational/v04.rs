@@ -54,7 +54,7 @@ macro_rules! impl_varint_for_ratio {
 
         #[doc = "Encodes the `Ratio<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encode_ratio_ $sign $bits >](val: Ratio<[< $sign $bits >]>) -> $crate::[< $merged_ty:camel VarintBuffer>] {
+        pub const fn [< encode_ratio_ $sign $bits >](val: Ratio<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN + 1 }> {
           $encode_fn ($crate::utils::[< pack_ $sign $bits >](*val.numer(), *val.denom()))
         }
 

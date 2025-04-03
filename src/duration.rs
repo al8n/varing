@@ -1,12 +1,11 @@
+use crate::time_utils::DurationBuffer;
+
 use super::{
   decode_u128_varint, encode_u128_varint, encode_u128_varint_to, encoded_u128_varint_len,
-  DecodeError, EncodeError, U128VarintBuffer, Varint,
+  DecodeError, EncodeError, Varint,
 };
 
 use core::time::Duration;
-
-/// A buffer for storing LEB128 encoded [`Duration`] value.
-pub type DurationBuffer = U128VarintBuffer;
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`Duration::ENCODED_LEN_RANGE`].

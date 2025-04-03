@@ -1,10 +1,12 @@
+use crate::utils::Buffer;
+
 use super::{
   decode_u32_varint, encode_u32_varint, encode_u32_varint_to, encoded_u32_varint_len, DecodeError,
-  EncodeError, U32VarintBuffer, Varint,
+  EncodeError, Varint,
 };
 
 /// A buffer for storing LEB128 encoded [`char`] value.
-pub type CharBuffer = U32VarintBuffer;
+pub type CharBuffer = Buffer<{ u32::MAX_ENCODED_LEN + 1 }>;
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`char::ENCODED_LEN_RANGE`].

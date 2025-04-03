@@ -2,7 +2,7 @@ use crate::{
   decode_i128_varint, decode_i32_varint, decode_u128_varint, decode_u64_varint,
   encode_i128_varint_to, encode_i32_varint_to, encode_u128_varint, encode_u128_varint_to,
   encode_u64_varint_to, encoded_i128_varint_len, encoded_i32_varint_len, encoded_u128_varint_len,
-  encoded_u64_varint_len, utils::Buffer, DecodeError, EncodeError, U128VarintBuffer,
+  encoded_u64_varint_len, utils::Buffer, DecodeError, EncodeError,
 };
 
 #[inline]
@@ -272,7 +272,7 @@ pub(crate) const fn merged_to_secs_and_subsec_nanos(merged: u128) -> (i64, i32) 
 }
 
 #[inline]
-pub(crate) const fn encode_secs_and_subsec_nanos(secs: i64, nanos: i32) -> U128VarintBuffer {
+pub(crate) const fn encode_secs_and_subsec_nanos(secs: i64, nanos: i32) -> Buffer<{ 19 + 1 }> {
   encode_u128_varint(secs_and_subsec_nanos_to_merged(secs, nanos))
 }
 
@@ -304,6 +304,13 @@ pub(crate) const fn decode_secs_and_subsec_nanos(
     Err(e) => Err(e),
   }
 }
+
+/// A buffer for storing LEB128 encoded [`Duration`] value.
+///
+/// [`core::time::Duration`]: std::time::Duration
+/// [`chrono::Duration`]: chrono::Duration
+/// [`time::Duration`]: time::Duration
+pub type DurationBuffer = Buffer<{ <u128 as crate::Varint>::MAX_ENCODED_LEN + 1 }>;
 
 /// A buffer for storing LEB128 encoded [`NaiveDate`] or [`Date`] value.
 ///
