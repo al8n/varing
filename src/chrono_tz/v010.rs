@@ -112,7 +112,7 @@ mod tests {
 
   impl Arbitrary for Tz {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-      let val = i16::arbitrary(g) % super::TZ_VARIANTS.len() as i16;
+      let val = (u16::arbitrary(g) % super::TZ_VARIANTS.len() as u16) as i16;
       let idx = TZ_VALUES.iter().position(|&v| v == val).unwrap();
       Self(TZ_VARIANTS[idx])
     }
