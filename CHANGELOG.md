@@ -1,5 +1,12 @@
 # RELEASED
 
+## 0.5.0 (Apr 3rd, 2025)
+
+FEATURES
+
+- Cleanup `*Buffer` to const generic `Buffer<N>`
+- Add `chrono-tz` support
+
 ## 0.4.1 (Mar 29th, 2025)
 
 FEATURES

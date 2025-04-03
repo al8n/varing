@@ -128,6 +128,24 @@ jobs:
           cargo fuzz build
           cargo fuzz run chrono --features chrono -- -max_total_time=300
 
+  fuzz-chrono-tz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run chrono-tz --features chrono-tz -- -max_total_time=300
+
   fuzz-time:
     runs-on: ubuntu-latest
     steps:
@@ -199,6 +217,7 @@ jobs:
         run: |
           cargo fuzz build
           cargo fuzz run arbitrary-int --features arbitrary-int -- -max_total_time=300
+
   fuzz-bnum:
     runs-on: ubuntu-latest
     steps:

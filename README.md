@@ -29,12 +29,13 @@ varing = "0.5"
 - [`arbitrary-int`]: Support encode/decode [`arbitrary-int`] types by using LEB128.
 - [`bnum`]: Support encode/decode [`bnum`] types by using LEB128.
 - [`chrono`]: Support encode/decode [`chrono`] types by using LEB128 (not fully compatible in `const` context).
+- [`chrono-tz`]: Support encode/decode [`chrono-tz`] types by using LEB128.
+- [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
 - [`num-complex`]: Support encode/decode [`num-complex`] types by using LEB128.
 - [`num-rational`]: Support encode/decode [`num-rational`] types by using LEB128.
+- [`primitive-types`]: Support encode/decode [`primitive-types`] types by using LEB128.
 - [`ruint`]: Support encode/decode [`ruint`] types by using LEB128 (not compatible in `const` context).
 - [`time`]: Support encode/decode [`time`] types by using LEB128.
-- [`primitive-types`]: Support encode/decode [`primitive-types`] types by using LEB128.
-- [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
 
 ## Testing
 
@@ -58,6 +59,7 @@ Copyright (c) 2025 Al Liu.
 [`arbitrary-int`]: https://docs.rs/arbitrary-int
 [`bnum`]: https://docs.rs/bnum
 [`chrono`]: https://docs.rs/chrono
+[`chrono-tz`]: https://docs.rs/chrono-tz
 [`num-complex`]: https://docs.rs/num-complex
 [`num-rational`]: https://docs.rs/num-rational
 [`ruint`]: https://docs.rs/ruint

@@ -514,6 +514,11 @@ pub mod bnum;
 #[cfg_attr(docsrs, doc(cfg(feature = "chrono_0_4")))]
 pub mod chrono;
 
+/// LEB128 encoding/decoding for [`chrono-tz`](https://crates.io/crates/chrono-tz) types.
+#[cfg(feature = "chrono-tz_0_10")]
+#[cfg_attr(docsrs, doc(cfg(feature = "chrono-tz_0_10")))]
+pub mod chrono_tz;
+
 /// LEB128 encoding/decoding for [`time`](https://crates.io/crates/time) types.
 #[cfg(feature = "time_0_3")]
 #[cfg_attr(docsrs, doc(cfg(feature = "time_0_3")))]

@@ -44,6 +44,9 @@ bnum = ["bnum_0_13"]
 chrono_0_4 = ["dep:chrono_0_4"]
 chrono = ["chrono_0_4"]
 
+chrono-tz_0_10 = ["dep:chrono-tz_0_10"]
+chrono-tz = ["chrono-tz_0_10"]
+
 time_0_3 = ["dep:time_0_3"]
 time = ["time_0_3"]
 
@@ -55,6 +58,7 @@ seq-macro = "0.3"
 arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
 bnum_0_13 = { package = "bnum", version = "0.13", default-features = false, optional = true }
 chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
+chrono-tz_0_10 = { package = "chrono-tz", version = "0.10", default-features = false, optional = true }
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
 num-rational_0_4 = { package = "num-rational", version = "0.4", default-features = false, optional = true }
 num-complex_0_4 = { package = "num-complex", version = "0.4", default-features = false, optional = true }
@@ -67,10 +71,11 @@ time_0_3 = { package = "time", version = "0.3", default-features = false, option
 quickcheck = "1"
 quickcheck_macros = "1"
 ruint_1 = { package = "ruint", version = "1", features = ["arbitrary", "quickcheck"] }
-primitive-types_0_13 = { package = "primitive-types", version = "0.13", features = ["arbitrary"] }
-ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"] }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13" }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15" }
 time_0_3 = { package = "time", version = "0.3", features = ["quickcheck"], default-features = false }
-chrono_0_4 = { package = "chrono", version = "0.4", features = ["arbitrary"], default-features = false }
+chrono_0_4 = { package = "chrono", version = "0.4", default-features = false }
+chrono-tz_0_10 = { package = "chrono-tz", version = "0.10", default-features = false }
 bnum_0_13 = { package = "bnum", version = "0.13", features = ["quickcheck"] }
 
 [profile.bench]
