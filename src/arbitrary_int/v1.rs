@@ -2,7 +2,18 @@ use arbitrary_int_1::*;
 
 use crate::*;
 
-macro_rules! generate_fns {
+macro_rules! generate {
+  ($($storage:ident($start:literal..=$end:literal)), +$(,)?) => {
+    $(
+      seq_macro::seq!(N in $start..=$end {
+        generate!($storage(
+          #(
+            u~N,
+          )*
+        ));
+      });
+    )*
+  };
   ($($underlying:ident($($inner:ident), +$(,)?)),+$(,)?) => {
     $(
       $(
@@ -143,31 +154,10 @@ macro_rules! generate_fns {
   };
 }
 
-generate_fns!(
-  u8(u1, u2, u3, u4, u5, u6, u7),
-  u16(u9, u10, u11, u12, u13, u14, u15),
+generate!(
+  u8(1..=7),
+  u16(9..=15),
+  u32(17..=31),
+  u64(33..=63),
+  u128(65..=127),
 );
-
-seq_macro::seq!(N in 17..=31 {
-  generate_fns!(u32(
-    #(
-      u~N,
-    )*
-  ));
-});
-
-seq_macro::seq!(N in 33..=63 {
-  generate_fns!(u64(
-    #(
-      u~N,
-    )*
-  ));
-});
-
-seq_macro::seq!(N in 65..=127 {
-  generate_fns!(u128(
-    #(
-      u~N,
-    )*
-  ));
-});
