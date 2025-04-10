@@ -1,5 +1,5 @@
-use arbitrary_int_1::*;
 use super::super::Packable;
+use arbitrary_int_1::*;
 
 macro_rules! impl_packable {
   ($($storage:literal), +$(,)?) => {

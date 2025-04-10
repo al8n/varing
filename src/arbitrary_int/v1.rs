@@ -182,7 +182,7 @@ macro_rules! generate {
           {
             [< decode_uint_d $storage >](buf)
           }
-        } 
+        }
       )*
     }
   };
@@ -196,10 +196,4 @@ generate!(
   u128(65..=127),
 );
 
-generate!(
-  8,
-  16,
-  32,
-  64,
-  128,
-);
+generate!(8, 16, 32, 64, 128,);
