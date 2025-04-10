@@ -114,6 +114,33 @@ macro_rules! impl_packable_for_primitives {
             [<unpack_ i $bits _u $bits>](packed)
           }
         }
+
+        #[cfg(test)]
+        quickcheck::quickcheck! {
+          fn [<fuzzy_roundtrip_ u $bits>](a: [<u $bits>], b: [<u $bits>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< u $bits >] as Packable<[< u $bits>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_i $bits>](a: [<i $bits>], b: [<i $bits>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< i $bits >] as Packable<[< i $bits>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_ u $bits _i $bits>](a: [<u $bits>], b: [<i $bits>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< u $bits >] as Packable<[< i $bits>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_ i $bits _u $bits>](a: [<i $bits>], b: [<u $bits>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< i $bits >] as Packable<[< u $bits>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+        }
       )*
     }
   };
@@ -169,6 +196,33 @@ macro_rules! impl_packable_for_primitives {
           #[inline]
           fn unpack(packed: [< u $packed>]) -> (Self, [< i $a >]) where Self: Sized, [< u $a >]: Sized {
             [<unpack_ i $b _i $a>](packed)
+          }
+        }
+
+        #[cfg(test)]
+        quickcheck::quickcheck! {
+          fn [<fuzzy_roundtrip_ u $a _u $b>](a: [<u $a>], b: [<u $b>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< u $a >] as Packable<[< u $b>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_i $a _i $b>](a: [<i $a>], b: [<i $b>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< i $a >] as Packable<[< i $b>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_ u $a _i $b>](a: [<u $a>], b: [<i $b>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< u $a >] as Packable<[< i $b>], _>>::unpack(packed);
+            a == a2 && b == b2
+          }
+
+          fn [<fuzzy_roundtrip_ i $a _u $b>](a: [<i $a>], b: [<u $b>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< i $a >] as Packable<[< u $b>], _>>::unpack(packed);
+            a == a2 && b == b2
           }
         }
       )*

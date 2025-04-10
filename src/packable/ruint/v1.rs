@@ -19,26 +19,50 @@ fn pack_uint<
     return Uint::<PBITS, PLIMBS>::ZERO;
   }
 
+  // Check if there's enough space for both values
   assert!(
     LBITS + RBITS <= PBITS,
-    "The sum of LBITS and RBITS must be equal to the PBITS"
+    "The sum of LBITS and RBITS must be less than or equal to PBITS"
   );
   assert!(
     LLIMBS + RLIMBS <= PLIMBS,
-    "The sum of LLIMBS and RLIMBS must be equal to the PLIMBS"
+    "The sum of LLIMBS and RLIMBS must be less than or equal to PLIMBS"
   );
 
-  let (small_bits, small, large) = if LBITS > RBITS {
-    let small = Uint::<PBITS, PLIMBS>::from_limbs_slice(rhs.as_limbs());
-    let large = Uint::<PBITS, PLIMBS>::from_limbs_slice(lhs.as_limbs());
-    (RBITS, small, large)
+  // Decide which value goes to the high bits and which to the low bits
+  let (high_bits, high_value, low_value, low_bits) = if LBITS > RBITS {
+    // lhs goes to high bits, rhs goes to low bits
+    let high = Uint::<PBITS, PLIMBS>::from_limbs_slice(lhs.as_limbs());
+    let low = Uint::<PBITS, PLIMBS>::from_limbs_slice(rhs.as_limbs());
+    (LBITS, high, low, RBITS)
   } else {
-    let small = Uint::<PBITS, PLIMBS>::from_limbs_slice(lhs.as_limbs());
-    let large = Uint::<PBITS, PLIMBS>::from_limbs_slice(rhs.as_limbs());
-    (LBITS, small, large)
+    // rhs goes to high bits, lhs goes to low bits
+    let high = Uint::<PBITS, PLIMBS>::from_limbs_slice(rhs.as_limbs());
+    let low = Uint::<PBITS, PLIMBS>::from_limbs_slice(lhs.as_limbs());
+    (RBITS, high, low, LBITS)
   };
 
-  large.shl(small_bits as u32).bitor(small)
+  // Create mask for the low value to ensure it doesn't exceed its bit width
+  let low_mask = if low_bits == PBITS {
+    Uint::<PBITS, PLIMBS>::MAX
+  } else {
+    (Uint::<PBITS, PLIMBS>::from(1u64) << low_bits) - Uint::<PBITS, PLIMBS>::from(1u64)
+  };
+
+  // Apply mask to low value
+  let masked_low = low_value.bitand(&low_mask);
+
+  // Create mask for the high value
+  let high_mask = if high_bits == PBITS {
+    Uint::<PBITS, PLIMBS>::MAX
+  } else {
+    (Uint::<PBITS, PLIMBS>::from(1u64) << high_bits) - Uint::<PBITS, PLIMBS>::from(1u64)
+  };
+
+  // Apply mask to high value, shift it to proper position, and combine with low value
+  let masked_high = high_value.bitand(&high_mask);
+
+  masked_high.shl(low_bits as u32).bitor(&masked_low)
 }
 
 /// Unpacks `Uint<PBITS, PLIMBS>` into `Uint<LBITS, LLIMBS>` and `Uint<RBITS, RLIMBS>`.
@@ -56,32 +80,42 @@ fn unpack_uint<
     return (Uint::<LBITS, LLIMBS>::ZERO, Uint::<RBITS, RLIMBS>::ZERO);
   }
 
+  // Check if there's enough space in the packed value for both integers
   assert!(
     LBITS + RBITS <= PBITS,
-    "The sum of LBITS and RBITS must be equal to the PBITS"
+    "The sum of LBITS and RBITS must be less than or equal to PBITS"
   );
   assert!(
     LLIMBS + RLIMBS <= PLIMBS,
-    "The sum of LLIMBS and RLIMBS must be equal to the PLIMBS"
+    "The sum of LLIMBS and RLIMBS must be less than or equal to PLIMBS"
   );
 
-  if LBITS > RBITS {
-    let small = packed.bitand(Uint::<PBITS, PLIMBS>::from_limbs_slice(
-      Uint::<RBITS, RLIMBS>::MAX.as_limbs(),
-    ));
-    let large = packed.shr(RLIMBS as u32);
+  // Determine which value was placed in high bits vs low bits
+  let low_bits = if LBITS > RBITS { RBITS } else { LBITS };
 
-    let lhs = Uint::<LBITS, LLIMBS>::from_limbs_slice(large.as_limbs());
-    let rhs = Uint::<RBITS, RLIMBS>::from_limbs_slice(small.as_limbs());
+  // Create masks for extracting each value
+  let low_mask = if low_bits == PBITS {
+    Uint::<PBITS, PLIMBS>::MAX
+  } else {
+    (Uint::<PBITS, PLIMBS>::from(1u64) << low_bits) - Uint::<PBITS, PLIMBS>::from(1u64)
+  };
+
+  // Extract the low bits part
+  let low_value = packed.bitand(&low_mask);
+
+  // Extract the high bits part
+  let high_value = packed.shr(low_bits as u32);
+
+  // Create properly sized results based on whether lhs or rhs was the larger value
+  if LBITS > RBITS {
+    // lhs was in high bits, rhs was in low bits
+    let lhs = Uint::<LBITS, LLIMBS>::from_limbs_slice(&high_value.as_limbs()[..LLIMBS]);
+    let rhs = Uint::<RBITS, RLIMBS>::from_limbs_slice(&low_value.as_limbs()[..RLIMBS]);
     (lhs, rhs)
   } else {
-    let small = packed.bitand(Uint::<PBITS, PLIMBS>::from_limbs_slice(
-      Uint::<LBITS, LLIMBS>::MAX.as_limbs(),
-    ));
-    let large = packed.shr(LLIMBS as u32);
-
-    let lhs = Uint::<LBITS, LLIMBS>::from_limbs_slice(small.as_limbs());
-    let rhs = Uint::<RBITS, RLIMBS>::from_limbs_slice(large.as_limbs());
+    // rhs was in high bits, lhs was in low bits
+    let lhs = Uint::<LBITS, LLIMBS>::from_limbs_slice(&low_value.as_limbs()[..LLIMBS]);
+    let rhs = Uint::<RBITS, RLIMBS>::from_limbs_slice(&high_value.as_limbs()[..RLIMBS]);
     (lhs, rhs)
   }
 }
@@ -106,4 +140,51 @@ impl<
   {
     unpack_uint(&packed)
   }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn roundtrip<
+    const LBITS: usize,
+    const LLIMBS: usize,
+    const RBITS: usize,
+    const RLIMBS: usize,
+    const PBITS: usize,
+    const PLIMBS: usize,
+  >(
+    lhs: &Uint<LBITS, LLIMBS>,
+    rhs: &Uint<RBITS, RLIMBS>,
+  ) -> bool {
+    let packed = lhs.pack(rhs);
+    let (lhs_unpacked, rhs_unpacked) =
+      <Uint<LBITS, LLIMBS> as Packable<Uint<RBITS, RLIMBS>, Uint<PBITS, PLIMBS>>>::unpack(packed);
+    lhs == &lhs_unpacked && rhs == &rhs_unpacked
+  }
+
+  macro_rules! fuzzy_packable {
+    ($(($bits:literal, $limbs:literal)),+$(,)?) => {
+      paste::paste! {
+        quickcheck::quickcheck! {
+          $(
+            fn [<fuzzy_u $bits:snake>](a: [<U $bits>], b: [<U $bits>]) -> bool {
+              roundtrip::<$bits, $limbs, $bits, $limbs, {$bits * 2}, {$limbs * 2}>(&a, &b)
+            }
+          )*
+        }
+      }
+    };
+  }
+
+  use ruint_1::aliases::*;
+
+  fuzzy_packable!(
+    (64, 1),
+    (128, 2),
+    (256, 4),
+    (512, 8),
+    (1024, 16),
+    (2048, 32),
+  );
 }

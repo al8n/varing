@@ -2,7 +2,7 @@ use super::super::Packable;
 use bnum_0_13::*;
 
 macro_rules! impl_packable {
-  ($($suffix: ident), +$(,)?) => {
+  ($($suffix:ident ($storage:literal)), +$(,)?) => {
     paste::paste! {
       $(
         #[doc = "Zigzag encode `B" $suffix "<N>` value"]
@@ -40,26 +40,49 @@ macro_rules! impl_packable {
             return [< BU $suffix >]::<P>::ZERO;
           }
 
-          let mut small = [0; P];
-          let mut large = [0; P];
+          let mut low = [0; P];
+          let mut high = [0; P];
 
-          // SAFETY: We have checked that L + R <= P, so we can safely copy the digits.
-          // We also know that L and R are less than or equal to P, so we can safely
-          // copy the digits from a and b into small and large.
-          let small_bits = if L > R {
-            unsafe { core::ptr::copy(a.digits().as_ptr(), large.as_mut_ptr(), L) };
-            unsafe { core::ptr::copy(b.digits().as_ptr(), small.as_mut_ptr(), R) };
-            R
+          // Determine which input has smaller size (in bits)
+          let (high_bits, high_value, low_value, low_bits) = if L > R {
+            unsafe { core::ptr::copy(b.digits().as_ptr(), low.as_mut_ptr(), L) };
+            unsafe { core::ptr::copy(a.digits().as_ptr(), high.as_mut_ptr(), R) };
+
+            let low = [< BU $suffix >]::<P>::from_digits(low);
+            let high = [< BU $suffix >]::<P>::from_digits(high);
+
+            (L * $storage, high, low, R * $storage)
           } else {
-            unsafe { core::ptr::copy(b.digits().as_ptr(), large.as_mut_ptr(), R) };
-            unsafe { core::ptr::copy(a.digits().as_ptr(), small.as_mut_ptr(), L) };
-            L
+            unsafe { core::ptr::copy(a.digits().as_ptr(), low.as_mut_ptr(), R) };
+            unsafe { core::ptr::copy(b.digits().as_ptr(), high.as_mut_ptr(), L) };
+
+            let low = [< BU $suffix >]::<P>::from_digits(low);
+            let high = [< BU $suffix >]::<P>::from_digits(high);
+
+            (R * $storage, high, low, L * $storage)
           };
 
-          let small = [< BU $suffix >]::<P>::from_digits(small);
-          let large = [< BU $suffix >]::<P>::from_digits(large);
+          // Create mask for the low value to ensure it doesn't exceed its bit width
+          let low_mask = if low_bits == { P * $storage } {
+            [< BU $suffix >]::<P>::MAX
+          } else {
+            [< BU $suffix >]::<P>::ONE.shl(low_bits as u32).sub([< BU $suffix >]::<P>::ONE)
+          };
 
-          large.shl(small_bits as u32).bitor(small)
+          // Apply mask to low value
+          let masked_low = low_value.bitand(low_mask);
+
+          // Create mask for the high value
+          let high_mask = if high_bits == { P * $storage } {
+            [< BU $suffix >]::<P>::MAX
+          } else {
+            [< BU $suffix >]::<P>::ONE.shl(high_bits as u32).sub([< BU $suffix >]::<P>::ONE)
+          };
+
+          // Apply mask to high value, shift it to proper position, and combine with low value
+          let masked_high = high_value.bitand(high_mask);
+
+          masked_high.shl(low_bits as u32).bitor(masked_low)
         }
 
         #[doc = "Unpacks `BU`" $suffix "<P>` into `BU" $suffix "<L>` and `BU" $suffix "<R>`"]
@@ -70,41 +93,47 @@ macro_rules! impl_packable {
             return ([< BU $suffix >]::<L>::ZERO, [< BU $suffix >]::<R>::ZERO);
           }
 
-          let mut mask = [0; P];
+          // Determine which value was placed in high bits vs low bits
+          let low_bits = if L > R {
+            R * $storage
+          } else {
+            L * $storage
+          };
+
+          // Create masks for extracting each value
+          let low_mask = if low_bits == { P * $storage } {
+            [< BU $suffix >]::<P>::MAX
+          } else {
+            [< BU $suffix >]::<P>::ONE.shl(low_bits as u32).sub([< BU $suffix >]::<P>::ONE)
+          };
+
+          // Extract the low bits part
+          let low_value = packed.bitand(low_mask);
+
+          // Extract the high bits part
+          let high_value = packed.shr(low_bits as u32);
 
           if L > R {
-            unsafe {
-              core::ptr::copy([< BU $suffix >]::<R>::MAX.digits().as_ptr(), mask.as_mut_ptr(), R);
-            }
-            let small = packed.bitand([< BU $suffix >]::<P>::from_digits(mask));
-            let large = packed.shr(R as u32);
-
             let mut lhs = [0; L];
             unsafe {
-              core::ptr::copy(large.digits().as_ptr(), lhs.as_mut_ptr(), L);
+              core::ptr::copy(high_value.digits().as_ptr(), lhs.as_mut_ptr(), L);
             }
             let lhs = [< BU $suffix >]::<L>::from_digits(lhs);
             let mut rhs = [0; R];
             unsafe {
-              core::ptr::copy(small.digits().as_ptr(), rhs.as_mut_ptr(), R);
+              core::ptr::copy(low_value.digits().as_ptr(), rhs.as_mut_ptr(), R);
             }
             let rhs = [< BU $suffix >]::<R>::from_digits(rhs);
             (lhs, rhs)
           } else {
-            unsafe {
-              core::ptr::copy([< BU $suffix >]::<L>::MAX.digits().as_ptr(), mask.as_mut_ptr(), L);
-            }
-            let small = packed.bitand([< BU $suffix >]::<P>::from_digits(mask));
-            let large = packed.shr(L as u32);
-
             let mut lhs = [0; L];
             unsafe {
-              core::ptr::copy(small.digits().as_ptr(), lhs.as_mut_ptr(), L);
+              core::ptr::copy(low_value.digits().as_ptr(), lhs.as_mut_ptr(), L);
             }
             let lhs = [< BU $suffix >]::<L>::from_digits(lhs);
             let mut rhs = [0; R];
             unsafe {
-              core::ptr::copy(large.digits().as_ptr(), rhs.as_mut_ptr(), R);
+              core::ptr::copy(high_value.digits().as_ptr(), rhs.as_mut_ptr(), R);
             }
             let rhs = [< BU $suffix >]::<R>::from_digits(rhs);
             (lhs, rhs)
@@ -237,9 +266,73 @@ macro_rules! impl_packable {
             [< unpack_ $suffix:snake _u $suffix:snake >](packed)
           }
         }
+
+        #[cfg(test)]
+        fn [< roundtrip_u $suffix:snake _test>]<const L: usize, const R: usize, const P: usize>(lhs: [< BU $suffix>]<L>, rhs: [< BU $suffix>]<R>) -> bool {
+          let packed = <[< BU $suffix>]<L> as Packable<[< BU $suffix>]<R>, [< BU $suffix>]<P>>>::pack(&lhs, &rhs);
+          let (lhs2, rhs2) = <[< BU $suffix>]<L> as Packable<[< BU $suffix>]<R>, _>>::unpack(packed);
+          lhs == lhs2 && rhs == rhs2
+        }
+
+        #[cfg(test)]
+        fn [< roundtrip_ $suffix:snake _test>]<const L: usize, const R: usize, const P: usize>(lhs: [< B $suffix: camel>]<L>, rhs: [< B $suffix: camel>]<R>) -> bool {
+          let packed = <[< B $suffix: camel>]<L> as Packable<[< B $suffix:camel>]<R>, [< BU $suffix>]<P>>>::pack(&lhs, &rhs);
+          let (lhs2, rhs2) = <[< B $suffix: camel>]<L> as Packable<[< B $suffix: camel>]<R>, _>>::unpack(packed);
+          lhs == lhs2 && rhs == rhs2
+        }
+
+        #[cfg(test)]
+        fn [< roundtrip_u $suffix:snake _ $suffix:snake _test>]<const L: usize, const R: usize, const P: usize>(lhs: [< BU $suffix>]<L>, rhs: [< B $suffix:camel>]<R>) -> bool {
+          let packed = <[< BU $suffix>]<L> as Packable<[< B $suffix:camel>]<R>, [< BU $suffix>]<P>>>::pack(&lhs, &rhs);
+          let (lhs2, rhs2) = <[< BU $suffix>]<L> as Packable<[< B $suffix:camel>]<R>, _>>::unpack(packed);
+          lhs == lhs2 && rhs == rhs2
+        }
+
+        #[cfg(test)]
+        fn [< roundtrip_ $suffix:snake _u $suffix:snake _test>]<const L: usize, const R: usize, const P: usize>(lhs: [< B $suffix:camel>]<L>, rhs: [< BU $suffix>]<R>) -> bool {
+          let packed = <[< B $suffix:camel>]<L> as Packable<[< BU $suffix>]<R>, [< BU $suffix>]<P>>>::pack(&lhs, &rhs);
+          let (lhs2, rhs2) = <[< B $suffix:camel>]<L> as Packable<[< BU $suffix>]<R>, _>>::unpack(packed);
+          lhs == lhs2 && rhs == rhs2
+        }
       )*
     }
   };
 }
 
-impl_packable!(intD8, intD16, intD32, int,);
+impl_packable!(intD8(8), intD16(16), intD32(32), int(64),);
+
+macro_rules! fuzzy_packable {
+  ( $( $suffix:ident ($($bits: literal), +$(,)?) ), +$(,)? ) => {
+    paste::paste! {
+      $(
+        $(
+          #[cfg(test)]
+          quickcheck::quickcheck! {
+            fn [< fuzzy_u $suffix:snake _ $bits _roundtrip>](a: [< BU $suffix>]<{ $bits / 8 }>, b: [< BU $suffix>]<{ $bits / 8 }>) -> bool {
+              [< roundtrip_u $suffix:snake _test>]::<{$bits / 8}, {$bits / 8}, { ($bits / 8) * 2}>(a, b)
+            }
+
+            fn [< fuzzy_ $suffix:snake _ $bits _roundtrip>](a: [< B $suffix:camel>]<{ $bits / 8 }>, b: [< B $suffix:camel>]<{ $bits / 8 }>) -> bool {
+              [< roundtrip_ $suffix:snake _test>]::<{$bits / 8}, {$bits / 8}, { ($bits / 8) * 2}>(a, b)
+            }
+
+            fn [< fuzzy_u $suffix:snake _ $suffix:snake _ $bits _roundtrip>](a: [< BU $suffix>]<{ $bits / 8 }>, b: [< B $suffix:camel>]<{ $bits / 8 }>) -> bool {
+              [< roundtrip_u $suffix:snake _ $suffix:snake _test>]::<{$bits / 8}, {$bits / 8}, { ($bits / 8) * 2}>(a, b)
+            }
+
+            fn [< fuzzy_ $suffix:snake _u $suffix:snake _ $bits _roundtrip>](a: [< B $suffix:camel>]<{ $bits / 8 }>, b: [< BU $suffix>]<{ $bits / 8 }>) -> bool {
+              [< roundtrip_ $suffix:snake _u $suffix:snake _test>]::<{$bits / 8}, {$bits / 8}, { ($bits / 8) * 2}>(a, b)
+            }
+          }
+        )*
+      )*
+    }
+  };
+}
+
+fuzzy_packable!(
+  intD8(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
+  intD16(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
+  intD32(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
+  int(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192),
+);
