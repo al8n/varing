@@ -299,6 +299,124 @@ pub trait Varint {
     Self: Sized;
 }
 
+/// An extension trait for types that implements [`Varint`].
+pub trait VarintExt: Varint {
+  /// Encodes a sequence of values as varints and writes them to the buffer.
+  ///
+  /// Returns the total number of bytes written to the buffer.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// # #[cfg(feature = "std")]
+  /// # {
+  /// #
+  /// use varing::Varint;
+  ///
+  /// let values = (0..1024u64).collect::<Vec<_>>();
+  ///
+  /// let encoded_len = Varint::encoded_sequence_len(values.iter());
+  /// let mut buf = vec![0; encoded_len];
+  ///
+  /// let bytes_written = Varint::encode_sequence(values.iter(), &mut buf).unwrap();
+  /// assert_eq!(bytes_written, encoded_len);
+  ///
+  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>().unwrap();
+  ///
+  /// assert_eq!(decoded, values);
+  /// assert_eq!(readed, buf.len());
+  /// # }
+  /// ```
+  fn encode_sequence<'i>(
+    sequence: impl Iterator<Item = &'i Self>,
+    buf: &mut [u8],
+  ) -> Result<usize, EncodeError>
+  where
+    Self: 'i,
+  {
+    let mut total_bytes = 0;
+    for value in sequence {
+      let bytes_written = value.encode(&mut buf[total_bytes..])?;
+      total_bytes += bytes_written;
+    }
+    Ok(total_bytes)
+  }
+
+  /// Returns the total number of bytes needed to encode a sequence of values.
+  fn encoded_sequence_len<'i>(sequence: impl Iterator<Item = &'i Self>) -> usize
+  where
+    Self: 'i,
+  {
+    sequence.map(|item| item.encoded_len()).sum::<usize>()
+  }
+
+  /// Returns a sequence decoder for the given buffer.
+  ///
+  /// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// # #[cfg(feature = "std")]
+  /// # {
+  /// #
+  /// use varing::Varint;
+  ///
+  /// let values = (0..1024u64).collect::<Vec<_>>();
+  ///
+  /// let encoded_len = Varint::encoded_sequence_len(values.iter());
+  /// let mut buf = vec![0; encoded_len];
+  ///
+  /// let bytes_written = Varint::encode_sequence(values.iter(), &mut buf).unwrap();
+  /// assert_eq!(bytes_written, encoded_len);
+  ///
+  /// let mut readed = 0;
+  /// let mut decoded = Vec::new();
+  /// while let Some(Ok((bytes_read, value))) = u64::sequence_decoder(&buf[readed..]).next() {
+  ///   readed += bytes_read;
+  ///   decoded.push(value);
+  /// }
+  ///
+  /// assert_eq!(decoded, values);
+  /// assert_eq!(readed, buf.len());
+  /// # }
+  /// ```
+  fn sequence_decoder(buf: &[u8]) -> SequenceDecoder<'_, Self>
+  where
+    Self: Sized,
+  {
+    SequenceDecoder::new(buf)
+  }
+
+  /// Decodes a sequence of values from the buffer.
+  ///
+  /// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+  fn decode_sequence<O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
+  where
+    Self: Sized,
+    O: core::iter::FromIterator<Self>,
+  {
+    let mut readed = 0;
+    core::iter::from_fn(move || {
+      if readed < buf.len() {
+        match Self::decode(&buf[readed..]) {
+          Ok((bytes_read, value)) => {
+            readed += bytes_read;
+            Some(Ok(value))
+          }
+          Err(e) => Some(Err(e)),
+        }
+      } else {
+        None
+      }
+    })
+    .collect::<Result<O, _>>()
+    .map(|output| (readed, output))
+  }
+}
+
+impl<V: Varint> VarintExt for V {}
+
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`u128::ENCODED_LEN_RANGE`].
 #[inline]
@@ -477,6 +595,57 @@ impl Varint for bool {
       }
       Ok((bytes_read, value != 0))
     })
+  }
+}
+
+/// An iterator that decodes a sequence of varint values from a buffer.
+#[derive(Debug)]
+pub struct SequenceDecoder<'a, V: ?Sized> {
+  buf: &'a [u8],
+  offset: usize,
+  _m: core::marker::PhantomData<V>,
+}
+
+impl<V: ?Sized> Clone for SequenceDecoder<'_, V> {
+  fn clone(&self) -> Self {
+    *self
+  }
+}
+
+impl<V: ?Sized> Copy for SequenceDecoder<'_, V> {}
+
+impl<'a, V: ?Sized> SequenceDecoder<'a, V> {
+  #[inline]
+  const fn new(src: &'a [u8]) -> Self {
+    Self {
+      buf: src,
+      offset: 0,
+      _m: core::marker::PhantomData,
+    }
+  }
+
+  /// Returns the current position of the buffer.
+  #[inline]
+  pub const fn position(&self) -> usize {
+    self.offset
+  }
+}
+
+impl<V: Varint> Iterator for SequenceDecoder<'_, V> {
+  type Item = Result<(usize, V), DecodeError>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.offset < self.buf.len() {
+      match V::decode(&self.buf[self.offset..]) {
+        Ok((bytes_read, value)) => {
+          self.offset += bytes_read;
+          Some(Ok((bytes_read, value)))
+        }
+        Err(e) => Some(Err(e)),
+      }
+    } else {
+      None
+    }
   }
 }
 

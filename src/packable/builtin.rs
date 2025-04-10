@@ -431,6 +431,7 @@ type u256 = ::bnum_0_13::BUintD8<32>;
 #[allow(non_camel_case_types)]
 type u256 = ::ruint_1::aliases::U256;
 
+#[cfg(any(feature = "bnum_0_13", feature = "ruint_1"))]
 macro_rules! pack_128_exchange {
   ($($const:ident)? $fg: literal) => {
     /// Packs `u128` and `i128` into a single `u256` value, which suitable for LEB128 encoding/decoding.
