@@ -1,6 +1,6 @@
 use arbitrary_int_1::*;
 
-use crate::*;
+use crate::{utils::Buffer, *};
 
 macro_rules! generate {
   ($($storage:ident($start:literal..=$end:literal)), +$(,)?) => {
@@ -18,25 +18,6 @@ macro_rules! generate {
     $(
       $(
         paste::paste! {
-          impl Varint for $inner {
-            const MIN_ENCODED_LEN: usize = [< encoded_ $inner _varint_len >]($inner::MIN);
-            const MAX_ENCODED_LEN: usize = [< encoded_ $inner _varint_len >]($inner::MAX);
-
-            #[inline]
-            fn encoded_len(&self) -> usize {
-              [< encoded_ $inner _varint_len >](*self)
-            }
-
-            fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-              [< encode_ $inner _varint_to >](*self, buf)
-            }
-
-            #[inline]
-            fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-              [< decode_ $inner _varint >](buf)
-            }
-          }
-
           /// Returns the encoded length of the value in LEB128 variable length format.
           #[doc = "The returned value will be in range of [`" $inner "::ENCODED_LEN_RANGE`]."]
           #[inline]
@@ -152,6 +133,59 @@ macro_rules! generate {
       )*
     )*
   };
+  ($($storage:literal), +$(,)?) => {
+    paste::paste! {
+      $(
+        #[doc = "Returns the encoded length of the value in LEB128 variable length format."]
+        pub const fn [< encoded_uint_d $storage _len >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> usize {
+          [< encoded_u $storage _varint_len >](value.value())
+        }
+
+        #[doc = "Encodes an `Uint<u" $storage ", BITS>` value into LEB128 variable length format, and writes it to the buffer."]
+        pub const fn [< encode_uint_d $storage _to >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          [< encode_u $storage _varint_to >](value.value(), buf)
+        }
+
+        #[doc = "Encodes an `Uint<u" $storage ", BITS>` value into LEB128 variable length format, and writes it to the buffer."]
+        pub const fn [< encode_uint_d $storage>]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> Buffer<{ [< u $storage>]::MAX_ENCODED_LEN + 1 }> {
+          [< encode_u $storage _varint >](value.value())
+        }
+
+        #[doc = "Decodes an `Uint<u" $storage ", BITS>` in LEB128 encoded format from the buffer."]
+        pub const fn [< decode_uint_d $storage>]<const BITS: usize>(buf: &[u8]) -> Result<(usize, UInt<[< u $storage>], BITS>), DecodeError> {
+          match [< decode_u $storage _varint >](buf) {
+            Ok((readed, val)) => {
+              match UInt::<[< u $storage>], BITS>::try_new(val) {
+                Ok(val) => Ok((readed, val)),
+                Err(_) => Err(DecodeError::Overflow),
+              }
+            }
+            Err(err) => Err(err),
+          }
+        }
+
+        impl<const BITS: usize> Varint for UInt<[< u $storage>], BITS> {
+          const MIN_ENCODED_LEN: usize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MIN);
+          const MAX_ENCODED_LEN: usize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MAX);
+
+          fn encoded_len(&self) -> usize {
+            [< encoded_uint_d $storage _len >](*self)
+          }
+
+          fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+            [< encode_uint_d $storage _to >](*self, buf)
+          }
+
+          fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
+          where
+            Self: Sized,
+          {
+            [< decode_uint_d $storage >](buf)
+          }
+        } 
+      )*
+    }
+  };
 }
 
 generate!(
@@ -160,4 +194,12 @@ generate!(
   u32(17..=31),
   u64(33..=63),
   u128(65..=127),
+);
+
+generate!(
+  8,
+  16,
+  32,
+  64,
+  128,
 );

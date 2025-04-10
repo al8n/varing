@@ -534,6 +534,9 @@ pub mod primitive_types;
 #[cfg_attr(docsrs, doc(cfg(feature = "ethereum-types_0_15")))]
 pub mod ethereum_types;
 
+/// Packable trait for types that can be packed into a single value.
+pub mod packable;
+
 #[cfg(feature = "ruint_1")]
 mod ruint_impl;
 
