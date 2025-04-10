@@ -205,11 +205,83 @@ macro_rules! encode {
           encode_varint!(@to_buf [< u $ty >]::buf[x])
         }
 
+        #[doc = "Returns the encoded length of a sequence of `u" $ty "` values"]
+        #[inline]
+        pub const fn [< encoded_ u $ty _sequence_len >](sequence: &[[< u $ty >]]) -> usize {
+          let mut total_bytes = 0;
+          let mut idx = 0;
+          let len = sequence.len();
+
+          while idx < len {
+            total_bytes += [< encoded_ u $ty _varint_len >](sequence[idx]);
+            idx += 1;
+          }
+
+          total_bytes
+        }
+
+        #[doc = "Encodes a sequence of `u" $ty "` to the buffer."]
+        #[inline]
+        pub const fn [< encode_ u $ty _sequence_to >](sequence: &[[< u $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
+          let mut total_bytes = 0;
+          let mut idx = 0;
+          let len = sequence.len();
+          let buf_len = buf.len();
+
+          while idx < len && total_bytes < buf_len {
+            let (_, buf) = buf.split_at_mut(total_bytes);
+            let bytes_written = match [< encode_ u $ty _varint_to >](sequence[idx], buf) {
+              Ok(bytes_written) => bytes_written,
+              Err(e) => return Err(e.update([< encoded_ u $ty _sequence_len >](sequence), buf_len)),
+            };
+            total_bytes += bytes_written;
+            idx += 1;
+          }
+
+          Ok(total_bytes)
+        }
+
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
         pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
           let mut x = utils::[< zigzag_encode_i $ty>](x);
           encode_varint!(@to_buf [<u $ty>]::buf[x])
+        }
+
+        #[doc = "Returns the encoded length of a sequence of `i" $ty "` values"]
+        #[inline]
+        pub const fn [< encoded_i $ty _sequence_len >](sequence: &[[< i $ty >]]) -> usize {
+          let mut total_bytes = 0;
+          let mut idx = 0;
+          let len = sequence.len();
+
+          while idx < len {
+            total_bytes += [< encoded_ i $ty _varint_len >](sequence[idx]);
+            idx += 1;
+          }
+
+          total_bytes
+        }
+
+        #[doc = "Encodes a sequence of `i" $ty "` to the buffer."]
+        #[inline]
+        pub const fn [< encode_i $ty _sequence_to >](sequence: &[[< i $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
+          let mut total_bytes = 0;
+          let mut idx = 0;
+          let len = sequence.len();
+          let buf_len = buf.len();
+
+          while idx < len && total_bytes < buf_len {
+            let (_, buf) = buf.split_at_mut(total_bytes);
+            let bytes_written = match [< encode_ i $ty _varint_to >](sequence[idx], buf) {
+              Ok(bytes_written) => bytes_written,
+              Err(e) => return Err(e.update([< encoded_ i $ty _sequence_len >](sequence), buf_len)),
+            };
+            total_bytes += bytes_written;
+            idx += 1;
+          }
+
+          Ok(total_bytes)
         }
       }
     )*
@@ -311,17 +383,17 @@ pub trait VarintExt: Varint {
   /// # #[cfg(feature = "std")]
   /// # {
   /// #
-  /// use varing::Varint;
+  /// use varing::{Varint, VarintExt};
   ///
   /// let values = (0..1024u64).collect::<Vec<_>>();
   ///
-  /// let encoded_len = Varint::encoded_sequence_len(values.iter());
+  /// let encoded_len = u64::encoded_sequence_len(values.iter());
   /// let mut buf = vec![0; encoded_len];
   ///
-  /// let bytes_written = Varint::encode_sequence(values.iter(), &mut buf).unwrap();
+  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
   /// assert_eq!(bytes_written, encoded_len);
   ///
-  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>().unwrap();
+  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>(&buf).unwrap();
   ///
   /// assert_eq!(decoded, values);
   /// assert_eq!(readed, buf.len());
@@ -360,14 +432,14 @@ pub trait VarintExt: Varint {
   /// # #[cfg(feature = "std")]
   /// # {
   /// #
-  /// use varing::Varint;
+  /// use varing::{Varint, VarintExt};
   ///
   /// let values = (0..1024u64).collect::<Vec<_>>();
   ///
-  /// let encoded_len = Varint::encoded_sequence_len(values.iter());
+  /// let encoded_len = u64::encoded_sequence_len(values.iter());
   /// let mut buf = vec![0; encoded_len];
   ///
-  /// let bytes_written = Varint::encode_sequence(values.iter(), &mut buf).unwrap();
+  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
   /// assert_eq!(bytes_written, encoded_len);
   ///
   /// let mut readed = 0;
@@ -391,13 +463,36 @@ pub trait VarintExt: Varint {
   /// Decodes a sequence of values from the buffer.
   ///
   /// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// # #[cfg(feature = "std")]
+  /// # {
+  /// #
+  /// use varing::{Varint, VarintExt};
+  ///
+  /// let values = (0..1024u64).collect::<Vec<_>>();
+  ///
+  /// let encoded_len = u64::encoded_sequence_len(values.iter());
+  /// let mut buf = vec![0; encoded_len];
+  ///
+  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
+  /// assert_eq!(bytes_written, encoded_len);
+  ///
+  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>(&buf).unwrap();
+  ///
+  /// assert_eq!(decoded, values);
+  /// assert_eq!(readed, buf.len());
+  /// # }
+  /// ```
   fn decode_sequence<O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
   where
     Self: Sized,
     O: core::iter::FromIterator<Self>,
   {
     let mut readed = 0;
-    core::iter::from_fn(move || {
+    core::iter::from_fn(|| {
       if readed < buf.len() {
         match Self::decode(&buf[readed..]) {
           Ok((bytes_read, value)) => {
@@ -543,6 +638,17 @@ impl EncodeError {
   #[inline]
   pub const fn custom(msg: &'static str) -> Self {
     Self::Custom(msg)
+  }
+
+  #[inline]
+  const fn update(self, required: usize, remaining: usize) -> Self {
+    match self {
+      Self::Underflow { .. } => Self::Underflow {
+        required,
+        remaining,
+      },
+      Self::Custom(msg) => Self::Custom(msg),
+    }
   }
 }
 
