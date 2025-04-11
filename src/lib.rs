@@ -4,251 +4,18 @@
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![deny(missing_docs)]
 
-use core::{num::NonZeroU64, ops::RangeInclusive};
+use core::ops::RangeInclusive;
 
 pub use char::*;
 pub use duration::*;
-use utils::zigzag_encode_i64;
+pub use primitives::*;
 
 /// Utilities for encoding and decoding LEB128 variable length integers.
 pub mod utils;
 
 mod char;
 mod duration;
-
-macro_rules! impl_varint {
-  ($($ty:literal), +$(,)?) => {
-    $(
-      paste::paste! {
-        impl Varint for [< u $ty >] {
-          const MIN_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](0);
-          const MAX_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](<[< u $ty >]>::MAX);
-
-          #[inline]
-          fn encoded_len(&self) -> usize {
-            [< encoded_ u $ty _varint_len >](*self)
-          }
-
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            [< encode_ u $ty _varint_to >](*self, buf)
-          }
-
-          #[inline]
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-            [< decode_ u $ty _varint >](buf)
-          }
-        }
-
-        impl Varint for [< i $ty >] {
-          const MIN_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](0);
-          const MAX_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](<[< i $ty >]>::MAX);
-
-          #[inline]
-          fn encoded_len(&self) -> usize {
-            [< encoded_ i $ty _varint_len >](*self)
-          }
-
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            [< encode_ i $ty _varint_to >](*self, buf)
-          }
-
-          #[inline]
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-            [< decode_ i $ty _varint >](buf)
-          }
-        }
-      }
-    )*
-  };
-}
-
-macro_rules! decode_varint {
-  (|$buf:ident| $ty:ident) => {{
-    let mut result = 0;
-    let mut shift = 0;
-    let mut index = 0;
-
-    loop {
-      if index == $ty::MAX_ENCODED_LEN {
-        return Err(DecodeError::Overflow);
-      }
-
-      if index >= $buf.len() {
-        return Err(DecodeError::Underflow);
-      }
-
-      let next = $buf[index] as $ty;
-
-      let v = $ty::BITS as usize / 7 * 7;
-      let has_overflow = if shift < v {
-        false
-      } else if shift == v {
-        next & ((u8::MAX << (::core::mem::size_of::<$ty>() % 7)) as $ty) != 0
-      } else {
-        true
-      };
-
-      if has_overflow {
-        return Err(DecodeError::Overflow);
-      }
-
-      result += (next & 0x7F) << shift;
-      if next & 0x80 == 0 {
-        break;
-      }
-      shift += 7;
-      index += 1;
-    }
-    Ok((index + 1, result))
-  }};
-}
-
-macro_rules! encode_varint {
-  ($buf:ident[$x:ident]) => {{
-    let mut i = 0;
-
-    while $x >= 0x80 {
-      if i >= $buf.len() {
-        panic!("insufficient buffer capacity");
-      }
-
-      $buf[i] = ($x as u8) | 0x80;
-      $x >>= 7;
-      i += 1;
-    }
-
-    // Check buffer capacity before writing final byte
-    if i >= $buf.len() {
-      panic!("insufficient buffer capacity");
-    }
-
-    $buf[i] = $x as u8;
-    i + 1
-  }};
-  (@to_buf $ty:ident::$buf:ident[$x:ident]) => {{
-    paste::paste! {
-      let mut i = 0;
-      let orig = $x;
-
-      while $x >= 0x80 {
-        if i >= $buf.len() {
-          return Err(EncodeError::underflow([< encoded_ $ty _varint_len >](orig), $buf.len()));
-        }
-
-        $buf[i] = ($x as u8) | 0x80;
-        $x >>= 7;
-        i += 1;
-      }
-
-      // Check buffer capacity before writing final byte
-      if i >= $buf.len() {
-        return Err(EncodeError::underflow(i + 1, $buf.len()));
-      }
-
-      $buf[i] = $x as u8;
-      Ok(i + 1)
-    }
-  }};
-}
-
-macro_rules! varint_len {
-  ($($ty:ident),+$(,)?) => {
-    $(
-      paste::paste! {
-        /// Returns the encoded length of the value in LEB128 variable length format.
-        #[doc = "The returned value will be in range of [`" $ty "::ENCODED_LEN_RANGE`]."]
-        #[inline]
-        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> usize {
-          encoded_u64_varint_len(value as u64)
-        }
-      }
-    )*
-  };
-  (@zigzag $($ty:ident),+$(,)?) => {
-    $(
-      paste::paste! {
-        /// Returns the encoded length of the value in LEB128 variable length format.
-        #[doc = "The returned value will be in range of [`" $ty "::ENCODED_LEN_RANGE`]."]
-        #[inline]
-        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> usize {
-          encoded_i64_varint_len(value as i64)
-        }
-      }
-    )*
-  };
-}
-
-macro_rules! encode {
-  ($($ty:literal), +$(,)?) => {
-    $(
-      paste::paste! {
-        #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
-        #[inline]
-        pub const fn [< encode_ u $ty _varint >](mut x: [< u $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
-          let mut buf = [0; [<u $ty>]::MAX_ENCODED_LEN + 1];
-          let mut_buf = &mut buf;
-          let len = encode_varint!(mut_buf[x]);
-          buf[$crate::utils::Buffer::<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
-          $crate::utils::Buffer::new(buf)
-        }
-
-        #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
-        #[inline]
-        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
-          let x = utils::[< zigzag_encode_i $ty>](x);
-          [< encode_ u $ty _varint >](x as [< u $ty >])
-        }
-
-        #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
-        #[inline]
-        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
-          encode_varint!(@to_buf [< u $ty >]::buf[x])
-        }
-
-        #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
-        #[inline]
-        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
-          let mut x = utils::[< zigzag_encode_i $ty>](x);
-          encode_varint!(@to_buf [<u $ty>]::buf[x])
-        }
-      }
-    )*
-  };
-}
-
-macro_rules! decode {
-  ($($ty:literal), + $(,)?) => {
-    $(
-      paste::paste! {
-        #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
-        ///
-        /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(usize, [< u $ty >]), DecodeError> {
-          decode_varint!(|buf| [< u $ty >])
-        }
-
-        #[doc = "Decodes an `u" $ty "` in LEB128 encoded format from the buffer."]
-        ///
-        /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(usize, [< i $ty >]), DecodeError> {
-          match [< decode_ u $ty _varint >](buf) {
-            Ok((bytes_read, value)) => {
-              let value = utils::[<zigzag_decode_i $ty>](value);
-              Ok((bytes_read, value))
-            },
-            Err(e) => Err(e),
-          }
-        }
-      }
-    )*
-  };
-}
-
-impl_varint!(8, 16, 32, 64, 128,);
-varint_len!(u8, u16, u32,);
-varint_len!(@zigzag i8, i16, i32,);
-encode!(128, 64, 32, 16, 8);
-decode!(128, 64, 32, 16, 8);
+mod primitives;
 
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
@@ -299,49 +66,301 @@ pub trait Varint {
     Self: Sized;
 }
 
-/// Returns the encoded length of the value in LEB128 variable length format.
-/// The returned value will be in range [`u128::ENCODED_LEN_RANGE`].
-#[inline]
-pub const fn encoded_u128_varint_len(value: u128) -> usize {
-  // Each byte in LEB128 encoding can hold 7 bits of data
-  // We want to find how many groups of 7 bits are needed
-  // Special case for 0 and small numbers
-  if value < 128 {
-    return 1;
+/// Encodes a sequence of values as varints and writes them to the buffer.
+///
+/// Returns the total number of bytes written to the buffer.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, decode_sequence};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_sequence::<u64, Vec<u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn encode_sequence<'i, V>(
+  sequence: impl Iterator<Item = &'i V>,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError>
+where
+  V: ?Sized + Varint + 'i,
+{
+  let mut total_bytes = 0;
+  for value in sequence {
+    let bytes_written = value.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
   }
-
-  // Calculate position of highest set bit
-  let highest_bit = 128 - value.leading_zeros();
-  // Convert to number of LEB128 bytes needed
-  // Each byte holds 7 bits, but we need to round up
-  highest_bit.div_ceil(7) as usize
+  Ok(total_bytes)
 }
 
-/// Returns the encoded length of the value in LEB128 variable length format.
-/// The returned value will be in range [`i128::ENCODED_LEN_RANGE`].
-#[inline]
-pub const fn encoded_i128_varint_len(x: i128) -> usize {
-  let x = utils::zigzag_encode_i128(x);
-  encoded_u128_varint_len(x)
+/// Returns the total number of bytes needed to encode a sequence of values.
+pub fn encoded_sequence_len<'i, V>(sequence: impl Iterator<Item = &'i V>) -> usize
+where
+  V: ?Sized + Varint + 'i,
+{
+  sequence.map(|item| item.encoded_len()).sum::<usize>()
 }
 
-/// Returns the encoded length of the value in LEB128 variable length format.
-/// The returned value will be in range [`i64::ENCODED_LEN_RANGE`].
+/// Returns a sequence decoder for the given buffer.
+///
+/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, sequence_decoder};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let mut readed = 0;
+/// let mut decoded = Vec::new();
+/// let mut decoder = sequence_decoder::<u64>(&buf[readed..]);
+/// // `SequenceDecoder` is copy
+/// let mut decoder1 = decoder;
+/// while let Some(Ok((bytes_read, value))) = decoder.next() {
+///   readed += bytes_read;
+///   assert_eq!(readed, decoder.position());
+///   decoded.push(value);
+/// }
+///
+/// assert_eq!(decoder1.position(), 0);
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
 #[inline]
-pub const fn encoded_i64_varint_len(x: i64) -> usize {
-  let x = zigzag_encode_i64(x);
-  encoded_u64_varint_len(x)
+pub const fn sequence_decoder<V>(buf: &[u8]) -> SequenceDecoder<'_, V>
+where
+  V: ?Sized,
+{
+  SequenceDecoder::new(buf)
 }
 
-/// Returns the encoded length of the value in LEB128 variable length format.
-/// The returned value will be in range [`u64::ENCODED_LEN_RANGE`].
-#[inline]
-pub const fn encoded_u64_varint_len(value: u64) -> usize {
-  // Based on [VarintSize64][1].
-  // [1]: https://github.com/protocolbuffers/protobuf/blob/v28.3/src/google/protobuf/io/coded_stream.h#L1744-L1756
-  // Safety: (value | 1) is never zero
-  let log2value = unsafe { NonZeroU64::new_unchecked(value | 1) }.ilog2();
-  ((log2value * 9 + (64 + 9)) / 64) as usize
+/// Decodes a sequence of values from the buffer.
+///
+/// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, decode_sequence};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_sequence::<u64, Vec<_>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn decode_sequence<V, O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
+where
+  V: Varint,
+  O: core::iter::FromIterator<V>,
+{
+  let mut readed = 0;
+  core::iter::from_fn(|| {
+    if readed < buf.len() {
+      match V::decode(&buf[readed..]) {
+        Ok((bytes_read, value)) => {
+          readed += bytes_read;
+          Some(Ok(value))
+        }
+        Err(e) => Some(Err(e)),
+      }
+    } else {
+      None
+    }
+  })
+  .collect::<Result<O, _>>()
+  .map(|output| (readed, output))
+}
+
+/// Encodes a map of entries as varints and writes them to the buffer.
+///
+/// Returns the total number of bytes written to the buffer.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_map::<_, _, HashMap<u64, u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn encode_map<'a, K, V>(
+  map: impl Iterator<Item = (&'a K, &'a V)>,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError>
+where
+  K: Varint + 'a,
+  V: Varint + 'a,
+{
+  let mut total_bytes = 0;
+  for (key, value) in map {
+    let bytes_written = key.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
+    let bytes_written = value.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
+  }
+  Ok(total_bytes)
+}
+
+/// Returns the total length of a map of entries.
+///
+/// Returns the total number of bytes needed to encode the map.
+pub fn encoded_map_len<'a, K, V>(map: impl Iterator<Item = (&'a K, &'a V)>) -> usize
+where
+  K: Varint + 'a,
+  V: Varint + 'a,
+{
+  map
+    .map(|(key, value)| key.encoded_len() + value.encoded_len())
+    .sum::<usize>()
+}
+
+/// Returns a sequence decoder for the given buffer.
+///
+/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map, map_decoder};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let mut readed = 0;
+/// let mut decoded = HashMap::new();
+/// let mut decoder = map_decoder::<u64, u64>(&buf[readed..]);
+/// // `MapDecoder` is copy
+/// let mut decoder1 = decoder;
+/// while let Some(Ok((bytes_read, (key, value)))) = decoder.next() {
+///   readed += bytes_read;
+///   assert_eq!(readed, decoder.position());
+///   decoded.insert(key, value);
+/// }
+///
+/// assert_eq!(decoder1.position(), 0);
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub const fn map_decoder<K, V>(buf: &[u8]) -> MapDecoder<'_, K, V>
+where
+  K: ?Sized,
+  V: ?Sized,
+{
+  MapDecoder::new(buf)
+}
+
+/// Decodes a collection of entries from the buffer.
+///
+/// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_map::<_, _, HashMap<u64, u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn decode_map<K, V, O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
+where
+  K: Varint + Sized,
+  V: Varint + Sized,
+  O: core::iter::FromIterator<(K, V)>,
+{
+  let mut readed = 0;
+  core::iter::from_fn(|| {
+    if readed < buf.len() {
+      Some(K::decode(&buf[readed..]).and_then(|(bytes_read, k)| {
+        readed += bytes_read;
+
+        V::decode(&buf[readed..]).map(|(bytes_read, v)| {
+          readed += bytes_read;
+          (k, v)
+        })
+      }))
+    } else {
+      None
+    }
+  })
+  .collect::<Result<O, _>>()
+  .map(|output| (readed, output))
 }
 
 /// Calculates the number of bytes occupied by a varint encoded value in the buffer.
@@ -422,9 +441,29 @@ impl EncodeError {
   }
 
   /// Creates a new `EncodeError::Custom` with the given message.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::EncodeError;
+  ///
+  /// let error = EncodeError::custom("Custom error message");
+  /// assert_eq!(error.to_string(), "Custom error message");
+  /// ```
   #[inline]
   pub const fn custom(msg: &'static str) -> Self {
     Self::Custom(msg)
+  }
+
+  #[inline]
+  const fn update(self, required: usize, remaining: usize) -> Self {
+    match self {
+      Self::Underflow { .. } => Self::Underflow {
+        required,
+        remaining,
+      },
+      Self::Custom(msg) => Self::Custom(msg),
+    }
   }
 }
 
@@ -451,32 +490,110 @@ impl DecodeError {
   }
 }
 
-impl Varint for bool {
-  const MIN_ENCODED_LEN: usize = 1;
+/// An iterator that decodes a sequence of varint values from a buffer.
+#[derive(Debug)]
+pub struct SequenceDecoder<'a, V: ?Sized> {
+  buf: &'a [u8],
+  offset: usize,
+  _m: core::marker::PhantomData<V>,
+}
 
-  const MAX_ENCODED_LEN: usize = 1;
+impl<V: ?Sized> Clone for SequenceDecoder<'_, V> {
+  fn clone(&self) -> Self {
+    *self
+  }
+}
 
+impl<V: ?Sized> Copy for SequenceDecoder<'_, V> {}
+
+impl<'a, V: ?Sized> SequenceDecoder<'a, V> {
   #[inline]
-  fn encoded_len(&self) -> usize {
-    encoded_u8_varint_len(*self as u8)
+  const fn new(src: &'a [u8]) -> Self {
+    Self {
+      buf: src,
+      offset: 0,
+      _m: core::marker::PhantomData,
+    }
   }
 
+  /// Returns the current position of the buffer.
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_u8_varint_to(*self as u8, buf)
+  pub const fn position(&self) -> usize {
+    self.offset
   }
+}
 
-  #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
-  where
-    Self: Sized,
-  {
-    decode_u8_varint(buf).and_then(|(bytes_read, value)| {
-      if value > 1 {
-        return Err(DecodeError::custom("invalid boolean value"));
+impl<V: Varint> Iterator for SequenceDecoder<'_, V> {
+  type Item = Result<(usize, V), DecodeError>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.offset < self.buf.len() {
+      match V::decode(&self.buf[self.offset..]) {
+        Ok((bytes_read, value)) => {
+          self.offset += bytes_read;
+          Some(Ok((bytes_read, value)))
+        }
+        Err(e) => Some(Err(e)),
       }
-      Ok((bytes_read, value != 0))
-    })
+    } else {
+      None
+    }
+  }
+}
+
+/// An iterator that decodes a sequence of varint values from a buffer.
+#[derive(Debug)]
+pub struct MapDecoder<'a, K: ?Sized, V: ?Sized> {
+  buf: &'a [u8],
+  offset: usize,
+  #[allow(clippy::type_complexity)]
+  _m: core::marker::PhantomData<(fn() -> &'a K, fn() -> &'a V)>,
+}
+
+impl<K: ?Sized, V: ?Sized> Clone for MapDecoder<'_, K, V> {
+  fn clone(&self) -> Self {
+    *self
+  }
+}
+
+impl<K: ?Sized, V: ?Sized> Copy for MapDecoder<'_, K, V> {}
+
+impl<'a, K: ?Sized, V: ?Sized> MapDecoder<'a, K, V> {
+  #[inline]
+  const fn new(src: &'a [u8]) -> Self {
+    Self {
+      buf: src,
+      offset: 0,
+      _m: core::marker::PhantomData,
+    }
+  }
+
+  /// Returns the current position of the buffer.
+  #[inline]
+  pub const fn position(&self) -> usize {
+    self.offset
+  }
+}
+
+impl<K: Varint, V: Varint> Iterator for MapDecoder<'_, K, V> {
+  type Item = Result<(usize, (K, V)), DecodeError>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    if self.offset < self.buf.len() {
+      let offset = self.offset;
+      Some(
+        K::decode(&self.buf[self.offset..]).and_then(|(bytes_read, k)| {
+          self.offset += bytes_read;
+
+          V::decode(&self.buf[self.offset..]).map(|(bytes_read, v)| {
+            self.offset += bytes_read;
+            (self.offset - offset, (k, v))
+          })
+        }),
+      )
+    } else {
+      None
+    }
   }
 }
 
@@ -533,6 +650,9 @@ pub mod primitive_types;
 #[cfg(feature = "ethereum-types_0_15")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ethereum-types_0_15")))]
 pub mod ethereum_types;
+
+/// Packable trait for types that can be packed into a single value.
+pub mod packable;
 
 #[cfg(feature = "ruint_1")]
 mod ruint_impl;

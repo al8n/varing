@@ -140,40 +140,6 @@ macro_rules! unsigned {
             [< decode_uint_d $storage >](buf)
           }
         }
-
-        #[cfg(any(feature = "num-rational_0_4", feature = "num-complex_0_4"))]
-        impl<const BYTES: usize, const OBYTES: usize>
-          Packable<$base<OBYTES>> for $base<BYTES>
-        {
-          fn pack(low: Self, high: Self) -> $base<OBYTES> {
-            debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
-
-            let mut buf = [0; OBYTES];
-            buf[..BYTES].copy_from_slice(low.digits());
-            let low = $base::<OBYTES>::from_digits(buf);
-
-            let mut buf = [0; OBYTES];
-            buf[..BYTES].copy_from_slice(high.digits());
-            let high = $base::<OBYTES>::from_digits(buf);
-
-            low | (high << Self::BITS)
-          }
-
-          fn unpack(value: $base<OBYTES>) -> (Self, Self)
-          where
-            Self: Sized
-          {
-            debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
-
-            // Unwrap safe here, because we are creating a larger type from a smaller type
-            let mut buf = [0; OBYTES];
-            buf[..BYTES].copy_from_slice(&$base::<BYTES>::MAX.digits()[..BYTES]);
-            let low = value.bitand($base::<OBYTES>::from_digits(buf));
-            let high = value >> Self::BITS;
-            // Unwrap safe here, because we have shifted the low and high to the smaller type size
-            ($base::<BYTES>::from_digits(low.digits()[..BYTES].try_into().unwrap()), $base::<BYTES>::from_digits(high.digits()[..BYTES].try_into().unwrap()))
-          }
-        }
       )*
     }
   };
@@ -277,31 +243,6 @@ macro_rules! signed {
             [< decode_int_d $storage >](buf)
           }
         }
-
-        #[cfg(any(feature = "num-rational_0_4", feature = "num-complex_0_4"))]
-        impl<const BYTES: usize, const OBYTES: usize>
-          Packable<$u<OBYTES>> for $i<BYTES>
-        {
-          fn pack(low: Self, high: Self) -> $u<OBYTES> {
-            debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
-
-            let low = [<zigzag_encode_int_d $storage>](&low);
-            let high = [<zigzag_encode_int_d $storage>](&high);
-            Packable::pack(low, high)
-          }
-
-          fn unpack(value: $u<OBYTES>) -> (Self, Self)
-          where
-            Self: Sized
-          {
-            debug_assert_eq!(BYTES * 2, OBYTES, "BYTES * 2 != OBYTES");
-
-            let (low, high) = Packable::unpack(value);
-            let low = [<zigzag_decode_int_d $storage>](&low);
-            let high = [<zigzag_decode_int_d $storage>](&high);
-            (low, high)
-          }
-        }
       )*
     }
   };
@@ -309,15 +250,6 @@ macro_rules! signed {
 
 unsigned!(BUintD8(8), BUintD16(16), BUintD32(32), BUint(64));
 signed!(8(BIntD8 <=> BUintD8), 16(BIntD16 <=> BUintD16), 32(BIntD32 <=> BUintD32), 64(BInt <=> BUint));
-
-#[cfg(any(feature = "num-rational_0_4", feature = "num-complex_0_4"))]
-pub(crate) trait Packable<O> {
-  fn pack(low: Self, high: Self) -> O;
-
-  fn unpack(value: O) -> (Self, Self)
-  where
-    Self: Sized;
-}
 
 #[cfg(test)]
 mod tests {

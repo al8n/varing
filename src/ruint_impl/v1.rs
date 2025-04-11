@@ -2,14 +2,17 @@ use crate::*;
 
 use ruint_1::Uint;
 
+#[inline]
+const fn min_encoded_len<const BITS: usize>() -> usize {
+  if BITS == 0 {
+    0
+  } else {
+    1
+  }
+}
+
 impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
-  const MIN_ENCODED_LEN: usize = const {
-    if BITS == 0 {
-      0
-    } else {
-      1
-    }
-  };
+  const MIN_ENCODED_LEN: usize = min_encoded_len::<BITS>();
   const MAX_ENCODED_LEN: usize = BITS.div_ceil(7);
 
   fn encoded_len(&self) -> usize {

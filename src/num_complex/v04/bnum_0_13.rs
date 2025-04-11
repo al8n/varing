@@ -1,5 +1,6 @@
 use crate::{
-  bnum::{decode_uint_d8, encode_uint_d8_to, encoded_uint_d8_len, Packable},
+  bnum::{decode_uint_d8, encode_uint_d8_to, encoded_uint_d8_len},
+  packable::Packable,
   utils::{pack_i128, pack_u128, unpack_i128, unpack_u128},
   DecodeError, EncodeError, Varint,
 };
@@ -70,29 +71,29 @@ pub const fn decode_complex_i128(buf: &[u8]) -> Result<(usize, Complex<i128>), D
 }
 
 macro_rules! impl_varint_for_complex_bnum {
-  (@unsigned $( $storage:literal($base:ident($($bits:literal),+$(,)?)) ), +$(,)?) => {
+  (@unsigned $( ($base:ident($($bits:literal),+$(,)?)) ), +$(,)?) => {
     paste::paste! {
       $(
         $(
           impl Varint for Complex<$base<{ $bits / 8 }>> {
-            const MIN_ENCODED_LEN: usize = $base::<{ ($bits / 8) * 2 }>::MAX_ENCODED_LEN;
+            const MIN_ENCODED_LEN: usize = $base::<{ ($bits) * 2 }>::MAX_ENCODED_LEN;
 
-            const MAX_ENCODED_LEN: usize = $base::<{ ($bits / 8) * 2 }>::MAX_ENCODED_LEN;
+            const MAX_ENCODED_LEN: usize = $base::<{ ($bits) * 2 }>::MAX_ENCODED_LEN;
 
             fn encoded_len(&self) -> usize {
-              Packable::<$base::<{ ($bits / 8) * 2 }>>::pack(self.re, self.im).encoded_len()
+              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::pack(&self.re, &self.im).encoded_len()
             }
 
             fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-              Packable::<$base::<{ ($bits / 8) * 2 }>>::pack(self.re, self.im).encode(buf)
+              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::pack(&self.re, &self.im).encode(buf)
             }
 
             fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
             where
               Self: Sized,
             {
-              let (bytes_read, merged) = $base::< { ($bits / 8) * 2 }>::decode(buf)?;
-              let (re, im): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ ($bits / 8) * 2 }>>::unpack(merged);
+              let (bytes_read, merged) = $base::< { ($bits) * 2 }>::decode(buf)?;
+              let (re, im): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::unpack(merged);
               Ok((bytes_read, Complex { re, im }))
             }
           }
@@ -100,7 +101,7 @@ macro_rules! impl_varint_for_complex_bnum {
       )*
     }
   };
-  (@signed $( $storage:literal ($base:ident <=> $unsigned:ident($($bits:literal),+$(,)?)) ), +$(,)?) => {
+  (@signed $(  ($base:ident <=> $unsigned:ident($($bits:literal),+$(,)?)) ), +$(,)?) => {
     paste::paste! {
       $(
         $(
@@ -110,11 +111,11 @@ macro_rules! impl_varint_for_complex_bnum {
             const MAX_ENCODED_LEN: usize = $unsigned::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
 
             fn encoded_len(&self) -> usize {
-              Packable::<$unsigned::<{($bits / 8) * 2}>>::pack(self.re, self.im).encoded_len()
+              Packable::<$base::<{ $bits / 8 }>, $unsigned::<{($bits / 8) * 2}>>::pack(&self.re, &self.im).encoded_len()
             }
 
             fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-              Packable::<$unsigned::<{($bits / 8) * 2}>>::pack(self.re, self.im).encode(buf)
+              Packable::<$base::<{ $bits / 8 }>, $unsigned::<{($bits / 8) * 2}>>::pack(&self.re, &self.im).encode(buf)
             }
 
             fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
@@ -122,7 +123,7 @@ macro_rules! impl_varint_for_complex_bnum {
               Self: Sized,
             {
               let (bytes_read, merged) = $unsigned::< {($bits / 8) * 2}>::decode(buf)?;
-              let (re, im): ($base< { $bits / 8 } >, $base< { $bits / 8 }>) = Packable::<$unsigned::<{($bits / 8) * 2}>>::unpack(merged);
+              let (re, im): ($base< { $bits / 8 } >, $base< { $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $unsigned::<{($bits / 8) * 2}>>::unpack(merged);
               Ok((bytes_read, Complex { re, im }))
             }
           }
@@ -134,15 +135,15 @@ macro_rules! impl_varint_for_complex_bnum {
 
 // TODO: this can be implemented for all Uint<BITS, LIMBS> when feature(const_generics) is stable
 impl_varint_for_complex_bnum!(@unsigned
-  8(BUintD8(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  16(BUintD16(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  32(BUintD32(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  64(BUint(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BUintD8(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BUintD16(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BUintD32(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BUint(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
 );
 
 impl_varint_for_complex_bnum!(@signed
-  8(BIntD8 <=> BUintD8(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  16(BIntD16 <=> BUintD16(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  32(BIntD32 <=> BUintD32(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
-  64(BInt <=> BUint(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BIntD8 <=> BUintD8(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BIntD16 <=> BUintD16(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BIntD32 <=> BUintD32(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
+  (BInt <=> BUint(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768)),
 );

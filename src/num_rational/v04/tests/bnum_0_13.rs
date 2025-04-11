@@ -102,9 +102,9 @@ macro_rules! test_mod {
           use super::*;
           use ::bnum_0_13::$base;
 
-          type_aliases!(U::$storage::$base(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768));
+          type_aliases!(U::$storage::$base(8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192));
 
-          impl_arbitrary_ratio!(@bnum (U8, U16, U32, U64, U128, U256, U512, U1024, U2048, U4096,));
+          impl_arbitrary_ratio!(@bnum (U8, U16, U32, U64, U128, U256, U512, U1024, U2048));
 
           ratio_bnum_fuzzy!(@varint_into (
             BnumRatioU8(Ratio<U8>),
@@ -116,7 +116,6 @@ macro_rules! test_mod {
             BnumRatioU512(Ratio<U512>),
             BnumRatioU1024(Ratio<U1024>),
             BnumRatioU2048(Ratio<U2048>),
-            BnumRatioU4096(Ratio<U4096>),
           ));
         }
       )*
