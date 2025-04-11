@@ -24,6 +24,13 @@ pub mod ruint;
 /// This trait is used to define how to pack and unpack values of
 /// different types into a single value.
 ///
+/// A common usage is to pack `Self` and `Rhs` into a single
+/// value `Packed`, if the `Packed` implements [`Varint`](crate::Varint),
+/// then the packed value can be used for varint encoding in one go.
+/// However, the output size of the packed value is not guaranteed to be
+/// smaller than seperate encoding of `Self` and `Rhs`, and most of the
+/// time, the output size is larger than the sum of encoding two types separately.
+///
 /// The `Rhs` type is the type that will be packed with the current
 /// type.
 ///
