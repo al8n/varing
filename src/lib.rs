@@ -360,6 +360,7 @@ pub trait VarintMap<K: ?Sized, V: ?Sized> {
 }
 
 impl<K, V> VarintMap<K, V> for (K, V) {}
+impl<T> VarintMap<T, T> for [T; 2] {}
 
 /// Calculates the number of bytes occupied by a varint encoded value in the buffer.
 ///
