@@ -204,25 +204,46 @@ macro_rules! impl_packable_for_primitives {
           fn [<fuzzy_mix_roundtrip_ u $a _u $b>](a: [<u $a>], b: [<u $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< u $a >] as Packable<[< u $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< u $b >] as Packable<[< u $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+
+            cond1 && cond2
           }
 
           fn [<fuzzy_mix_roundtrip_i $a _i $b>](a: [<i $a>], b: [<i $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< i $a >] as Packable<[< i $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< i $b >] as Packable<[< i $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
           }
 
           fn [<fuzzy_mix_roundtrip_ u $a _i $b>](a: [<u $a>], b: [<i $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< u $a >] as Packable<[< i $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< i $b >] as Packable<[< u $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
           }
 
           fn [<fuzzy_mix_roundtrip_ i $a _u $b>](a: [<i $a>], b: [<u $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< i $a >] as Packable<[< u $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< u $b >] as Packable<[< i $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
           }
         }
       )*
@@ -349,25 +370,70 @@ macro_rules! impl_packable_for_primitives {
           fn [<fuzzy_roundtrip_ u $a _u $b>](a: [<u $a>], b: [<u $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< u $a >] as Packable<[< u $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< u $b >] as Packable<[< u $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+
+            cond1 && cond2
           }
 
           fn [<fuzzy_roundtrip_i $a _i $b>](a: [<i $a>], b: [<i $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< i $a >] as Packable<[< i $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< i $b >] as Packable<[< i $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+
+            cond1 && cond2
           }
 
           fn [<fuzzy_roundtrip_ u $a _i $b>](a: [<u $a>], b: [<i $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< u $a >] as Packable<[< i $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< i $b >] as Packable<[< u $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
+          }
+
+          fn [<fuzzy_roundtrip_ u $b _i $a>](a: [<u $b>], b: [<i $a>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< u $b >] as Packable<[< i $a>], _>>::unpack(packed);
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< i $a >] as Packable<[< u $b>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
           }
 
           fn [<fuzzy_roundtrip_ i $a _u $b>](a: [<i $a>], b: [<u $b>]) -> bool {
             let packed = a.pack(&b);
             let (a2, b2) = <[< i $a >] as Packable<[< u $b>], _>>::unpack(packed);
-            a == a2 && b == b2
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< u $b >] as Packable<[< i $a>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+
+            cond1 && cond2
+          }
+
+          fn [<fuzzy_roundtrip_ i $b _u $a>](a: [<i $b>], b: [<u $a>]) -> bool {
+            let packed = a.pack(&b);
+            let (a2, b2) = <[< i $b >] as Packable<[< u $a>], _>>::unpack(packed);
+            let cond1 = a == a2 && b == b2;
+
+            let packed = b.pack(&a);
+            let (a2, b2) = <[< u $a >] as Packable<[< i $b>], _>>::unpack(packed);
+            let cond2 = a == b2 && b == a2;
+            cond1 && cond2
           }
         }
       )*
