@@ -320,26 +320,23 @@ macro_rules! impl_packable_for_primitives {
       $(
         impl Packable<[< i $b >], [< u $packed>]> for [< u $a >] {
           fn pack(&self, rhs: &[< i $b >]) -> [< u $packed>] {
-            let b = [< zigzag_encode_i $b >](*rhs);
-            [< pack_ u $a _u $b>](*self, b)
+            [< pack_u $a _i $b>](*self, *rhs)
           }
 
           fn unpack(packed: [< u $packed>]) -> (Self, [< i $b >]) where Self: Sized, [< i $b >]: Sized {
-            let (a, b) = <[< u $a >] as Packable<[< u $b >], [< u $packed>]>>::unpack(packed);
-            (a, [< zigzag_decode_i $b >](b))
+            [< unpack_u $a _i $b>](packed)
           }
         }
 
         impl Packable<[< u $a >], [< u $packed>]> for [< i $b >] {
           #[inline]
           fn pack(&self, rhs: &[< u $a >]) -> [< u $packed>] {
-            <[< u $a >] as Packable<[< i $b >], [< u $packed>]>>::pack(rhs, self)
+            [< pack_ i $b _u $a>](*self, *rhs)
           }
 
           #[inline]
           fn unpack(packed: [< u $packed>]) -> (Self, [< u $a >]) where Self: Sized, [< u $a >]: Sized {
-            let (a, b) = <[< u $a >] as Packable<[< i $b >], [< u $packed>]>>::unpack(packed);
-            (b, a)
+            [< unpack_ i $b _u $a>](packed)
           }
         }
 
