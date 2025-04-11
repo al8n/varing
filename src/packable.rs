@@ -1,13 +1,5 @@
 pub(crate) mod builtin;
 
-/// Packable implementation for [`arbitrary-int`](https://crates.io/crates/arbitrary-int) types.
-#[cfg(any(feature = "arbitrary-int_1", feature = "arbitrary-int"))]
-#[cfg_attr(
-  docsrs,
-  doc(cfg(any(feature = "arbitrary-int_1", feature = "arbitrary-int")))
-)]
-pub mod arbitrary_int;
-
 /// Packable implementation for [`bnum`](https://crates.io/crates/bnum) types.
 #[cfg(any(feature = "bnum_0_13", feature = "bnum"))]
 #[cfg_attr(docsrs, doc(cfg(any(feature = "bnum_0_13", feature = "bnum"))))]

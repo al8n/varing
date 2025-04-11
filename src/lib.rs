@@ -66,301 +66,291 @@ pub trait Varint {
     Self: Sized;
 }
 
-/// An extension trait for types that implements [`Varint`].
-pub trait VarintSequence: Varint {
-  /// Encodes a sequence of values as varints and writes them to the buffer.
-  ///
-  /// Returns the total number of bytes written to the buffer.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintSequence};
-  ///
-  /// let values = (0..1024u64).collect::<Vec<_>>();
-  ///
-  /// let encoded_len = u64::encoded_sequence_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>(&buf).unwrap();
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn encode_sequence<'i>(
-    sequence: impl Iterator<Item = &'i Self>,
-    buf: &mut [u8],
-  ) -> Result<usize, EncodeError>
-  where
-    Self: 'i,
-  {
-    let mut total_bytes = 0;
-    for value in sequence {
-      let bytes_written = value.encode(&mut buf[total_bytes..])?;
-      total_bytes += bytes_written;
-    }
-    Ok(total_bytes)
+/// Encodes a sequence of values as varints and writes them to the buffer.
+///
+/// Returns the total number of bytes written to the buffer.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, decode_sequence};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_sequence::<u64, Vec<u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn encode_sequence<'i, V>(
+  sequence: impl Iterator<Item = &'i V>,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError>
+where
+  V: ?Sized + Varint + 'i,
+{
+  let mut total_bytes = 0;
+  for value in sequence {
+    let bytes_written = value.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
   }
-
-  /// Returns the total number of bytes needed to encode a sequence of values.
-  fn encoded_sequence_len<'i>(sequence: impl Iterator<Item = &'i Self>) -> usize
-  where
-    Self: 'i,
-  {
-    sequence.map(|item| item.encoded_len()).sum::<usize>()
-  }
-
-  /// Returns a sequence decoder for the given buffer.
-  ///
-  /// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintSequence};
-  ///
-  /// let values = (0..1024u64).collect::<Vec<_>>();
-  ///
-  /// let encoded_len = u64::encoded_sequence_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let mut readed = 0;
-  /// let mut decoded = Vec::new();
-  /// while let Some(Ok((bytes_read, value))) = u64::sequence_decoder(&buf[readed..]).next() {
-  ///   readed += bytes_read;
-  ///   decoded.push(value);
-  /// }
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn sequence_decoder(buf: &[u8]) -> SequenceDecoder<'_, Self>
-  where
-    Self: Sized,
-  {
-    SequenceDecoder::new(buf)
-  }
-
-  /// Decodes a sequence of values from the buffer.
-  ///
-  /// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintSequence};
-  ///
-  /// let values = (0..1024u64).collect::<Vec<_>>();
-  ///
-  /// let encoded_len = u64::encoded_sequence_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = u64::encode_sequence(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let (readed, decoded) = u64::decode_sequence::<Vec<_>>(&buf).unwrap();
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn decode_sequence<O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
-  where
-    Self: Sized,
-    O: core::iter::FromIterator<Self>,
-  {
-    let mut readed = 0;
-    core::iter::from_fn(|| {
-      if readed < buf.len() {
-        match Self::decode(&buf[readed..]) {
-          Ok((bytes_read, value)) => {
-            readed += bytes_read;
-            Some(Ok(value))
-          }
-          Err(e) => Some(Err(e)),
-        }
-      } else {
-        None
-      }
-    })
-    .collect::<Result<O, _>>()
-    .map(|output| (readed, output))
-  }
+  Ok(total_bytes)
 }
 
-impl<V: Varint> VarintSequence for V {}
+/// Returns the total number of bytes needed to encode a sequence of values.
+pub fn encoded_sequence_len<'i, V>(sequence: impl Iterator<Item = &'i V>) -> usize
+where
+  V: ?Sized + Varint + 'i,
+{
+  sequence.map(|item| item.encoded_len()).sum::<usize>()
+}
 
-/// An extension trait for types that implements [`Varint`].
-pub trait VarintMap<K: ?Sized, V: ?Sized> {
-  /// Encodes a map of entries as varints and writes them to the buffer.
-  ///
-  /// Returns the total number of bytes written to the buffer.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintMap};
-  /// use std::collections::HashMap;
-  ///
-  /// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
-  ///
-  /// let encoded_len = <(u64, u64)>::encoded_map_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = <(u64, u64)>::encode_map(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let (readed, decoded) = <(u64, u64)>::decode_map::<HashMap<_, _>>(&buf).unwrap();
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn encode_map<'a>(
-    map: impl Iterator<Item = (&'a K, &'a V)>,
-    buf: &mut [u8],
-  ) -> Result<usize, EncodeError>
-  where
-    K: Varint + 'a,
-    V: Varint + 'a,
-  {
-    let mut total_bytes = 0;
-    for (key, value) in map {
-      let bytes_written = key.encode(&mut buf[total_bytes..])?;
-      total_bytes += bytes_written;
-      let bytes_written = value.encode(&mut buf[total_bytes..])?;
-      total_bytes += bytes_written;
-    }
-    Ok(total_bytes)
-  }
+/// Returns a sequence decoder for the given buffer.
+///
+/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, sequence_decoder};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let mut readed = 0;
+/// let mut decoded = Vec::new();
+/// while let Some(Ok((bytes_read, value))) = sequence_decoder::<u64>(&buf[readed..]).next() {
+///   readed += bytes_read;
+///   decoded.push(value);
+/// }
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn sequence_decoder<V>(buf: &[u8]) -> SequenceDecoder<'_, V>
+where
+  V: ?Sized,
+{
+  SequenceDecoder::new(buf)
+}
 
-  /// Returns the total length of a map of entries.
-  ///
-  /// Returns the total number of bytes needed to encode the map.
-  fn encoded_map_len<'a>(map: impl Iterator<Item = (&'a K, &'a V)>) -> usize
-  where
-    K: Varint + 'a,
-    V: Varint + 'a,
-  {
-    map
-      .map(|(key, value)| key.encoded_len() + value.encoded_len())
-      .sum::<usize>()
-  }
-
-  /// Returns a sequence decoder for the given buffer.
-  ///
-  /// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintMap};
-  /// use std::collections::HashMap;
-  ///
-  /// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
-  ///
-  /// let encoded_len = <(u64, u64)>::encoded_map_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = <(u64, u64)>::encode_map(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let mut readed = 0;
-  /// let mut decoded = HashMap::new();
-  /// while let Some(Ok((bytes_read, (key, value)))) = <(u64, u64)>::map_decoder(&buf[readed..]).next() {
-  ///   readed += bytes_read;
-  ///   decoded.insert(key, value);
-  /// }
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn map_decoder(buf: &[u8]) -> MapDecoder<'_, K, V>
-  where
-    Self: Sized,
-  {
-    MapDecoder::new(buf)
-  }
-
-  /// Decodes a collection of entries from the buffer.
-  ///
-  /// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
-  ///
-  /// ## Example
-  ///
-  /// ```rust
-  /// # #[cfg(feature = "std")]
-  /// # {
-  /// #
-  /// use varing::{Varint, VarintMap};
-  /// use std::collections::HashMap;
-  ///
-  /// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
-  ///
-  /// let encoded_len = <(u64, u64)>::encoded_map_len(values.iter());
-  /// let mut buf = vec![0; encoded_len];
-  ///
-  /// let bytes_written = <(u64, u64)>::encode_map(values.iter(), &mut buf).unwrap();
-  /// assert_eq!(bytes_written, encoded_len);
-  ///
-  /// let (readed, decoded) = <(u64, u64)>::decode_map::<HashMap<_, _>>(&buf).unwrap();
-  ///
-  /// assert_eq!(decoded, values);
-  /// assert_eq!(readed, buf.len());
-  /// # }
-  /// ```
-  fn decode_map<O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
-  where
-    K: Varint + Sized,
-    V: Varint + Sized,
-    O: core::iter::FromIterator<(K, V)>,
-  {
-    let mut readed = 0;
-    core::iter::from_fn(|| {
-      if readed < buf.len() {
-        Some(K::decode(&buf[readed..]).and_then(|(bytes_read, k)| {
+/// Decodes a sequence of values from the buffer.
+///
+/// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, encoded_sequence_len, encode_sequence, decode_sequence};
+///
+/// let values = (0..1024u64).collect::<Vec<_>>();
+///
+/// let encoded_len = encoded_sequence_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_sequence(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_sequence::<u64, Vec<_>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn decode_sequence<V, O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
+where
+  V: Varint,
+  O: core::iter::FromIterator<V>,
+{
+  let mut readed = 0;
+  core::iter::from_fn(|| {
+    if readed < buf.len() {
+      match V::decode(&buf[readed..]) {
+        Ok((bytes_read, value)) => {
           readed += bytes_read;
-
-          V::decode(&buf[readed..]).map(|(bytes_read, v)| {
-            readed += bytes_read;
-            (k, v)
-          })
-        }))
-      } else {
-        None
+          Some(Ok(value))
+        }
+        Err(e) => Some(Err(e)),
       }
-    })
-    .collect::<Result<O, _>>()
-    .map(|output| (readed, output))
-  }
+    } else {
+      None
+    }
+  })
+  .collect::<Result<O, _>>()
+  .map(|output| (readed, output))
 }
 
-impl<K, V> VarintMap<K, V> for (K, V) {}
-impl<T> VarintMap<T, T> for [T; 2] {}
+/// Encodes a map of entries as varints and writes them to the buffer.
+///
+/// Returns the total number of bytes written to the buffer.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_map::<_, _, HashMap<u64, u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn encode_map<'a, K, V>(
+  map: impl Iterator<Item = (&'a K, &'a V)>,
+  buf: &mut [u8],
+) -> Result<usize, EncodeError>
+where
+  K: Varint + 'a,
+  V: Varint + 'a,
+{
+  let mut total_bytes = 0;
+  for (key, value) in map {
+    let bytes_written = key.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
+    let bytes_written = value.encode(&mut buf[total_bytes..])?;
+    total_bytes += bytes_written;
+  }
+  Ok(total_bytes)
+}
+
+/// Returns the total length of a map of entries.
+///
+/// Returns the total number of bytes needed to encode the map.
+pub fn encoded_map_len<'a, K, V>(map: impl Iterator<Item = (&'a K, &'a V)>) -> usize
+where
+  K: Varint + 'a,
+  V: Varint + 'a,
+{
+  map
+    .map(|(key, value)| key.encoded_len() + value.encoded_len())
+    .sum::<usize>()
+}
+
+/// Returns a sequence decoder for the given buffer.
+///
+/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map, map_decoder};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let mut readed = 0;
+/// let mut decoded = HashMap::new();
+/// while let Some(Ok((bytes_read, (key, value)))) = map_decoder::<u64, u64>(&buf[readed..]).next() {
+///   readed += bytes_read;
+///   decoded.insert(key, value);
+/// }
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn map_decoder<K, V>(buf: &[u8]) -> MapDecoder<'_, K, V>
+where
+  K: ?Sized,
+  V: ?Sized,
+{
+  MapDecoder::new(buf)
+}
+
+/// Decodes a collection of entries from the buffer.
+///
+/// Returns the number of bytes read from the buffer and a collection of the decoded value if successful.
+///
+/// ## Example
+///
+/// ```rust
+/// # #[cfg(feature = "std")]
+/// # {
+/// #
+/// use varing::{Varint, decode_map, encoded_map_len, encode_map};
+/// use std::collections::HashMap;
+///
+/// let values = (0..1024u64).map(|v| (v, v)).collect::<HashMap<_, _>>();
+///
+/// let encoded_len = encoded_map_len(values.iter());
+/// let mut buf = vec![0; encoded_len];
+///
+/// let bytes_written = encode_map(values.iter(), &mut buf).unwrap();
+/// assert_eq!(bytes_written, encoded_len);
+///
+/// let (readed, decoded) = decode_map::<_, _, HashMap<u64, u64>>(&buf).unwrap();
+///
+/// assert_eq!(decoded, values);
+/// assert_eq!(readed, buf.len());
+/// # }
+/// ```
+pub fn decode_map<K, V, O>(buf: &[u8]) -> Result<(usize, O), DecodeError>
+where
+  K: Varint + Sized,
+  V: Varint + Sized,
+  O: core::iter::FromIterator<(K, V)>,
+{
+  let mut readed = 0;
+  core::iter::from_fn(|| {
+    if readed < buf.len() {
+      Some(K::decode(&buf[readed..]).and_then(|(bytes_read, k)| {
+        readed += bytes_read;
+
+        V::decode(&buf[readed..]).map(|(bytes_read, v)| {
+          readed += bytes_read;
+          (k, v)
+        })
+      }))
+    } else {
+      None
+    }
+  })
+  .collect::<Result<O, _>>()
+  .map(|output| (readed, output))
+}
 
 /// Calculates the number of bytes occupied by a varint encoded value in the buffer.
 ///

@@ -147,7 +147,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let (readed, decoded) = <$ty>::decode_sequence::<std::vec::Vec<_>>(&buf).unwrap();
+          let (readed, decoded) = $crate::decode_sequence::<$ty, std::vec::Vec<_>>(&buf).unwrap();
           if encoded_len != readed {
             return false;
           }
