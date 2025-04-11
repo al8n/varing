@@ -163,3 +163,18 @@ fn test_zigzag_encode_decode_i64() {
     test_zigzag_encode_decode(value);
   }
 }
+
+#[test]
+fn test_encode_error_update() {
+  let ent = EncodeError::underflow(1, 0).update(4, 0);
+  assert!(matches!(
+    ent,
+    EncodeError::Underflow {
+      required: 4,
+      remaining: 0
+    }
+  ));
+
+  let ent = EncodeError::custom("test").update(4, 0);
+  assert!(matches!(ent, EncodeError::Custom(_)));
+}

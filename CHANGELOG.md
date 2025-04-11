@@ -1,5 +1,11 @@
 # RELEASED
 
+## 0.5.1 (Apr 12th, 2025)
+
+FEATURES
+
+- Add `Packable` and fns to encoding/decoding sequences and maps
+
 ## 0.5.0 (Apr 3rd, 2025)
 
 FEATURES

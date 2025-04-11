@@ -137,16 +137,22 @@ where
 ///
 /// let mut readed = 0;
 /// let mut decoded = Vec::new();
-/// while let Some(Ok((bytes_read, value))) = sequence_decoder::<u64>(&buf[readed..]).next() {
+/// let mut decoder = sequence_decoder::<u64>(&buf[readed..]);
+/// // `SequenceDecoder` is copy
+/// let mut decoder1 = decoder;
+/// while let Some(Ok((bytes_read, value))) = decoder.next() {
 ///   readed += bytes_read;
+///   assert_eq!(readed, decoder.position());
 ///   decoded.push(value);
 /// }
 ///
+/// assert_eq!(decoder1.position(), 0);
 /// assert_eq!(decoded, values);
 /// assert_eq!(readed, buf.len());
 /// # }
 /// ```
-pub fn sequence_decoder<V>(buf: &[u8]) -> SequenceDecoder<'_, V>
+#[inline]
+pub const fn sequence_decoder<V>(buf: &[u8]) -> SequenceDecoder<'_, V>
 where
   V: ?Sized,
 {
@@ -283,16 +289,21 @@ where
 ///
 /// let mut readed = 0;
 /// let mut decoded = HashMap::new();
-/// while let Some(Ok((bytes_read, (key, value)))) = map_decoder::<u64, u64>(&buf[readed..]).next() {
+/// let mut decoder = map_decoder::<u64, u64>(&buf[readed..]);
+/// // `MapDecoder` is copy
+/// let mut decoder1 = decoder;
+/// while let Some(Ok((bytes_read, (key, value)))) = decoder.next() {
 ///   readed += bytes_read;
+///   assert_eq!(readed, decoder.position());
 ///   decoded.insert(key, value);
 /// }
 ///
+/// assert_eq!(decoder1.position(), 0);
 /// assert_eq!(decoded, values);
 /// assert_eq!(readed, buf.len());
 /// # }
 /// ```
-pub fn map_decoder<K, V>(buf: &[u8]) -> MapDecoder<'_, K, V>
+pub const fn map_decoder<K, V>(buf: &[u8]) -> MapDecoder<'_, K, V>
 where
   K: ?Sized,
   V: ?Sized,
@@ -430,6 +441,15 @@ impl EncodeError {
   }
 
   /// Creates a new `EncodeError::Custom` with the given message.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::EncodeError;
+  ///
+  /// let error = EncodeError::custom("Custom error message");
+  /// assert_eq!(error.to_string(), "Custom error message");
+  /// ```
   #[inline]
   pub const fn custom(msg: &'static str) -> Self {
     Self::Custom(msg)

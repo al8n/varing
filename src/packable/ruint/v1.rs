@@ -19,15 +19,7 @@ fn pack_uint<
     return Uint::<PBITS, PLIMBS>::ZERO;
   }
 
-  // Check if there's enough space for both values
-  assert!(
-    LBITS + RBITS <= PBITS,
-    "The sum of LBITS and RBITS must be less than or equal to PBITS"
-  );
-  assert!(
-    LLIMBS + RLIMBS <= PLIMBS,
-    "The sum of LLIMBS and RLIMBS must be less than or equal to PLIMBS"
-  );
+  assert_consts::<LBITS, LLIMBS, RBITS, RLIMBS, PBITS, PLIMBS>();
 
   // Decide which value goes to the high bits and which to the low bits
   let (high_bits, high_value, low_value, low_bits) = if LBITS > RBITS {
@@ -80,15 +72,7 @@ fn unpack_uint<
     return (Uint::<LBITS, LLIMBS>::ZERO, Uint::<RBITS, RLIMBS>::ZERO);
   }
 
-  // Check if there's enough space in the packed value for both integers
-  assert!(
-    LBITS + RBITS <= PBITS,
-    "The sum of LBITS and RBITS must be less than or equal to PBITS"
-  );
-  assert!(
-    LLIMBS + RLIMBS <= PLIMBS,
-    "The sum of LLIMBS and RLIMBS must be less than or equal to PLIMBS"
-  );
+  assert_consts::<LBITS, LLIMBS, RBITS, RLIMBS, PBITS, PLIMBS>();
 
   // Determine which value was placed in high bits vs low bits
   let low_bits = if LBITS > RBITS { RBITS } else { LBITS };
@@ -142,6 +126,25 @@ impl<
   }
 }
 
+const fn assert_consts<
+  const LBITS: usize,
+  const LLIMBS: usize,
+  const RBITS: usize,
+  const RLIMBS: usize,
+  const PBITS: usize,
+  const PLIMBS: usize,
+>() {
+  // Check if there's enough space in the packed value for both integers
+  assert!(
+    LBITS + RBITS <= PBITS,
+    "The sum of LBITS and RBITS must be less than or equal to PBITS"
+  );
+  assert!(
+    LLIMBS + RLIMBS <= PLIMBS,
+    "The sum of LLIMBS and RLIMBS must be less than or equal to PLIMBS"
+  );
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -187,4 +190,25 @@ mod tests {
     (1024, 16),
     (2048, 32),
   );
+
+  #[test]
+  fn zero() {
+    let output = pack_uint(&Uint::<0, 0>::ZERO, &Uint::<0, 0>::ZERO);
+    assert_eq!(output, Uint::<0, 0>::ZERO);
+    let (lhs, rhs) = unpack_uint::<0, 0, 0, 0, 0, 0>(&output);
+    assert_eq!(lhs, Uint::<0, 0>::ZERO);
+    assert_eq!(rhs, Uint::<0, 0>::ZERO);
+  }
+
+  #[test]
+  #[should_panic]
+  fn assert_consts_panic() {
+    assert_consts::<1, 1, 1, 1, 2, 0>();
+  }
+
+  #[test]
+  #[should_panic]
+  fn assert_consts_panic_2() {
+    assert_consts::<1, 1, 1, 1, 0, 2>();
+  }
 }
