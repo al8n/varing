@@ -1,6 +1,6 @@
 [package]
 name = "varing"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 repository = "https://github.com/al8n/varing"
 homepage = "https://github.com/al8n/varing"
@@ -20,6 +20,9 @@ std = ["thiserror/default"]
 
 ruint_1 = ["dep:ruint_1"]
 ruint = ["ruint_1"]
+
+half_2 = ["dep:half_2"]
+half = ["half_2"]
 
 arbitrary-int_1 = ["dep:arbitrary-int_1"]
 arbitrary-int = ["arbitrary-int_1"]
@@ -60,6 +63,7 @@ bnum_0_13 = { package = "bnum", version = "0.13", default-features = false, opti
 chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
 chrono-tz_0_10 = { package = "chrono-tz", version = "0.10", default-features = false, optional = true }
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
+half_2 = { package = "half", version = "2", default-features = false, optional = true }
 num-rational_0_4 = { package = "num-rational", version = "0.4", default-features = false, optional = true }
 num-complex_0_4 = { package = "num-complex", version = "0.4", default-features = false, optional = true }
 primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }

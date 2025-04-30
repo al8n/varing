@@ -197,37 +197,13 @@ macro_rules! encode {
         #[doc = "Returns the encoded length of a sequence of `u" $ty "` values"]
         #[inline]
         pub const fn [< encoded_ u $ty _sequence_len >](sequence: &[[< u $ty >]]) -> usize {
-          let mut total_bytes = 0;
-          let mut idx = 0;
-          let len = sequence.len();
-
-          while idx < len {
-            total_bytes += [< encoded_ u $ty _varint_len >](sequence[idx]);
-            idx += 1;
-          }
-
-          total_bytes
+          encode!(@sequence_encoded_len_impl sequence, [< encoded_ u $ty _varint_len >])
         }
 
         #[doc = "Encodes a sequence of `u" $ty "` to the buffer."]
         #[inline]
         pub const fn [< encode_ u $ty _sequence_to >](sequence: &[[< u $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
-          let mut total_bytes = 0;
-          let mut idx = 0;
-          let len = sequence.len();
-          let buf_len = buf.len();
-
-          while idx < len && total_bytes < buf_len {
-            let (_, buf) = buf.split_at_mut(total_bytes);
-            let bytes_written = match [< encode_ u $ty _varint_to >](sequence[idx], buf) {
-              Ok(bytes_written) => bytes_written,
-              Err(e) => return Err(e.update([< encoded_ u $ty _sequence_len >](sequence), buf_len)),
-            };
-            total_bytes += bytes_written;
-            idx += 1;
-          }
-
-          Ok(total_bytes)
+          encode!(@sequence_encode_to_impl buf, sequence, [< encode_ u $ty _varint_to >], [< encoded_ u $ty _sequence_len >])
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
@@ -240,41 +216,47 @@ macro_rules! encode {
         #[doc = "Returns the encoded length of a sequence of `i" $ty "` values"]
         #[inline]
         pub const fn [< encoded_i $ty _sequence_len >](sequence: &[[< i $ty >]]) -> usize {
-          let mut total_bytes = 0;
-          let mut idx = 0;
-          let len = sequence.len();
-
-          while idx < len {
-            total_bytes += [< encoded_ i $ty _varint_len >](sequence[idx]);
-            idx += 1;
-          }
-
-          total_bytes
+          encode!(@sequence_encoded_len_impl sequence, [< encoded_ i $ty _varint_len >])
         }
 
         #[doc = "Encodes a sequence of `i" $ty "` to the buffer."]
         #[inline]
         pub const fn [< encode_i $ty _sequence_to >](sequence: &[[< i $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
-          let mut total_bytes = 0;
-          let mut idx = 0;
-          let len = sequence.len();
-          let buf_len = buf.len();
-
-          while idx < len && total_bytes < buf_len {
-            let (_, buf) = buf.split_at_mut(total_bytes);
-            let bytes_written = match [< encode_ i $ty _varint_to >](sequence[idx], buf) {
-              Ok(bytes_written) => bytes_written,
-              Err(e) => return Err(e.update([< encoded_ i $ty _sequence_len >](sequence), buf_len)),
-            };
-            total_bytes += bytes_written;
-            idx += 1;
-          }
-
-          Ok(total_bytes)
+          encode!(@sequence_encode_to_impl buf, sequence, [< encode_ i $ty _varint_to >], [< encoded_ i $ty _sequence_len >])
         }
       }
     )*
   };
+  (@sequence_encode_to_impl $buf:ident, $sequence:ident, $encode_to:ident, $encoded_sequence_len:ident) => {{
+    let mut total_bytes = 0;
+    let mut idx = 0;
+    let len = $sequence.len();
+    let buf_len = $buf.len();
+
+    while idx < len && total_bytes < buf_len {
+      let (_, buf) = $buf.split_at_mut(total_bytes);
+      let bytes_written = match $encode_to($sequence[idx], buf) {
+        Ok(bytes_written) => bytes_written,
+        Err(e) => return Err(e.update($encoded_sequence_len($sequence), buf_len)),
+      };
+      total_bytes += bytes_written;
+      idx += 1;
+    }
+
+    Ok(total_bytes)
+  }};
+  (@sequence_encoded_len_impl $sequence:ident, $encoded_len:ident) => {{
+    let mut total_bytes = 0;
+    let mut idx = 0;
+    let len = $sequence.len();
+
+    while idx < len {
+      total_bytes += $encoded_len($sequence[idx]);
+      idx += 1;
+    }
+
+    total_bytes
+  }};
 }
 
 macro_rules! decode {
@@ -384,3 +366,145 @@ impl Varint for bool {
     })
   }
 }
+
+impl Varint for f32 {
+  const MIN_ENCODED_LEN: usize = u32::MIN_ENCODED_LEN;
+
+  const MAX_ENCODED_LEN: usize = u32::MAX_ENCODED_LEN;
+
+  #[inline]
+  fn encoded_len(&self) -> usize {
+    encoded_f32_varint_len(*self)
+  }
+
+  #[inline]
+  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+    encode_f32_varint_to(*self, buf)
+  }
+
+  #[inline]
+  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  where
+    Self: Sized,
+  {
+    decode_f32_varint(buf)
+  }
+}
+
+impl Varint for f64 {
+  const MIN_ENCODED_LEN: usize = u64::MIN_ENCODED_LEN;
+
+  const MAX_ENCODED_LEN: usize = u64::MAX_ENCODED_LEN;
+
+  #[inline]
+  fn encoded_len(&self) -> usize {
+    encoded_f64_varint_len(*self)
+  }
+
+  #[inline]
+  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+    encode_f64_varint_to(*self, buf)
+  }
+
+  #[inline]
+  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  where
+    Self: Sized,
+  {
+    decode_f64_varint(buf)
+  }
+}
+
+/// Returns the encoded length of the value in LEB128 variable length format. The returned value will be in range of [`f32::ENCODED_LEN_RANGE`].
+#[inline]
+pub const fn encoded_f32_varint_len(value: f32) -> usize {
+  crate::encoded_u32_varint_len(value.to_bits())
+}
+
+/// Encodes an `f32` value into LEB128 variable length format, and writes it to the buffer.
+#[inline]
+pub const fn encode_f32_varint(value: f32) -> crate::utils::Buffer<{ f32::MAX_ENCODED_LEN + 1 }> {
+  crate::encode_u32_varint(value.to_bits())
+}
+
+/// Encodes an `f32` value into LEB128 variable length format, and writes it to the buffer.
+#[inline]
+pub const fn encode_f32_varint_to(value: f32, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+  crate::encode_u32_varint_to(value.to_bits(), buf)
+}
+
+/// Decodes an `f32` in LEB128 encoded format from the buffer.
+///
+/// Returns the bytes readed and the decoded value if successful.
+#[inline]
+pub const fn decode_f32_varint(buf: &[u8]) -> Result<(usize, f32), crate::DecodeError> {
+  match crate::decode_u32_varint(buf) {
+    Ok((len, bits)) => Ok((len, f32::from_bits(bits))),
+    Err(e) => Err(e),
+  }
+}
+
+/// Returns the encoded length of the value in LEB128 variable length format. The returned value will be in range of [`f64::ENCODED_LEN_RANGE`].
+#[inline]
+pub const fn encoded_f64_varint_len(value: f64) -> usize {
+  crate::encoded_u64_varint_len(value.to_bits())
+}
+
+/// Encodes an `f64` value into LEB128 variable length format, and writes it to the buffer.
+#[inline]
+pub const fn encode_f64_varint(value: f64) -> crate::utils::Buffer<{ f64::MAX_ENCODED_LEN + 1 }> {
+  crate::encode_u64_varint(value.to_bits())
+}
+
+/// Encodes an `f64` value into LEB128 variable length format, and writes it to the buffer.
+#[inline]
+pub const fn encode_f64_varint_to(value: f64, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+  crate::encode_u64_varint_to(value.to_bits(), buf)
+}
+
+/// Decodes an `f64` in LEB128 encoded format from the buffer.
+///
+/// Returns the bytes readed and the decoded value if successful.
+#[inline]
+pub const fn decode_f64_varint(buf: &[u8]) -> Result<(usize, f64), crate::DecodeError> {
+  match crate::decode_u64_varint(buf) {
+    Ok((len, bits)) => Ok((len, f64::from_bits(bits))),
+    Err(e) => Err(e),
+  }
+}
+
+/// Returns the encoded length of a sequence of `f32` values
+#[inline]
+pub const fn encoded_f32_sequence_len(sequence: &[f32]) -> usize {
+  encode!(@sequence_encoded_len_impl sequence, encoded_f32_varint_len)
+}
+
+/// Encodes a sequence of `f32` to the buffer.
+#[inline]
+pub const fn encode_f32_sequence_to(
+  sequence: &[f32],
+  buf: &mut [u8],
+) -> Result<usize, EncodeError> {
+  encode!(@sequence_encode_to_impl buf, sequence, encode_f32_varint_to, encoded_f32_sequence_len)
+}
+
+/// Returns the encoded length of a sequence of `f64` values
+#[inline]
+pub const fn encoded_f64_sequence_len(sequence: &[f64]) -> usize {
+  encode!(@sequence_encoded_len_impl sequence, encoded_f64_varint_len)
+}
+
+/// Encodes a sequence of `f64` to the buffer.
+#[inline]
+pub const fn encode_f64_sequence_to(
+  sequence: &[f64],
+  buf: &mut [u8],
+) -> Result<usize, EncodeError> {
+  encode!(@sequence_encode_to_impl buf, sequence, encode_f64_varint_to, encoded_f64_sequence_len)
+}
+
+/// LEB128 encoding/decoding for [`half`](https://crates.io/crates/half) types.
+#[cfg(feature = "half_2")]
+mod half;
+#[cfg(feature = "half_2")]
+pub use half::*;

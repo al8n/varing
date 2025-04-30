@@ -31,6 +31,7 @@ varing = "0.5"
 - [`chrono`]: Support encode/decode [`chrono`] types by using LEB128 (not fully compatible in `const` context).
 - [`chrono-tz`]: Support encode/decode [`chrono-tz`] types by using LEB128.
 - [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
+- [`half`]: Support encode/decode [`half`] types by using LEB128.
 - [`num-complex`]: Support encode/decode [`num-complex`] types by using LEB128.
 - [`num-rational`]: Support encode/decode [`num-rational`] types by using LEB128.
 - [`primitive-types`]: Support encode/decode [`primitive-types`] types by using LEB128.
@@ -60,6 +61,7 @@ Copyright (c) 2025 Al Liu.
 [`bnum`]: https://docs.rs/bnum
 [`chrono`]: https://docs.rs/chrono
 [`chrono-tz`]: https://docs.rs/chrono-tz
+[`half`]: https://docs.rs/half
 [`num-complex`]: https://docs.rs/num-complex
 [`num-rational`]: https://docs.rs/num-rational
 [`ruint`]: https://docs.rs/ruint

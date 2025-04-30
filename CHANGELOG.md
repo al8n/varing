@@ -1,5 +1,9 @@
 # RELEASED
 
+## 0.5.2 (Apr 30th, 2025)
+
+- Implement `Varint` for `f32`, `f64` and `half::f16`.
+
 ## 0.5.1 (Apr 12th, 2025)
 
 FEATURES
