@@ -1,4 +1,4 @@
-use core::ops::{BitAnd, BitOr, Shl, Shr};
+use core::ops::{BitAnd, Shl, Shr};
 use ruint_1::Uint;
 
 use crate::packable::Packable;
@@ -42,7 +42,7 @@ fn pack_uint<
   };
 
   // Apply mask to low value
-  let masked_low = low_value.bitand(&low_mask);
+  let masked_low = low_value.bitand(low_mask);
 
   // Create mask for the high value
   let high_mask = if high_bits == PBITS {
@@ -52,9 +52,9 @@ fn pack_uint<
   };
 
   // Apply mask to high value, shift it to proper position, and combine with low value
-  let masked_high = high_value.bitand(&high_mask);
+  let masked_high = high_value.bitand(high_mask);
 
-  masked_high.shl(low_bits as u32).bitor(&masked_low)
+  masked_high.shl(low_bits as u32).bitor(masked_low)
 }
 
 /// Unpacks `Uint<PBITS, PLIMBS>` into `Uint<LBITS, LLIMBS>` and `Uint<RBITS, RLIMBS>`.
