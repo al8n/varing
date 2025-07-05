@@ -8,7 +8,7 @@ documentation = "https://docs.rs/varing"
 description = "Protobuf's varint encoding/decoding for LEB128 friendly types with full const context operations supports."
 license = "MIT OR Apache-2.0"
 rust-version = "1.81.0"
-keywords = ["leb128", "varint", "protobuf"]
+keywords = ["leb128", "varint", "protobuf", "proto", "const"]
 categories = ["no-std", "no-std::no-alloc", "encoding", "data-structures", "network-programming"]
 
 [workspace]

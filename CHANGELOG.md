@@ -1,5 +1,9 @@
 # RELEASED
 
+## 0.5.3 (Jul 6th, 2025)
+
+- Adapt to `ruint` new changes
+
 ## 0.5.2 (Apr 30th, 2025)
 
 - Implement `Varint` for `f32`, `f64` and `half::f16`.
