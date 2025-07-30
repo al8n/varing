@@ -1,5 +1,9 @@
 # RELEASED
 
+## 0.6.1 (Jul 31st, 2025)
+
+- Impelement `From<EncodeError>` and `From<DecodeError>` for `std::io::Error`
+
 ## 0.6.0 (Jul 31st, 2025)
 
 ### Breaking Changes

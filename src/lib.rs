@@ -430,6 +430,18 @@ pub enum EncodeError {
   Custom(&'static str),
 }
 
+#[cfg(feature = "std")]
+impl From<EncodeError> for std::io::Error {
+  fn from(err: EncodeError) -> Self {
+    match err {
+      EncodeError::InsufficientSpace { .. } => {
+        std::io::Error::new(std::io::ErrorKind::WriteZero, err)
+      }
+      EncodeError::Custom(msg) => std::io::Error::other(msg),
+    }
+  }
+}
+
 impl EncodeError {
   /// Creates a new `EncodeError::InsufficientSpace` with the requested and available bytes.
   #[inline]
@@ -480,6 +492,17 @@ pub enum DecodeError {
   /// A custom error message.
   #[error("{0}")]
   Custom(&'static str),
+}
+
+#[cfg(feature = "std")]
+impl From<DecodeError> for std::io::Error {
+  fn from(err: DecodeError) -> Self {
+    match err {
+      DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
+      DecodeError::InsufficientData => std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err),
+      DecodeError::Custom(msg) => std::io::Error::other(msg),
+    }
+  }
 }
 
 impl DecodeError {
