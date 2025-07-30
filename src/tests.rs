@@ -169,7 +169,7 @@ fn test_encode_error_update() {
   let ent = EncodeError::insufficient_space(1, 0).update(4, 0);
   assert!(matches!(
     ent,
-    EncodeError::Underflow {
+    EncodeError::InsufficientSpace {
       requested: 4,
       available: 0
     }

@@ -250,7 +250,7 @@ mod tests_ruint_1 {
       let mut short_buffer = vec![0u8; short_len];
       matches!(
         uint.encode(&mut short_buffer),
-        Err(EncodeError::Underflow { .. })
+        Err(EncodeError::InsufficientSpace { .. })
       )
     }
 
@@ -264,7 +264,7 @@ mod tests_ruint_1 {
       let mut short_buffer = vec![0u8; short_len];
       matches!(
         uint.encode(&mut short_buffer),
-        Err(EncodeError::Underflow { .. })
+        Err(EncodeError::InsufficientSpace { .. })
       )
     }
 

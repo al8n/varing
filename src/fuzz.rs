@@ -271,7 +271,7 @@ mod with_std {
     let mut short_buffer = vec![0u8; short_len];
     matches!(
       value.encode(&mut short_buffer),
-      Err(EncodeError::Underflow { .. })
+      Err(EncodeError::InsufficientSpace { .. })
     )
   }
 
