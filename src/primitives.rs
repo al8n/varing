@@ -63,7 +63,7 @@ macro_rules! decode_varint {
       }
 
       if index >= $buf.len() {
-        return Err(DecodeError::Underflow);
+        return Err(DecodeError::InsufficientData);
       }
 
       let next = $buf[index] as $ty;
@@ -121,7 +121,7 @@ macro_rules! encode_varint {
 
       while $x >= 0x80 {
         if i >= $buf.len() {
-          return Err(EncodeError::underflow([< encoded_ $ty _varint_len >](orig), $buf.len()));
+          return Err(EncodeError::insufficient_space([< encoded_ $ty _varint_len >](orig), $buf.len()));
         }
 
         $buf[i] = ($x as u8) | 0x80;
@@ -131,7 +131,7 @@ macro_rules! encode_varint {
 
       // Check buffer capacity before writing final byte
       if i >= $buf.len() {
-        return Err(EncodeError::underflow(i + 1, $buf.len()));
+        return Err(EncodeError::insufficient_space(i + 1, $buf.len()));
       }
 
       $buf[i] = $x as u8;

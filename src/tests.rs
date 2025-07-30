@@ -166,12 +166,12 @@ fn test_zigzag_encode_decode_i64() {
 
 #[test]
 fn test_encode_error_update() {
-  let ent = EncodeError::underflow(1, 0).update(4, 0);
+  let ent = EncodeError::insufficient_space(1, 0).update(4, 0);
   assert!(matches!(
     ent,
     EncodeError::Underflow {
-      required: 4,
-      remaining: 0
+      requested: 4,
+      available: 0
     }
   ));
 

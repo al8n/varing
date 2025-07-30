@@ -1,5 +1,13 @@
 # RELEASED
 
+## 0.6.0 (Jul 31st, 2025)
+
+### Breaking Changes
+
+- **EncodeError**: Renamed `Underflow` variant to `InsufficientSpace`
+  - Constructor method: `underflow(required, remaining)` → `insufficient_space(requested, available)`
+- **DecodeError**: Renamed `Underflow` variant to `InsufficientData`
+
 ## 0.5.3 (Jul 6th, 2025)
 
 - Adapt to `ruint` new changes

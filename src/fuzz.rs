@@ -278,7 +278,10 @@ mod with_std {
   #[quickcheck_macros::quickcheck]
   fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
     if bytes.is_empty() {
-      return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
+      return matches!(
+        decode_u64_varint(&bytes),
+        Err(DecodeError::InsufficientData)
+      );
     }
 
     // Only test sequences up to max varint length
@@ -288,7 +291,10 @@ mod with_std {
 
     // If all bytes have continuation bit set, should get Underflow
     if bytes.iter().all(|b| b & 0x80 != 0) {
-      return matches!(decode_u64_varint(&bytes), Err(DecodeError::Underflow));
+      return matches!(
+        decode_u64_varint(&bytes),
+        Err(DecodeError::InsufficientData)
+      );
     }
 
     // For other cases, we should get either a valid decode or an error

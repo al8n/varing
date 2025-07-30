@@ -403,14 +403,14 @@ pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
 
     // If we've reached the end of the buffer but haven't found the end of the varint
     if idx == buf_len - 1 {
-      return Err(DecodeError::Underflow);
+      return Err(DecodeError::InsufficientData);
     }
     idx += 1;
   }
 
   // This point is reached only if all bytes have their MSB set and we've
   // exhausted the buffer, which means the varint is incomplete
-  Err(DecodeError::Underflow)
+  Err(DecodeError::InsufficientData)
 }
 
 /// Encode varint error
@@ -418,12 +418,12 @@ pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
 #[non_exhaustive]
 pub enum EncodeError {
   /// The buffer does not have enough capacity to encode the value.
-  #[error("buffer does not have enough capacity to encode the value")]
-  Underflow {
+  #[error("Not enough bytes available to write value (requested {requested} but only {available} available)")]
+  InsufficientSpace {
     /// The number of bytes needed to encode the value.
-    required: usize,
-    /// The number of bytes remaining in the buffer.
-    remaining: usize,
+    requested: usize,
+    /// The number of bytes available.
+    available: usize,
   },
   /// A custom error message.
   #[error("{0}")]
@@ -431,12 +431,12 @@ pub enum EncodeError {
 }
 
 impl EncodeError {
-  /// Creates a new `EncodeError::Underflow` with the required and remaining bytes.
+  /// Creates a new `EncodeError::InsufficientSpace` with the requested and available bytes.
   #[inline]
-  pub const fn underflow(required: usize, remaining: usize) -> Self {
-    Self::Underflow {
-      required,
-      remaining,
+  pub const fn insufficient_space(requested: usize, available: usize) -> Self {
+    Self::InsufficientSpace {
+      requested,
+      available,
     }
   }
 
@@ -456,11 +456,11 @@ impl EncodeError {
   }
 
   #[inline]
-  const fn update(self, required: usize, remaining: usize) -> Self {
+  const fn update(self, requested: usize, available: usize) -> Self {
     match self {
       Self::Underflow { .. } => Self::Underflow {
-        required,
-        remaining,
+        requested,
+        available,
       },
       Self::Custom(msg) => Self::Custom(msg),
     }
@@ -472,11 +472,11 @@ impl EncodeError {
 #[non_exhaustive]
 pub enum DecodeError {
   /// The buffer does not contain a valid LEB128 encoding.
-  #[error("value would overflow the target type")]
+  #[error("Decoded value would overflow the target type")]
   Overflow,
   /// The buffer does not contain enough data to decode.
-  #[error("buffer does not contain enough data to decode a value")]
-  Underflow,
+  #[error("Not enough data available to decode value")]
+  InsufficientData,
   /// A custom error message.
   #[error("{0}")]
   Custom(&'static str),
