@@ -458,7 +458,7 @@ impl EncodeError {
   #[inline]
   const fn update(self, requested: usize, available: usize) -> Self {
     match self {
-      Self::Underflow { .. } => Self::Underflow {
+      Self::InsufficientSpace { .. } => Self::InsufficientSpace {
         requested,
         available,
       },
