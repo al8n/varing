@@ -51,7 +51,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
         let len = self.encoded_len();
         let buf_len = buf.len();
         if buf_len < len {
-          return Err(EncodeError::underflow(len, buf_len));
+          return Err(EncodeError::insufficient_space(len, buf_len));
         }
 
         let mut value = *self;
@@ -88,7 +88,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     }
 
     if buf.is_empty() {
-      return Err(DecodeError::Underflow);
+      return Err(DecodeError::InsufficientData);
     }
 
     let mut result = Self::ZERO;
@@ -124,7 +124,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     }
 
     // If we get here, the input ended with a continuation bit set
-    Err(DecodeError::Underflow)
+    Err(DecodeError::InsufficientData)
   }
 }
 
@@ -250,7 +250,7 @@ mod tests_ruint_1 {
       let mut short_buffer = vec![0u8; short_len];
       matches!(
         uint.encode(&mut short_buffer),
-        Err(EncodeError::Underflow { .. })
+        Err(EncodeError::InsufficientSpace { .. })
       )
     }
 
@@ -264,14 +264,14 @@ mod tests_ruint_1 {
       let mut short_buffer = vec![0u8; short_len];
       matches!(
         uint.encode(&mut short_buffer),
-        Err(EncodeError::Underflow { .. })
+        Err(EncodeError::InsufficientSpace { .. })
       )
     }
 
     #[quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
-        return matches!(U256::decode(&bytes), Err(DecodeError::Underflow));
+        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData));
       }
 
       // Only test sequences up to max varint length
@@ -281,7 +281,7 @@ mod tests_ruint_1 {
 
       // If all bytes have continuation bit set, should get Underflow
       if bytes.iter().all(|b| b & 0x80 != 0) {
-        return matches!(U256::decode(&bytes), Err(DecodeError::Underflow));
+        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData));
       }
 
       // For other cases, we should get either a valid decode or an error

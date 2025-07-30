@@ -40,7 +40,7 @@ macro_rules! unsigned {
           let len = [< encoded_uint_d $storage _len >](&value);
           let buf_len = buf.len();
           if buf_len < len {
-            return Err(EncodeError::underflow(len, buf_len));
+            return Err(EncodeError::insufficient_space(len, buf_len));
           }
 
           let mut bytes_written = 0;
@@ -75,7 +75,7 @@ macro_rules! unsigned {
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::Underflow);
+            return Err(DecodeError::InsufficientData);
           }
 
           let mut result = $base::<N>::ZERO;
@@ -111,7 +111,7 @@ macro_rules! unsigned {
           }
 
           // If we get here, the input ended with a continuation bit set
-          Err(DecodeError::Underflow)
+          Err(DecodeError::InsufficientData)
         }
 
         impl<const N: usize> Varint for $base<N> {
@@ -211,7 +211,7 @@ macro_rules! signed {
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::Underflow);
+            return Err(DecodeError::InsufficientData);
           }
 
           match [< decode_uint_d $storage >]::<N>(buf) {
