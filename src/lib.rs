@@ -431,6 +431,7 @@ pub enum EncodeError {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
@@ -495,6 +496,7 @@ pub enum DecodeError {
 }
 
 #[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
