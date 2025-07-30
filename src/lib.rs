@@ -4,6 +4,9 @@
 #![cfg_attr(docsrs, allow(unused_attributes))]
 #![deny(missing_docs)]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 use core::ops::RangeInclusive;
 
 pub use char::*;
