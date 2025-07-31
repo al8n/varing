@@ -7,6 +7,7 @@ ignore:
   - src/num_rational/v04/tests/
   - src/num_complex/v04/tests.rs
   - src/num_complex/v04/tests/
+  - src/error.rs
 
 coverage:
   status:
