@@ -219,8 +219,6 @@ mod tests_ruint_1 {
 
   #[cfg(feature = "std")]
   mod with_std {
-    extern crate std;
-
     use super::*;
 
     use std::{vec, vec::Vec};

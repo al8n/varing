@@ -302,11 +302,9 @@ const fn u8_to_month(val: u8) -> Result<Month, DecodeError> {
   })
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
   use super::*;
-
-  extern crate std;
 
   type Utc = UtcDateTime;
   type Datetime = PrimitiveDateTime;

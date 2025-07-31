@@ -254,7 +254,6 @@ signed!(8(BIntD8 <=> BUintD8), 16(BIntD16 <=> BUintD16), 32(BIntD32 <=> BUintD32
 #[cfg(test)]
 mod tests {
   use super::*;
-  extern crate std;
 
   macro_rules! fuzzy {
     ($base:ident($($ty:ident), +$(,)?)) => {

@@ -155,8 +155,6 @@ impl_varint_for_ratio_bnum!(@signed
 
 #[test]
 fn t() {
-  extern crate std;
-
   let c = Ratio::new_raw(BUintD8::<2>::ONE, BUintD8::<2>::TWO);
   let mut b = [0; Ratio::<BUintD8<2>>::MAX_ENCODED_LEN];
 
