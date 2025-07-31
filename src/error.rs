@@ -54,7 +54,7 @@ impl EncodeError {
   }
 
   #[inline]
-  const fn update(self, requested: usize, available: usize) -> Self {
+  pub(super) const fn update(self, requested: usize, available: usize) -> Self {
     match self {
       Self::InsufficientSpace { .. } => Self::InsufficientSpace {
         requested,
