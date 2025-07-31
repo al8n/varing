@@ -1,5 +1,3 @@
-extern crate std;
-
 use super::*;
 
 fn check(value: u64, encoded: &[u8]) {

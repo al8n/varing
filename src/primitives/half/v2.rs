@@ -107,8 +107,6 @@ mod tests {
   mod with_std {
     use super::*;
 
-    extern crate std;
-
     quickcheck::quickcheck! {
       fn fuzzy_f16_sequence(value: std::vec::Vec<FuzzyF16>) -> bool {
         let value = value.into_iter().map(|v| v.0).collect::<std::vec::Vec<_>>();

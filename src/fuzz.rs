@@ -255,8 +255,6 @@ fuzzy!(@floats_varint(f32, f64));
 mod with_std {
   use super::*;
 
-  extern crate std;
-
   use std::{vec, vec::Vec};
 
   fuzzy!(@sequence (u8, u16, u32, u64, u128, i8, i16, i32, i64, i128));
