@@ -64,7 +64,7 @@ pub enum EncodeError {
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
-      EncodeError::InsufficientSpace { .. } => {
+      EncodeError::InsufficientSpace(_) => {
         std::io::Error::new(std::io::ErrorKind::WriteZero, err)
       }
       EncodeError::Other(msg) => std::io::Error::other(msg),
