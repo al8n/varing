@@ -64,7 +64,7 @@ pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), DecodeError> {
       if let Some(tz) = found {
         Ok((len, tz))
       } else {
-        Err(DecodeError::custom("Invalid timezone value"))
+        Err(DecodeError::other("Invalid timezone value"))
       }
     }
     Err(err) => Err(err),

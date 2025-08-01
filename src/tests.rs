@@ -165,14 +165,9 @@ fn test_zigzag_encode_decode_i64() {
 #[test]
 fn test_encode_error_update() {
   let ent = EncodeError::insufficient_space(1, 0).update(4, 0);
-  assert!(matches!(
-    ent,
-    EncodeError::InsufficientSpace {
-      requested: 4,
-      available: 0
-    }
-  ));
+  let exp = EncodeError::insufficient_space(4, 0);
+  assert_eq!(ent, exp);
 
-  let ent = EncodeError::custom("test").update(4, 0);
-  assert!(matches!(ent, EncodeError::Custom(_)));
+  let ent = EncodeError::other("test").update(4, 0);
+  assert!(matches!(ent, EncodeError::Other(_)));
 }

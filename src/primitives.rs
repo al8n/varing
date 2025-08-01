@@ -360,7 +360,7 @@ impl Varint for bool {
   {
     decode_u8_varint(buf).and_then(|(bytes_read, value)| {
       if value > 1 {
-        return Err(DecodeError::custom("invalid boolean value"));
+        return Err(DecodeError::other("invalid boolean value"));
       }
       Ok((bytes_read, value != 0))
     })

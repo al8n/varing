@@ -26,7 +26,7 @@ macro_rules! impl_varint_for_ratio {
             let (bytes_read, merged) = $merged_ty::decode(buf)?;
             let (numer, denom) = $crate::utils::[< unpack_ $sign $bits >](merged);
             if denom == 0 {
-              return Err(DecodeError::custom("denominator cannot be zero"));
+              return Err(DecodeError::other("denominator cannot be zero"));
             }
             Ok((bytes_read, Ratio::new_raw(numer, denom)))
           }
@@ -71,7 +71,7 @@ macro_rules! impl_varint_for_ratio {
             Ok((bytes_read, merged)) => {
               let (numer, denom) = $crate::utils::[< unpack_ $sign $bits >](merged);
               if denom == 0 {
-                Err(DecodeError::custom("denominator cannot be zero"))
+                Err(DecodeError::other("denominator cannot be zero"))
               } else {
                 Ok((bytes_read, Ratio::new_raw(numer, denom)))
               }

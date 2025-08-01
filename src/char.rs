@@ -35,7 +35,7 @@ pub const fn decode_char(buf: &[u8]) -> Result<(usize, char), DecodeError> {
   match decode_u32_varint(buf) {
     Ok((bytes_read, value)) => match char::from_u32(value) {
       Some(c) => Ok((bytes_read, c)),
-      None => Err(DecodeError::custom("invalid char value")),
+      None => Err(DecodeError::other("invalid char value")),
     },
     Err(e) => Err(e),
   }

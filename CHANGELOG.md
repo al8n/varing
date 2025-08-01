@@ -1,5 +1,9 @@
 # RELEASED
 
+## 0.7.0 (Aug 1st, 2025)
+
+- Change from `*Error::Custom` to `*Error::Other`
+
 ## 0.6.1 (Jul 31st, 2025)
 
 - Implement `From<EncodeError>` and `From<DecodeError>` for `std::io::Error`
