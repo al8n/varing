@@ -115,7 +115,7 @@ pub const fn decode_date(buf: &[u8]) -> Result<(usize, Date), DecodeError> {
       };
       match Date::from_calendar_date(year, month, day) {
         Ok(date) => Ok((bytes_read, date)),
-        Err(_) => Err(DecodeError::custom("invalid date value")),
+        Err(_) => Err(DecodeError::other("invalid date value")),
       }
     }
     Err(e) => Err(e),
@@ -218,11 +218,11 @@ pub const fn decode_datetime(buf: &[u8]) -> Result<(usize, PrimitiveDateTime), D
       // Create date and time components
       let date = match Date::from_calendar_date(year, month, day) {
         Ok(date) => date,
-        Err(_) => return Err(DecodeError::custom("invalid date value")),
+        Err(_) => return Err(DecodeError::other("invalid date value")),
       };
       let time = match Time::from_hms_nano(hour, minute, second, nano) {
         Ok(time) => time,
-        Err(_) => return Err(DecodeError::custom("invalid time value")),
+        Err(_) => return Err(DecodeError::other("invalid time value")),
       };
 
       // Combine into PrimitiveDateTime
@@ -269,7 +269,7 @@ pub const fn decode_time(buf: &[u8]) -> Result<(usize, Time), DecodeError> {
       // Create Time
       match Time::from_hms_nano(hour, minute, second, nano) {
         Ok(time) => Ok((bytes_read, time)),
-        Err(_) => Err(DecodeError::custom("invalid time value")),
+        Err(_) => Err(DecodeError::other("invalid time value")),
       }
     }
     Err(e) => Err(e),
@@ -298,7 +298,7 @@ const fn u8_to_month(val: u8) -> Result<Month, DecodeError> {
     10 => Month::October,
     11 => Month::November,
     12 => Month::December,
-    _ => return Err(DecodeError::custom("invalid month value")),
+    _ => return Err(DecodeError::other("invalid month value")),
   })
 }
 

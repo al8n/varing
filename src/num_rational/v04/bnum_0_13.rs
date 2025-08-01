@@ -32,7 +32,7 @@ pub const fn decode_ratio_u128(buf: &[u8]) -> Result<(usize, Ratio<u128>), Decod
     Ok((read, val)) => {
       let (numer, denom) = unpack_u128(val);
       if denom == 0 {
-        return Err(DecodeError::custom("denominator cannot be zero"));
+        return Err(DecodeError::other("denominator cannot be zero"));
       }
       Ok((read, Ratio::new_raw(numer, denom)))
     }
@@ -61,7 +61,7 @@ pub const fn decode_ratio_i128(buf: &[u8]) -> Result<(usize, Ratio<i128>), Decod
     Ok((read, val)) => {
       let (numer, denom) = unpack_i128(val);
       if denom == 0 {
-        return Err(DecodeError::custom("denominator cannot be zero"));
+        return Err(DecodeError::other("denominator cannot be zero"));
       }
       Ok((read, Ratio::new_raw(numer, denom)))
     }
@@ -94,7 +94,7 @@ macro_rules! impl_varint_for_ratio_bnum {
               let (bytes_read, merged) = $base::< {($bits / 8) * 2} >::decode(buf)?;
               let (numer, denom): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $base::<{($bits / 8) * 2}>>::unpack(merged);
               if denom.is_zero() {
-                return Err(DecodeError::custom("denominator cannot be zero"));
+                return Err(DecodeError::other("denominator cannot be zero"));
               }
               Ok((bytes_read, Ratio::new_raw(numer, denom)))
             }
@@ -127,7 +127,7 @@ macro_rules! impl_varint_for_ratio_bnum {
               let (bytes_read, merged) = $unsigned::< {($bits / 8) * 2}>::decode(buf)?;
               let (numer, denom): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $unsigned::<{($bits / 8) * 2}>>::unpack(merged);
               if denom.is_zero() {
-                return Err(DecodeError::custom("denominator cannot be zero"));
+                return Err(DecodeError::other("denominator cannot be zero"));
               }
               Ok((bytes_read, Ratio::new_raw(numer, denom)))
             }

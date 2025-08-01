@@ -32,7 +32,7 @@ macro_rules! impl_varint_for_ratio_ruint {
             let (bytes_read, merged) = Uint::< { $bits * 2 }, {($bits * 2) / 64}>::decode(buf)?;
             let (numer, denom): (Uint<$bits, { $bits / 64 } >, Uint<$bits, { $bits / 64 } >) = Packable::<Uint::<{$bits * 2}, {($bits * 2) / 64}>>::unpack(merged);
             if denom.is_zero() {
-              return Err(DecodeError::custom("denominator cannot be zero"));
+              return Err(DecodeError::other("denominator cannot be zero"));
             }
             Ok((bytes_read, Ratio::new_raw(numer, denom)))
           }

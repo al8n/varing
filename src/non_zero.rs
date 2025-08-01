@@ -23,7 +23,7 @@ macro_rules! impl_for_non_zero {
           {
             $ty::decode(buf).and_then(|(n, x)| {
               if x == 0 {
-                Err(crate::DecodeError::custom(concat!(stringify!([< NonZero $ty:camel >]), "cannot be zero")))
+                Err(crate::DecodeError::other(concat!(stringify!([< NonZero $ty:camel >]), "cannot be zero")))
               } else {
                 Ok((n, unsafe { Self::new_unchecked(x) }))
               }
