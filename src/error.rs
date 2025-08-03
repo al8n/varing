@@ -35,8 +35,8 @@ impl InsufficientSpace {
 
   /// Returns the number of bytes requested to encode the value.
   #[inline]
-  pub const fn requested(&self) -> NonZeroUsize {
-    self.requested
+  pub const fn requested(&self) -> usize {
+    self.requested.get()
   }
 
   /// Returns the number of bytes available in the buffer.
@@ -50,7 +50,7 @@ impl InsufficientSpace {
   /// This is equivalent to `requested() - available()`.
   #[inline]
   pub const fn shortage(&self) -> usize {
-    self.requested - self.available
+    self.requested() - self.available()
   }
 }
 
