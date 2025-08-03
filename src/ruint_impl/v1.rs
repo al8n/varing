@@ -88,7 +88,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     }
 
     if buf.is_empty() {
-      return Err(DecodeError::InsufficientData);
+      return Err(DecodeError::insufficient_data(buf.len()));
     }
 
     let mut result = Self::ZERO;
@@ -124,7 +124,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     }
 
     // If we get here, the input ended with a continuation bit set
-    Err(DecodeError::InsufficientData)
+    Err(DecodeError::insufficient_data(buf.len()))
   }
 }
 
@@ -269,7 +269,10 @@ mod tests_ruint_1 {
     #[quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
-        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData));
+        return matches!(
+          U256::decode(&bytes),
+          Err(DecodeError::InsufficientData { .. })
+        );
       }
 
       // Only test sequences up to max varint length
@@ -279,7 +282,10 @@ mod tests_ruint_1 {
 
       // If all bytes have continuation bit set, should get Underflow
       if bytes.iter().all(|b| b & 0x80 != 0) {
-        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData));
+        return matches!(
+          U256::decode(&bytes),
+          Err(DecodeError::InsufficientData { .. })
+        );
       }
 
       // For other cases, we should get either a valid decode or an error

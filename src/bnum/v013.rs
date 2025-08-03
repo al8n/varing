@@ -75,7 +75,7 @@ macro_rules! unsigned {
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::InsufficientData);
+            return Err(DecodeError::insufficient_data(buf.len()));
           }
 
           let mut result = $base::<N>::ZERO;
@@ -111,7 +111,7 @@ macro_rules! unsigned {
           }
 
           // If we get here, the input ended with a continuation bit set
-          Err(DecodeError::InsufficientData)
+          Err(DecodeError::insufficient_data(buf.len()))
         }
 
         impl<const N: usize> Varint for $base<N> {
@@ -211,7 +211,7 @@ macro_rules! signed {
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::InsufficientData);
+            return Err(DecodeError::insufficient_data(buf.len()));
           }
 
           match [< decode_uint_d $storage >]::<N>(buf) {

@@ -1,5 +1,10 @@
 # RELEASED
 
+## 0.8.0 (Aug 3rd, 2025)
+
+- Change `requested: usize` of `InsufficientSpace` to `requested: NonZeroUsize`
+- Change `DecodeError::InsufficientData` to `DecodeError::InsufficientData { available: usize }`
+
 ## 0.7.0 (Aug 1st, 2025)
 
 - Change from `*Error::Custom` to `*Error::Other`
@@ -9,8 +14,6 @@
 - Implement `From<EncodeError>` and `From<DecodeError>` for `std::io::Error`
 
 ## 0.6.0 (Jul 31st, 2025)
-
-### Breaking Changes
 
 - **EncodeError**: Renamed `Underflow` variant to `InsufficientSpace`
   - Constructor method: `underflow(required, remaining)` → `insufficient_space(requested, available)`

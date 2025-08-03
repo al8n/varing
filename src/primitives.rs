@@ -63,7 +63,7 @@ macro_rules! decode_varint {
       }
 
       if index >= $buf.len() {
-        return Err(DecodeError::InsufficientData);
+        return Err(DecodeError::insufficient_data($buf.len()));
       }
 
       let next = $buf[index] as $ty;

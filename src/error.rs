@@ -1,3 +1,5 @@
+use core::num::NonZeroUsize;
+
 /// An error that occurs when trying to write data to a buffer with insufficient space.
 ///
 /// This error indicates that a write operation failed because the buffer does not have
@@ -6,13 +8,17 @@
 #[error("not enough space available to encode value (requested {requested} but only {available} available)")]
 pub struct InsufficientSpace {
   /// The number of bytes needed to encode the value.
-  requested: usize,
+  requested: NonZeroUsize,
   /// The number of bytes available.
   available: usize,
 }
 
 impl InsufficientSpace {
   /// Creates a new `InsufficientSpace` error with the requested and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
   #[inline]
   pub const fn new(requested: usize, available: usize) -> Self {
     debug_assert!(
@@ -21,7 +27,8 @@ impl InsufficientSpace {
     );
 
     Self {
-      requested,
+      requested: NonZeroUsize::new(requested)
+        .expect("InsufficientSpace: requested must be non-zero"),
       available,
     }
   }
@@ -29,7 +36,7 @@ impl InsufficientSpace {
   /// Returns the number of bytes requested to encode the value.
   #[inline]
   pub const fn requested(&self) -> usize {
-    self.requested
+    self.requested.get()
   }
 
   /// Returns the number of bytes available in the buffer.
@@ -43,7 +50,7 @@ impl InsufficientSpace {
   /// This is equivalent to `requested() - available()`.
   #[inline]
   pub const fn shortage(&self) -> usize {
-    self.requested - self.available
+    self.requested.get() - self.available
   }
 }
 
@@ -64,9 +71,7 @@ pub enum EncodeError {
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
-      EncodeError::InsufficientSpace(_) => {
-        std::io::Error::new(std::io::ErrorKind::WriteZero, err)
-      }
+      EncodeError::InsufficientSpace(_) => std::io::Error::new(std::io::ErrorKind::WriteZero, err),
       EncodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
@@ -74,6 +79,10 @@ impl From<EncodeError> for std::io::Error {
 
 impl EncodeError {
   /// Creates a new `EncodeError::InsufficientSpace` with the requested and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
   #[inline]
   pub const fn insufficient_space(requested: usize, available: usize) -> Self {
     Self::InsufficientSpace(InsufficientSpace::new(requested, available))
@@ -113,8 +122,13 @@ pub enum DecodeError {
   #[error("decoded value would overflow the target type")]
   Overflow,
   /// The buffer does not contain enough data to decode.
-  #[error("not enough data available to decode value")]
-  InsufficientData,
+  #[error(
+    "not enough bytes to decode value: only {available} were available, but more were requested"
+  )]
+  InsufficientData {
+    /// The number of bytes available in the buffer.
+    available: usize,
+  },
   /// A custom error message.
   #[error("{0}")]
   Other(&'static str),
@@ -126,13 +140,28 @@ impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
       DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      DecodeError::InsufficientData => std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err),
+      DecodeError::InsufficientData { .. } => {
+        std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
+      }
       DecodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
 }
 
 impl DecodeError {
+  /// Creates a new `DecodeError::Overflow` indicating that the decoded value would overflow the target type.
+  #[inline]
+  pub const fn overflow() -> Self {
+    Self::Overflow
+  }
+
+  /// Creates a new `DecodeError::InsufficientData` indicating that the buffer does not have enough data
+  /// to decode a value.
+  #[inline]
+  pub const fn insufficient_data(available: usize) -> Self {
+    Self::InsufficientData { available }
+  }
+
   /// Creates a new `DecodeError::Other` with the given message.
   #[inline]
   pub const fn other(msg: &'static str) -> Self {
