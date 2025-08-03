@@ -122,8 +122,13 @@ pub enum DecodeError {
   #[error("decoded value would overflow the target type")]
   Overflow,
   /// The buffer does not contain enough data to decode.
-  #[error("not enough data available to decode value")]
-  InsufficientData,
+  #[error(
+    "not enough bytes to decode value: only {available} were available, but more were requested"
+  )]
+  InsufficientData {
+    /// The number of bytes available in the buffer.
+    available: usize,
+  },
   /// A custom error message.
   #[error("{0}")]
   Other(&'static str),
@@ -135,13 +140,28 @@ impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
       DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      DecodeError::InsufficientData => std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err),
+      DecodeError::InsufficientData { .. } => {
+        std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
+      }
       DecodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
 }
 
 impl DecodeError {
+  /// Creates a new `DecodeError::Overflow` indicating that the decoded value would overflow the target type.
+  #[inline]
+  pub const fn overflow() -> Self {
+    Self::Overflow
+  }
+
+  /// Creates a new `DecodeError::InsufficientData` indicating that the buffer does not have enough data
+  /// to decode a value.
+  #[inline]
+  pub const fn insufficient_data(available: usize) -> Self {
+    Self::InsufficientData { available }
+  }
+
   /// Creates a new `DecodeError::Other` with the given message.
   #[inline]
   pub const fn other(msg: &'static str) -> Self {

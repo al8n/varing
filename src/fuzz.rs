@@ -278,7 +278,7 @@ mod with_std {
     if bytes.is_empty() {
       return matches!(
         decode_u64_varint(&bytes),
-        Err(DecodeError::InsufficientData)
+        Err(DecodeError::InsufficientData { .. })
       );
     }
 
@@ -291,7 +291,7 @@ mod with_std {
     if bytes.iter().all(|b| b & 0x80 != 0) {
       return matches!(
         decode_u64_varint(&bytes),
-        Err(DecodeError::InsufficientData)
+        Err(DecodeError::InsufficientData { .. })
       );
     }
 
