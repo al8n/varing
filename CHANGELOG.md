@@ -1,5 +1,9 @@
 # RELEASED
 
+## 0.7.1 (Aug 3rd, 2025)
+
+- Change `requested: usize` of `InsufficientSpace` to `requested: NonZeroUsize`
+
 ## 0.7.0 (Aug 1st, 2025)
 
 - Change from `*Error::Custom` to `*Error::Other`

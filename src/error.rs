@@ -1,3 +1,5 @@
+use core::num::NonZeroUsize;
+
 /// An error that occurs when trying to write data to a buffer with insufficient space.
 ///
 /// This error indicates that a write operation failed because the buffer does not have
@@ -6,13 +8,17 @@
 #[error("not enough space available to encode value (requested {requested} but only {available} available)")]
 pub struct InsufficientSpace {
   /// The number of bytes needed to encode the value.
-  requested: usize,
+  requested: NonZeroUsize,
   /// The number of bytes available.
   available: usize,
 }
 
 impl InsufficientSpace {
   /// Creates a new `InsufficientSpace` error with the requested and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
   #[inline]
   pub const fn new(requested: usize, available: usize) -> Self {
     debug_assert!(
@@ -21,14 +27,15 @@ impl InsufficientSpace {
     );
 
     Self {
-      requested,
+      requested: NonZeroUsize::new(requested)
+        .expect("InsufficientSpace: requested must be non-zero"),
       available,
     }
   }
 
   /// Returns the number of bytes requested to encode the value.
   #[inline]
-  pub const fn requested(&self) -> usize {
+  pub const fn requested(&self) -> NonZeroUsize {
     self.requested
   }
 
@@ -64,9 +71,7 @@ pub enum EncodeError {
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
-      EncodeError::InsufficientSpace(_) => {
-        std::io::Error::new(std::io::ErrorKind::WriteZero, err)
-      }
+      EncodeError::InsufficientSpace(_) => std::io::Error::new(std::io::ErrorKind::WriteZero, err),
       EncodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
@@ -74,6 +79,10 @@ impl From<EncodeError> for std::io::Error {
 
 impl EncodeError {
   /// Creates a new `EncodeError::InsufficientSpace` with the requested and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
   #[inline]
   pub const fn insufficient_space(requested: usize, available: usize) -> Self {
     Self::InsufficientSpace(InsufficientSpace::new(requested, available))
