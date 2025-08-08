@@ -2,7 +2,7 @@ use crate::{
   bnum::{decode_uint_d8, encode_uint_d8_to, encoded_uint_d8_len},
   packable::Packable,
   utils::{pack_i128, pack_u128, unpack_i128, unpack_u128},
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 use ::bnum_0_13::{BInt, BIntD16, BIntD32, BIntD8, BUint, BUintD16, BUintD32, BUintD8};
 
@@ -23,7 +23,7 @@ pub const fn encoded_complex_u128_len(val: &Complex<u128>) -> usize {
 pub const fn encode_complex_u128_to(
   val: &Complex<u128>,
   buf: &mut [u8],
-) -> Result<usize, EncodeError> {
+) -> Result<usize, ConstEncodeError> {
   encode_uint_d8_to(pack_u128(val.re, val.im), buf)
 }
 
@@ -31,7 +31,7 @@ pub const fn encode_complex_u128_to(
 ///
 /// Returns the bytes read and the value.
 #[inline]
-pub const fn decode_complex_u128(buf: &[u8]) -> Result<(usize, Complex<u128>), DecodeError> {
+pub const fn decode_complex_u128(buf: &[u8]) -> Result<(usize, Complex<u128>), ConstDecodeError> {
   match decode_uint_d8::<32>(buf) {
     Ok((read, val)) => {
       let (re, im) = unpack_u128(val);
@@ -52,7 +52,7 @@ pub const fn encoded_complex_i128_len(val: &Complex<i128>) -> usize {
 pub const fn encode_complex_i128_to(
   val: &Complex<i128>,
   buf: &mut [u8],
-) -> Result<usize, EncodeError> {
+) -> Result<usize, ConstEncodeError> {
   encode_uint_d8_to(pack_i128(val.re, val.im), buf)
 }
 
@@ -60,7 +60,7 @@ pub const fn encode_complex_i128_to(
 ///
 /// Returns the bytes read and the value.
 #[inline]
-pub const fn decode_complex_i128(buf: &[u8]) -> Result<(usize, Complex<i128>), DecodeError> {
+pub const fn decode_complex_i128(buf: &[u8]) -> Result<(usize, Complex<i128>), ConstDecodeError> {
   match decode_uint_d8::<32>(buf) {
     Ok((read, val)) => {
       let (re, im) = unpack_i128(val);

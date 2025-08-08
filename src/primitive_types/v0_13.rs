@@ -16,7 +16,7 @@ macro_rules! impl_varint_for {
         pub const fn [<encode_ $ty:snake _to>](
           val: &$ty,
           buf: &mut [u8],
-        ) -> Result<usize, $crate::EncodeError> {
+        ) -> Result<usize, $crate::ConstEncodeError> {
           $crate::bnum::encode_uint_d64_to(types::$ty::from_digits(val.0), buf)
         }
 
@@ -24,7 +24,7 @@ macro_rules! impl_varint_for {
         ///
         /// Returns the bytes read and the value.
         #[inline]
-        pub const fn [<decode_ $ty:snake>](buf: &[u8]) -> Result<(usize, $ty), $crate::DecodeError> {
+        pub const fn [<decode_ $ty:snake>](buf: &[u8]) -> Result<(usize, $ty), $crate::ConstDecodeError> {
           match $crate::bnum::decode_uint_d64(buf) {
             Ok((read, val)) => Ok((read, $ty(*val.digits()))),
             Err(e) => Err(e),
@@ -41,13 +41,13 @@ macro_rules! impl_varint_for {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, $crate::EncodeError> {
-            [<encode_ $ty:snake _to>](self, buf)
+            [<encode_ $ty:snake _to>](self, buf).map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), $crate::DecodeError>
             where
               Self: Sized {
-            types::$ty::decode(buf).map(|(len, value)| (len, $ty(value.into())))
+            types::$ty::decode(buf).map(|(len, value)| (len, $ty(value.into()))).map_err(Into::into)
           }
         }
       )*

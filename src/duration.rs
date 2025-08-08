@@ -2,7 +2,7 @@ use crate::utils::Buffer;
 
 use super::{
   decode_u128_varint, encode_u128_varint, encode_u128_varint_to, encoded_u128_varint_len,
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 use core::time::Duration;
@@ -26,7 +26,10 @@ pub const fn encode_duration(duration: &Duration) -> Buffer<{ Duration::MAX_ENCO
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_duration_to(
+  duration: &Duration,
+  buf: &mut [u8],
+) -> Result<usize, ConstEncodeError> {
   // Use lower 96 bits: 64 for seconds, 32 for nanos
   let value = ((duration.as_secs() as u128) << 32) | (duration.subsec_nanos() as u128);
   encode_u128_varint_to(value, buf)
@@ -36,7 +39,7 @@ pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<u
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), DecodeError> {
+pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), ConstDecodeError> {
   match decode_u128_varint(buf) {
     Ok((bytes_read, value)) => {
       let secs = (value >> 32) as u64; // get upper 64 bits
@@ -58,7 +61,7 @@ impl Varint for Duration {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_duration_to(self, buf)
+    encode_duration_to(self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -66,7 +69,7 @@ impl Varint for Duration {
   where
     Self: Sized,
   {
-    decode_duration(buf)
+    decode_duration(buf).map_err(Into::into)
   }
 }
 

@@ -1,5 +1,10 @@
 # RELEASED
 
+## 0.9.0 (Aug 9th, 2025)
+
+- Add `ConstEncodeError` and `ConstDecodeError`
+- Change `EncodeError::Other` and `DecodeError::Other` from `&'static str` to `Cow<'static, str>` on `alloc` and `std`
+
 ## 0.8.0 (Aug 3rd, 2025)
 
 - Change `requested: usize` of `InsufficientSpace` to `requested: NonZeroUsize`

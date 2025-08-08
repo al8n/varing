@@ -2,7 +2,7 @@ use time_0_3::{Date, Duration, Month, PrimitiveDateTime, Time, UtcDateTime};
 
 use crate::{
   time_utils::{self, DurationBuffer},
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 pub use time_utils::{DateBuffer, DateTimeBuffer, TimeBuffer};
@@ -29,14 +29,14 @@ macro_rules! impl_varint_for_time {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            [< encode_ $fn _to >](self, buf)
+            [< encode_ $fn _to >](self, buf).map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
           where
             Self: Sized,
           {
-            [< decode_ $fn >](buf)
+            [< decode_ $fn >](buf).map_err(Into::into)
           }
         }
       )*
@@ -62,7 +62,10 @@ pub const fn encode_duration(duration: &Duration) -> DurationBuffer {
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_duration_to(
+  duration: &Duration,
+  buf: &mut [u8],
+) -> Result<usize, ConstEncodeError> {
   time_utils::encode_secs_and_subsec_nanos_to(
     duration.whole_seconds(),
     duration.subsec_nanoseconds(),
@@ -74,7 +77,7 @@ pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<u
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), DecodeError> {
+pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), ConstDecodeError> {
   match time_utils::decode_secs_and_subsec_nanos(buf) {
     Ok((bytes_read, secs, nanos)) => Ok((bytes_read, Duration::new(secs, nanos))),
     Err(e) => Err(e),
@@ -98,7 +101,7 @@ pub const fn encode_date(date: &Date) -> DateBuffer {
 ///
 /// Returns the number of bytes written to the buffer.
 #[inline]
-pub const fn encode_date_to(date: &Date, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_date_to(date: &Date, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
   time_utils::encode_date_to(date.year(), date.month() as u8, date.day(), buf)
 }
 
@@ -106,7 +109,7 @@ pub const fn encode_date_to(date: &Date, buf: &mut [u8]) -> Result<usize, Encode
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_date(buf: &[u8]) -> Result<(usize, Date), DecodeError> {
+pub const fn decode_date(buf: &[u8]) -> Result<(usize, Date), ConstDecodeError> {
   match time_utils::decode_date(buf) {
     Ok((bytes_read, year, month, day)) => {
       let month = match u8_to_month(month) {
@@ -115,7 +118,7 @@ pub const fn decode_date(buf: &[u8]) -> Result<(usize, Date), DecodeError> {
       };
       match Date::from_calendar_date(year, month, day) {
         Ok(date) => Ok((bytes_read, date)),
-        Err(_) => Err(DecodeError::other("invalid date value")),
+        Err(_) => Err(ConstDecodeError::other("invalid date value")),
       }
     }
     Err(e) => Err(e),
@@ -139,7 +142,7 @@ pub const fn encode_utc(dt: &UtcDateTime) -> DateTimeBuffer {
 ///
 /// Returns the number of bytes written to the buffer.
 #[inline]
-pub const fn encode_utc_to(dt: &UtcDateTime, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_utc_to(dt: &UtcDateTime, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
   encode_datetime_to(&PrimitiveDateTime::new(dt.date(), dt.time()), buf)
 }
 
@@ -147,7 +150,7 @@ pub const fn encode_utc_to(dt: &UtcDateTime, buf: &mut [u8]) -> Result<usize, En
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_utc(buf: &[u8]) -> Result<(usize, UtcDateTime), DecodeError> {
+pub const fn decode_utc(buf: &[u8]) -> Result<(usize, UtcDateTime), ConstDecodeError> {
   match decode_datetime(buf) {
     Ok((bytes_read, dt)) => Ok((bytes_read, UtcDateTime::new(dt.date(), dt.time()))),
     Err(e) => Err(e),
@@ -190,7 +193,7 @@ pub const fn encode_datetime(dt: &PrimitiveDateTime) -> DateTimeBuffer {
 pub const fn encode_datetime_to(
   dt: &PrimitiveDateTime,
   buf: &mut [u8],
-) -> Result<usize, EncodeError> {
+) -> Result<usize, ConstEncodeError> {
   time_utils::encode_datetime_to(
     dt.year(),
     dt.month() as u8,
@@ -207,7 +210,7 @@ pub const fn encode_datetime_to(
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_datetime(buf: &[u8]) -> Result<(usize, PrimitiveDateTime), DecodeError> {
+pub const fn decode_datetime(buf: &[u8]) -> Result<(usize, PrimitiveDateTime), ConstDecodeError> {
   match time_utils::decode_datetime(buf) {
     Ok((bytes_read, year, month, day, hour, minute, second, nano)) => {
       let month = match u8_to_month(month) {
@@ -218,11 +221,11 @@ pub const fn decode_datetime(buf: &[u8]) -> Result<(usize, PrimitiveDateTime), D
       // Create date and time components
       let date = match Date::from_calendar_date(year, month, day) {
         Ok(date) => date,
-        Err(_) => return Err(DecodeError::other("invalid date value")),
+        Err(_) => return Err(ConstDecodeError::other("invalid date value")),
       };
       let time = match Time::from_hms_nano(hour, minute, second, nano) {
         Ok(time) => time,
-        Err(_) => return Err(DecodeError::other("invalid time value")),
+        Err(_) => return Err(ConstDecodeError::other("invalid time value")),
       };
 
       // Combine into PrimitiveDateTime
@@ -249,7 +252,7 @@ pub const fn encode_time(time: &Time) -> TimeBuffer {
 ///
 /// Returns the number of bytes written to the buffer.
 #[inline]
-pub const fn encode_time_to(time: &Time, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_time_to(time: &Time, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
   time_utils::encode_time_to(
     time.nanosecond(),
     time.second(),
@@ -263,13 +266,13 @@ pub const fn encode_time_to(time: &Time, buf: &mut [u8]) -> Result<usize, Encode
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_time(buf: &[u8]) -> Result<(usize, Time), DecodeError> {
+pub const fn decode_time(buf: &[u8]) -> Result<(usize, Time), ConstDecodeError> {
   match time_utils::decode_time(buf) {
     Ok((bytes_read, nano, second, minute, hour)) => {
       // Create Time
       match Time::from_hms_nano(hour, minute, second, nano) {
         Ok(time) => Ok((bytes_read, time)),
-        Err(_) => Err(DecodeError::other("invalid time value")),
+        Err(_) => Err(ConstDecodeError::other("invalid time value")),
       }
     }
     Err(e) => Err(e),
@@ -284,7 +287,7 @@ impl_varint_for_time!(
   Date(DateBuffer::CAPACITY, 1).date
 );
 
-const fn u8_to_month(val: u8) -> Result<Month, DecodeError> {
+const fn u8_to_month(val: u8) -> Result<Month, ConstDecodeError> {
   Ok(match val {
     1 => Month::January,
     2 => Month::February,
@@ -298,7 +301,7 @@ const fn u8_to_month(val: u8) -> Result<Month, DecodeError> {
     10 => Month::October,
     11 => Month::November,
     12 => Month::December,
-    _ => return Err(DecodeError::other("invalid month value")),
+    _ => return Err(ConstDecodeError::other("invalid month value")),
   })
 }
 

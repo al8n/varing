@@ -1,6 +1,6 @@
 use num_complex_0_4::Complex;
 
-use crate::{DecodeError, EncodeError, Varint};
+use crate::{ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint};
 
 macro_rules! impl_varint_for_complex {
   (@inner $($sign:ident::$bits:literal($merged_ty:ident)),+$(,)?) => {
@@ -52,13 +52,13 @@ macro_rules! impl_varint_for_complex {
 
         #[doc = "Encodes the `Complex<" $sign $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_complex_ $sign $bits _to >](val: Complex<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_complex_ $sign $bits _to >](val: Complex<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           $crate::[< encode_ $merged_ty _varint_to>] ($crate::utils::[< pack_ $sign $bits >](val.re, val.im), buf)
         }
 
         #[doc = "Decodes the `Complex<" $sign $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_complex_ $sign $bits >](buf: &[u8]) -> Result<(usize, Complex<[< $sign $bits >]>), DecodeError> {
+        pub const fn [< decode_complex_ $sign $bits >](buf: &[u8]) -> Result<(usize, Complex<[< $sign $bits >]>), ConstDecodeError> {
           match $crate::[< decode_ $merged_ty _varint >](buf) {
             Ok((bytes_read, merged)) => {
               let (re, im) = $crate::utils::[< unpack_ $sign $bits >](merged);
@@ -135,7 +135,7 @@ macro_rules! impl_varint_for_complex_floats {
 
         #[doc = "Encodes the `Complex<f" $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_complex_ $ty _to >](val: Complex<$ty>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_complex_ $ty _to >](val: Complex<$ty>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           $crate::num_complex::v04::[< encode_complex_ $target _to>] (Complex {
             re: val.re.to_bits(),
             im: val.im.to_bits(),
@@ -144,7 +144,7 @@ macro_rules! impl_varint_for_complex_floats {
 
         #[doc = "Decodes the `Complex<f" $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_complex_ $ty >](buf: &[u8]) -> Result<(usize, Complex<$ty>), DecodeError> {
+        pub const fn [< decode_complex_ $ty >](buf: &[u8]) -> Result<(usize, Complex<$ty>), ConstDecodeError> {
           match $crate::num_complex::v04::[< decode_complex_ $target >](buf) {
             Ok((bytes_read, Complex {re, im})) => {
               Ok((bytes_read, Complex {
