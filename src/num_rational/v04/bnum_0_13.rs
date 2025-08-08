@@ -2,7 +2,7 @@ use crate::{
   bnum::{decode_uint_d8, encode_uint_d8_to, encoded_uint_d8_len},
   packable::Packable,
   utils::{pack_i128, pack_u128, unpack_i128, unpack_u128},
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 use ::bnum_0_13::{BInt, BIntD16, BIntD32, BIntD8, BUint, BUintD16, BUintD32, BUintD8};
 use num_rational_0_4::Ratio;
@@ -19,7 +19,10 @@ pub const fn encoded_ratio_u128_len(val: &Ratio<u128>) -> usize {
 
 /// Encodes the `Ratio<u128>` value.
 #[inline]
-pub const fn encode_ratio_u128_to(val: &Ratio<u128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_ratio_u128_to(
+  val: &Ratio<u128>,
+  buf: &mut [u8],
+) -> Result<usize, ConstEncodeError> {
   encode_uint_d8_to(pack_u128(*val.numer(), *val.denom()), buf)
 }
 
@@ -27,12 +30,12 @@ pub const fn encode_ratio_u128_to(val: &Ratio<u128>, buf: &mut [u8]) -> Result<u
 ///
 /// Returns the bytes read and the value.
 #[inline]
-pub const fn decode_ratio_u128(buf: &[u8]) -> Result<(usize, Ratio<u128>), DecodeError> {
+pub const fn decode_ratio_u128(buf: &[u8]) -> Result<(usize, Ratio<u128>), ConstDecodeError> {
   match decode_uint_d8::<32>(buf) {
     Ok((read, val)) => {
       let (numer, denom) = unpack_u128(val);
       if denom == 0 {
-        return Err(DecodeError::other("denominator cannot be zero"));
+        return Err(ConstDecodeError::other("denominator cannot be zero"));
       }
       Ok((read, Ratio::new_raw(numer, denom)))
     }
@@ -48,7 +51,10 @@ pub const fn encoded_ratio_i128_len(val: &Ratio<i128>) -> usize {
 
 /// Encodes the `Ratio<i128>` value.
 #[inline]
-pub const fn encode_ratio_i128_to(val: &Ratio<i128>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_ratio_i128_to(
+  val: &Ratio<i128>,
+  buf: &mut [u8],
+) -> Result<usize, ConstEncodeError> {
   encode_uint_d8_to(pack_i128(*val.numer(), *val.denom()), buf)
 }
 
@@ -56,12 +62,12 @@ pub const fn encode_ratio_i128_to(val: &Ratio<i128>, buf: &mut [u8]) -> Result<u
 ///
 /// Returns the bytes read and the value.
 #[inline]
-pub const fn decode_ratio_i128(buf: &[u8]) -> Result<(usize, Ratio<i128>), DecodeError> {
+pub const fn decode_ratio_i128(buf: &[u8]) -> Result<(usize, Ratio<i128>), ConstDecodeError> {
   match decode_uint_d8::<32>(buf) {
     Ok((read, val)) => {
       let (numer, denom) = unpack_i128(val);
       if denom == 0 {
-        return Err(DecodeError::other("denominator cannot be zero"));
+        return Err(ConstDecodeError::other("denominator cannot be zero"));
       }
       Ok((read, Ratio::new_raw(numer, denom)))
     }

@@ -7,6 +7,9 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc as std;
+
 use core::ops::RangeInclusive;
 
 pub use char::*;
@@ -122,7 +125,7 @@ where
 
 /// Returns a sequence decoder for the given buffer.
 ///
-/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+/// The returned decoder is an iterator that yields `Result<(usize, Self), ConstDecodeError>`.
 ///
 /// ## Example
 ///
@@ -273,7 +276,7 @@ where
 
 /// Returns a sequence decoder for the given buffer.
 ///
-/// The returned decoder is an iterator that yields `Result<(usize, Self), DecodeError>`.
+/// The returned decoder is an iterator that yields `Result<(usize, Self), ConstDecodeError>`.
 ///
 /// ## Example
 ///
@@ -376,7 +379,7 @@ where
 ///
 /// ## Returns
 /// * `Ok(usize)` - The number of bytes the varint occupies in the buffer
-/// * `Err(DecodeError)` - If the buffer is empty or contains an incomplete varint
+/// * `Err(ConstDecodeError)` - If the buffer is empty or contains an incomplete varint
 ///
 /// ## Examples
 ///
@@ -389,7 +392,7 @@ where
 /// let buf = [0x7F]; // Varint encoding of 127
 /// assert_eq!(consume_varint(&buf), Ok(1));
 /// ```
-pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
+pub const fn consume_varint(buf: &[u8]) -> Result<usize, ConstDecodeError> {
   if buf.is_empty() {
     return Ok(0);
   }
@@ -408,14 +411,14 @@ pub const fn consume_varint(buf: &[u8]) -> Result<usize, DecodeError> {
 
     // If we've reached the end of the buffer but haven't found the end of the varint
     if idx == buf_len - 1 {
-      return Err(DecodeError::insufficient_data(buf_len));
+      return Err(ConstDecodeError::insufficient_data(buf_len));
     }
     idx += 1;
   }
 
   // This point is reached only if all bytes have their MSB set and we've
   // exhausted the buffer, which means the varint is incomplete
-  Err(DecodeError::insufficient_data(buf_len))
+  Err(ConstDecodeError::insufficient_data(buf_len))
 }
 
 /// An iterator that decodes a sequence of varint values from a buffer.

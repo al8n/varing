@@ -39,7 +39,7 @@ macro_rules! generate {
 
           #[doc = "Encodes an `" $inner "` value into LEB128 variable length format, and writes it to the buffer."]
           #[inline]
-          pub const fn [< encode_ $inner _varint_to >](value: $inner, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          pub const fn [< encode_ $inner _varint_to >](value: $inner, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
             [<encode_ $underlying _varint_to>](value.value(), buf)
           }
 
@@ -47,12 +47,12 @@ macro_rules! generate {
           ///
           /// Returns the bytes readed and the decoded value if successful.
           #[inline]
-          pub const fn [< decode_ $inner _varint >](buf: &[u8]) -> Result<(usize, $inner), DecodeError> {
+          pub const fn [< decode_ $inner _varint >](buf: &[u8]) -> Result<(usize, $inner), ConstDecodeError> {
             match [<decode_ $underlying _varint>](buf) {
               Ok((readed, val)) => {
                 match $inner::try_new(val) {
                   Ok(val) => Ok((readed, val)),
-                  Err(_) => Err(DecodeError::Overflow),
+                  Err(_) => Err(ConstDecodeError::Overflow),
                 }
               },
               Err(err) => Err(err),
@@ -142,7 +142,7 @@ macro_rules! generate {
         }
 
         #[doc = "Encodes an `Uint<u" $storage ", BITS>` value into LEB128 variable length format, and writes it to the buffer."]
-        pub const fn [< encode_uint_d $storage _to >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_uint_d $storage _to >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           [< encode_u $storage _varint_to >](value.value(), buf)
         }
 
@@ -152,12 +152,12 @@ macro_rules! generate {
         }
 
         #[doc = "Decodes an `Uint<u" $storage ", BITS>` in LEB128 encoded format from the buffer."]
-        pub const fn [< decode_uint_d $storage>]<const BITS: usize>(buf: &[u8]) -> Result<(usize, UInt<[< u $storage>], BITS>), DecodeError> {
+        pub const fn [< decode_uint_d $storage>]<const BITS: usize>(buf: &[u8]) -> Result<(usize, UInt<[< u $storage>], BITS>), ConstDecodeError> {
           match [< decode_u $storage _varint >](buf) {
             Ok((readed, val)) => {
               match UInt::<[< u $storage>], BITS>::try_new(val) {
                 Ok(val) => Ok((readed, val)),
-                Err(_) => Err(DecodeError::Overflow),
+                Err(_) => Err(ConstDecodeError::Overflow),
               }
             }
             Err(err) => Err(err),
@@ -173,14 +173,14 @@ macro_rules! generate {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-            [< encode_uint_d $storage _to >](*self, buf)
+            [< encode_uint_d $storage _to >](*self, buf).map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
-            [< decode_uint_d $storage >](buf)
+            [< decode_uint_d $storage >](buf).map_err(Into::into)
           }
         }
       )*

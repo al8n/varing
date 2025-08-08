@@ -1,6 +1,6 @@
 use crate::{
   time_utils::{self, DurationBuffer},
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 use chrono_0_4::{
@@ -24,7 +24,10 @@ pub const fn encode_duration(duration: &Duration) -> DurationBuffer {
 
 /// Encodes a `Duration` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_duration_to(
+  duration: &Duration,
+  buf: &mut [u8],
+) -> Result<usize, ConstEncodeError> {
   time_utils::encode_secs_and_subsec_nanos_to(duration.num_seconds(), duration.subsec_nanos(), buf)
 }
 
@@ -32,12 +35,12 @@ pub const fn encode_duration_to(duration: &Duration, buf: &mut [u8]) -> Result<u
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), DecodeError> {
+pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), ConstDecodeError> {
   match time_utils::decode_secs_and_subsec_nanos(buf) {
     Ok((bytes_read, secs, nanos)) => {
       match Duration::seconds(secs).checked_add(&Duration::nanoseconds(nanos as i64)) {
         Some(duration) => Ok((bytes_read, duration)),
-        None => Err(DecodeError::other(
+        None => Err(ConstDecodeError::other(
           "duration is out of bounds, or nanos ≥ 1,000,000,000",
         )),
       }
@@ -57,7 +60,7 @@ impl Varint for Duration {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_duration_to(self, buf)
+    encode_duration_to(self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -65,7 +68,7 @@ impl Varint for Duration {
   where
     Self: Sized,
   {
-    decode_duration(buf)
+    decode_duration(buf).map_err(Into::into)
   }
 }
 
@@ -81,6 +84,7 @@ impl Varint for NaiveDate {
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
     time_utils::encode_date_to(self.year(), self.month() as u8, self.day() as u8, buf)
+      .map_err(Into::into)
   }
 
   #[inline]
@@ -88,11 +92,13 @@ impl Varint for NaiveDate {
   where
     Self: Sized,
   {
-    time_utils::decode_date(buf).and_then(|(read, year, month, day)| {
-      NaiveDate::from_ymd_opt(year, month as u32, day as u32)
-        .ok_or(DecodeError::other("invalid date"))
-        .map(|date| (read, date))
-    })
+    time_utils::decode_date(buf)
+      .and_then(|(read, year, month, day)| {
+        NaiveDate::from_ymd_opt(year, month as u32, day as u32)
+          .map(|date| (read, date))
+          .ok_or_else(|| ConstDecodeError::other("invalid date"))
+      })
+      .map_err(Into::into)
   }
 }
 
@@ -119,6 +125,7 @@ impl Varint for NaiveTime {
       self.hour() as u8,
       buf,
     )
+    .map_err(Into::into)
   }
 
   #[inline]
@@ -126,14 +133,14 @@ impl Varint for NaiveTime {
   where
     Self: Sized,
   {
-    time_utils::decode_time(buf).and_then(|(read, nano, second, minute, hour)| {
-      // Construct NaiveTime from components
-      NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nano)
-        .ok_or(DecodeError::other(
-          "invalid hour, minute, second and/or nanosecond",
-        ))
-        .map(|time| (read, time))
-    })
+    time_utils::decode_time(buf).map_err(Into::into).and_then(
+      |(read, nano, second, minute, hour)| {
+        // Construct NaiveTime from components
+        NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nano)
+          .ok_or_else(|| DecodeError::other("invalid hour, minute, second and/or nanosecond"))
+          .map(|time| (read, time))
+      },
+    )
   }
 }
 
@@ -166,6 +173,7 @@ impl Varint for NaiveDateTime {
       self.nanosecond(),
       buf,
     )
+    .map_err(Into::into)
   }
 
   #[inline]
@@ -173,21 +181,21 @@ impl Varint for NaiveDateTime {
   where
     Self: Sized,
   {
-    time_utils::decode_datetime(buf).and_then(
-      |(read, year, month, day, hour, minute, second, nano)| {
+    time_utils::decode_datetime(buf)
+      .map_err(Into::into)
+      .and_then(|(read, year, month, day, hour, minute, second, nano)| {
         // Create date and time
         let date = NaiveDate::from_ymd_opt(year, month as u32, day as u32)
-          .ok_or(DecodeError::other("invalid date"))?;
+          .ok_or(ConstDecodeError::other("invalid date"))?;
 
         let time = NaiveTime::from_hms_nano_opt(hour as u32, minute as u32, second as u32, nano)
-          .ok_or(DecodeError::other(
+          .ok_or(ConstDecodeError::other(
             "invalid hour, minute, second and/or nanosecond",
           ))?;
 
         // Combine into NaiveDateTime
         Ok((read, NaiveDateTime::new(date, time)))
-      },
-    )
+      })
   }
 }
 

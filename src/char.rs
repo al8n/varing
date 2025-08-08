@@ -1,8 +1,8 @@
 use crate::utils::Buffer;
 
 use super::{
-  decode_u32_varint, encode_u32_varint, encode_u32_varint_to, encoded_u32_varint_len, DecodeError,
-  EncodeError, Varint,
+  decode_u32_varint, encode_u32_varint, encode_u32_varint_to, encoded_u32_varint_len,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 /// A buffer for storing LEB128 encoded [`char`] value.
@@ -23,7 +23,7 @@ pub const fn encode_char(char: &char) -> CharBuffer {
 
 /// Encodes a `char` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_char_to(char: &char, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_char_to(char: &char, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
   encode_u32_varint_to(*char as u32, buf)
 }
 
@@ -31,11 +31,11 @@ pub const fn encode_char_to(char: &char, buf: &mut [u8]) -> Result<usize, Encode
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_char(buf: &[u8]) -> Result<(usize, char), DecodeError> {
+pub const fn decode_char(buf: &[u8]) -> Result<(usize, char), ConstDecodeError> {
   match decode_u32_varint(buf) {
     Ok((bytes_read, value)) => match char::from_u32(value) {
       Some(c) => Ok((bytes_read, c)),
-      None => Err(DecodeError::other("invalid char value")),
+      None => Err(ConstDecodeError::other("invalid char value")),
     },
     Err(e) => Err(e),
   }
@@ -52,7 +52,7 @@ impl Varint for char {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_char_to(self, buf)
+    encode_char_to(self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -60,7 +60,7 @@ impl Varint for char {
   where
     Self: Sized,
   {
-    decode_char(buf)
+    decode_char(buf).map_err(Into::into)
   }
 }
 

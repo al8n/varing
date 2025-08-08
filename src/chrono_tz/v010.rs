@@ -1,8 +1,8 @@
 use chrono_tz_0_10::{Tz, TZ_VARIANTS};
 
 use crate::{
-  decode_i16_varint, encode_i16_varint_to, encoded_i16_varint_len, utils::Buffer, DecodeError,
-  EncodeError, Varint,
+  decode_i16_varint, encode_i16_varint_to, encoded_i16_varint_len, utils::Buffer, ConstDecodeError,
+  ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 const TZ_VALUES: [i16; TZ_VARIANTS.len()] = const {
@@ -25,7 +25,7 @@ pub const fn encoded_tz_len(tz: Tz) -> usize {
 ///
 /// Returns the number of bytes written to the buffer.
 #[inline]
-pub const fn encode_tz_to(tz: Tz, buf: &mut [u8]) -> Result<usize, EncodeError> {
+pub const fn encode_tz_to(tz: Tz, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
   encode_i16_varint_to(tz as i16, buf)
 }
 
@@ -47,7 +47,7 @@ pub const fn encode_tz(tz: Tz) -> Buffer<{ Tz::MAX_ENCODED_LEN + 1 }> {
 ///
 /// Returns the number of bytes read and the decoded timezone value.
 #[inline]
-pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), DecodeError> {
+pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), ConstDecodeError> {
   match decode_i16_varint(buf) {
     Ok((len, tz)) => {
       let mut i = 0;
@@ -64,7 +64,7 @@ pub const fn decode_tz(buf: &[u8]) -> Result<(usize, Tz), DecodeError> {
       if let Some(tz) = found {
         Ok((len, tz))
       } else {
-        Err(DecodeError::other("Invalid timezone value"))
+        Err(ConstDecodeError::other("Invalid timezone value"))
       }
     }
     Err(err) => Err(err),
@@ -83,7 +83,7 @@ impl Varint for Tz {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_tz_to(*self, buf)
+    encode_tz_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -91,7 +91,7 @@ impl Varint for Tz {
   where
     Self: Sized,
   {
-    decode_tz(buf)
+    decode_tz(buf).map_err(Into::into)
   }
 }
 

@@ -42,11 +42,11 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
     match BITS {
       0 => Ok(0),
-      1..=8 => encode_u8_varint_to(self.to(), buf),
-      9..=16 => encode_u16_varint_to(self.to(), buf),
-      17..=32 => encode_u32_varint_to(self.to(), buf),
-      33..=64 => encode_u64_varint_to(self.to(), buf),
-      65..=128 => encode_u128_varint_to(self.to(), buf),
+      1..=8 => encode_u8_varint_to(self.to(), buf).map_err(Into::into),
+      9..=16 => encode_u16_varint_to(self.to(), buf).map_err(Into::into),
+      17..=32 => encode_u32_varint_to(self.to(), buf).map_err(Into::into),
+      33..=64 => encode_u64_varint_to(self.to(), buf).map_err(Into::into),
+      65..=128 => encode_u128_varint_to(self.to(), buf).map_err(Into::into),
       _ => {
         let len = self.encoded_len();
         let buf_len = buf.len();

@@ -2,7 +2,7 @@ use core::num::NonZeroU64;
 
 use super::{
   utils::{self, zigzag_encode_i64},
-  DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
 
 macro_rules! impl_varint {
@@ -19,12 +19,12 @@ macro_rules! impl_varint {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            [< encode_ u $ty _varint_to >](*self, buf)
+            [< encode_ u $ty _varint_to >](*self, buf).map_err(Into::into)
           }
 
           #[inline]
           fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-            [< decode_ u $ty _varint >](buf)
+            [< decode_ u $ty _varint >](buf).map_err(Into::into)
           }
         }
 
@@ -38,12 +38,12 @@ macro_rules! impl_varint {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-            [< encode_ i $ty _varint_to >](*self, buf)
+            [< encode_ i $ty _varint_to >](*self, buf).map_err(Into::into)
           }
 
           #[inline]
           fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
-            [< decode_ i $ty _varint >](buf)
+            [< decode_ i $ty _varint >](buf).map_err(Into::into)
           }
         }
       }
@@ -59,11 +59,11 @@ macro_rules! decode_varint {
 
     loop {
       if index == $ty::MAX_ENCODED_LEN {
-        return Err(DecodeError::Overflow);
+        return Err(ConstDecodeError::Overflow);
       }
 
       if index >= $buf.len() {
-        return Err(DecodeError::insufficient_data($buf.len()));
+        return Err(ConstDecodeError::insufficient_data($buf.len()));
       }
 
       let next = $buf[index] as $ty;
@@ -78,7 +78,7 @@ macro_rules! decode_varint {
       };
 
       if has_overflow {
-        return Err(DecodeError::Overflow);
+        return Err(ConstDecodeError::Overflow);
       }
 
       result += (next & 0x7F) << shift;
@@ -121,7 +121,7 @@ macro_rules! encode_varint {
 
       while $x >= 0x80 {
         if i >= $buf.len() {
-          return Err(EncodeError::insufficient_space([< encoded_ $ty _varint_len >](orig), $buf.len()));
+          return Err(ConstEncodeError::insufficient_space([< encoded_ $ty _varint_len >](orig), $buf.len()));
         }
 
         $buf[i] = ($x as u8) | 0x80;
@@ -131,7 +131,7 @@ macro_rules! encode_varint {
 
       // Check buffer capacity before writing final byte
       if i >= $buf.len() {
-        return Err(EncodeError::insufficient_space(i + 1, $buf.len()));
+        return Err(ConstEncodeError::insufficient_space(i + 1, $buf.len()));
       }
 
       $buf[i] = $x as u8;
@@ -190,7 +190,7 @@ macro_rules! encode {
 
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           encode_varint!(@to_buf [< u $ty >]::buf[x])
         }
 
@@ -202,13 +202,13 @@ macro_rules! encode {
 
         #[doc = "Encodes a sequence of `u" $ty "` to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _sequence_to >](sequence: &[[< u $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_ u $ty _sequence_to >](sequence: &[[< u $ty >]], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           encode!(@sequence_encode_to_impl buf, sequence, [< encode_ u $ty _varint_to >], [< encoded_ u $ty _sequence_len >])
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           let mut x = utils::[< zigzag_encode_i $ty>](x);
           encode_varint!(@to_buf [<u $ty>]::buf[x])
         }
@@ -221,7 +221,7 @@ macro_rules! encode {
 
         #[doc = "Encodes a sequence of `i" $ty "` to the buffer."]
         #[inline]
-        pub const fn [< encode_i $ty _sequence_to >](sequence: &[[< i $ty >]], buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_i $ty _sequence_to >](sequence: &[[< i $ty >]], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           encode!(@sequence_encode_to_impl buf, sequence, [< encode_ i $ty _varint_to >], [< encoded_ i $ty _sequence_len >])
         }
       }
@@ -266,14 +266,14 @@ macro_rules! decode {
         #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(usize, [< u $ty >]), DecodeError> {
+        pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(usize, [< u $ty >]), ConstDecodeError> {
           decode_varint!(|buf| [< u $ty >])
         }
 
         #[doc = "Decodes an `u" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(usize, [< i $ty >]), DecodeError> {
+        pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(usize, [< i $ty >]), ConstDecodeError> {
           match [< decode_ u $ty _varint >](buf) {
             Ok((bytes_read, value)) => {
               let value = utils::[<zigzag_decode_i $ty>](value);
@@ -350,7 +350,7 @@ impl Varint for bool {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_u8_varint_to(*self as u8, buf)
+    encode_u8_varint_to(*self as u8, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -358,12 +358,14 @@ impl Varint for bool {
   where
     Self: Sized,
   {
-    decode_u8_varint(buf).and_then(|(bytes_read, value)| {
-      if value > 1 {
-        return Err(DecodeError::other("invalid boolean value"));
-      }
-      Ok((bytes_read, value != 0))
-    })
+    decode_u8_varint(buf)
+      .map_err(Into::into)
+      .and_then(|(bytes_read, value)| {
+        if value > 1 {
+          return Err(DecodeError::other("invalid boolean value"));
+        }
+        Ok((bytes_read, value != 0))
+      })
   }
 }
 
@@ -379,7 +381,7 @@ impl Varint for f32 {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_f32_varint_to(*self, buf)
+    encode_f32_varint_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -387,7 +389,7 @@ impl Varint for f32 {
   where
     Self: Sized,
   {
-    decode_f32_varint(buf)
+    decode_f32_varint(buf).map_err(Into::into)
   }
 }
 
@@ -403,7 +405,7 @@ impl Varint for f64 {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
-    encode_f64_varint_to(*self, buf)
+    encode_f64_varint_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -411,7 +413,7 @@ impl Varint for f64 {
   where
     Self: Sized,
   {
-    decode_f64_varint(buf)
+    decode_f64_varint(buf).map_err(Into::into)
   }
 }
 
@@ -429,7 +431,10 @@ pub const fn encode_f32_varint(value: f32) -> crate::utils::Buffer<{ f32::MAX_EN
 
 /// Encodes an `f32` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_f32_varint_to(value: f32, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+pub const fn encode_f32_varint_to(
+  value: f32,
+  buf: &mut [u8],
+) -> Result<usize, crate::ConstEncodeError> {
   crate::encode_u32_varint_to(value.to_bits(), buf)
 }
 
@@ -437,7 +442,7 @@ pub const fn encode_f32_varint_to(value: f32, buf: &mut [u8]) -> Result<usize, c
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_f32_varint(buf: &[u8]) -> Result<(usize, f32), crate::DecodeError> {
+pub const fn decode_f32_varint(buf: &[u8]) -> Result<(usize, f32), crate::ConstDecodeError> {
   match crate::decode_u32_varint(buf) {
     Ok((len, bits)) => Ok((len, f32::from_bits(bits))),
     Err(e) => Err(e),
@@ -458,7 +463,10 @@ pub const fn encode_f64_varint(value: f64) -> crate::utils::Buffer<{ f64::MAX_EN
 
 /// Encodes an `f64` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_f64_varint_to(value: f64, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+pub const fn encode_f64_varint_to(
+  value: f64,
+  buf: &mut [u8],
+) -> Result<usize, crate::ConstEncodeError> {
   crate::encode_u64_varint_to(value.to_bits(), buf)
 }
 
@@ -466,7 +474,7 @@ pub const fn encode_f64_varint_to(value: f64, buf: &mut [u8]) -> Result<usize, c
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_f64_varint(buf: &[u8]) -> Result<(usize, f64), crate::DecodeError> {
+pub const fn decode_f64_varint(buf: &[u8]) -> Result<(usize, f64), crate::ConstDecodeError> {
   match crate::decode_u64_varint(buf) {
     Ok((len, bits)) => Ok((len, f64::from_bits(bits))),
     Err(e) => Err(e),
@@ -484,7 +492,7 @@ pub const fn encoded_f32_sequence_len(sequence: &[f32]) -> usize {
 pub const fn encode_f32_sequence_to(
   sequence: &[f32],
   buf: &mut [u8],
-) -> Result<usize, EncodeError> {
+) -> Result<usize, ConstEncodeError> {
   encode!(@sequence_encode_to_impl buf, sequence, encode_f32_varint_to, encoded_f32_sequence_len)
 }
 
@@ -499,7 +507,7 @@ pub const fn encoded_f64_sequence_len(sequence: &[f64]) -> usize {
 pub const fn encode_f64_sequence_to(
   sequence: &[f64],
   buf: &mut [u8],
-) -> Result<usize, EncodeError> {
+) -> Result<usize, ConstEncodeError> {
   encode!(@sequence_encode_to_impl buf, sequence, encode_f64_varint_to, encoded_f64_sequence_len)
 }
 

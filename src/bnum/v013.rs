@@ -1,6 +1,6 @@
 use bnum_0_13::{BInt, BIntD16, BIntD32, BIntD8, BUint, BUintD16, BUintD32, BUintD8};
 
-use crate::{DecodeError, EncodeError, Varint};
+use crate::{ConstDecodeError, ConstEncodeError, Varint};
 
 macro_rules! unsigned {
   ($($base:ident($storage:literal)), +$(,)?) => {
@@ -32,7 +32,7 @@ macro_rules! unsigned {
         pub const fn [< encode_uint_d $storage _to >]<const N: usize>(
           mut value: $base<N>,
           buf: &mut [u8],
-        ) -> Result<usize, EncodeError> {
+        ) -> Result<usize, ConstEncodeError> {
           if N == 0 {
             return Ok(0);
           }
@@ -40,7 +40,7 @@ macro_rules! unsigned {
           let len = [< encoded_uint_d $storage _len >](&value);
           let buf_len = buf.len();
           if buf_len < len {
-            return Err(EncodeError::insufficient_space(len, buf_len));
+            return Err(ConstEncodeError::insufficient_space(len, buf_len));
           }
 
           let mut bytes_written = 0;
@@ -69,13 +69,13 @@ macro_rules! unsigned {
         /// Returns the bytes readed and the decoded value if successful.
         pub const fn [< decode_uint_d $storage >]<const N: usize>(
           buf: &[u8],
-        ) -> Result<(usize, $base<N>), DecodeError> {
+        ) -> Result<(usize, $base<N>), ConstDecodeError> {
           if N == 0 {
             return Ok((0, $base::<N>::ZERO));
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::insufficient_data(buf.len()));
+            return Err(ConstDecodeError::insufficient_data(buf.len()));
           }
 
           let mut result = $base::<N>::ZERO;
@@ -89,7 +89,7 @@ macro_rules! unsigned {
 
             // Check for overflow
             if shift >= N * $storage {
-              return Err(DecodeError::Overflow);
+              return Err(ConstDecodeError::Overflow);
             }
 
             // Add the bits to the result
@@ -97,7 +97,7 @@ macro_rules! unsigned {
             if let Some(shifted) = value.checked_shl(shift as u32) {
               result = result.bitor(shifted);
             } else {
-              return Err(DecodeError::Overflow);
+              return Err(ConstDecodeError::Overflow);
             }
 
             bytes_read += 1;
@@ -111,7 +111,7 @@ macro_rules! unsigned {
           }
 
           // If we get here, the input ended with a continuation bit set
-          Err(DecodeError::insufficient_data(buf.len()))
+          Err(ConstDecodeError::insufficient_data(buf.len()))
         }
 
         impl<const N: usize> Varint for $base<N> {
@@ -130,14 +130,14 @@ macro_rules! unsigned {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-            [< encode_uint_d $storage _to >](*self, buf)
+            [< encode_uint_d $storage _to >](*self, buf).map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
-            [< decode_uint_d $storage >](buf)
+            [< decode_uint_d $storage >](buf).map_err(Into::into)
           }
         }
       )*
@@ -192,7 +192,7 @@ macro_rules! signed {
         pub const fn [< encode_int_d $storage _to >]<const N: usize>(
           value: $i<N>,
           buf: &mut [u8],
-        ) -> Result<usize, EncodeError> {
+        ) -> Result<usize, ConstEncodeError> {
           if N == 0 {
             return Ok(0);
           }
@@ -205,13 +205,13 @@ macro_rules! signed {
         /// Returns the bytes readed and the decoded value if successful.
         pub const fn [< decode_int_d $storage >]<const N: usize>(
           buf: &[u8],
-        ) -> Result<(usize, $i<N>), DecodeError> {
+        ) -> Result<(usize, $i<N>), ConstDecodeError> {
           if N == 0 {
             return Ok((0, $i::<N>::ZERO));
           }
 
           if buf.is_empty() {
-            return Err(DecodeError::insufficient_data(buf.len()));
+            return Err(ConstDecodeError::insufficient_data(buf.len()));
           }
 
           match [< decode_uint_d $storage >]::<N>(buf) {
@@ -233,14 +233,14 @@ macro_rules! signed {
           }
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-            [< encode_int_d $storage _to >](*self, buf)
+            [< encode_int_d $storage _to >](*self, buf).map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
-            [< decode_int_d $storage >](buf)
+            [< decode_int_d $storage >](buf).map_err(Into::into)
           }
         }
       )*

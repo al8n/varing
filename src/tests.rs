@@ -82,19 +82,19 @@ fn test_large_number_encode_decode() {
 fn test_decode_overflow_error() {
   let buffer = [0x80u8; 11]; // More than 10 bytes
   match decode_u64_varint(&buffer) {
-    Err(DecodeError::Overflow) => (),
+    Err(ConstDecodeError::Overflow) => (),
     _ => panic!("Expected Overflow error"),
   }
 
   let buffer = [0x80u8; 6]; // More than 5 bytes
   match decode_u32_varint(&buffer) {
-    Err(DecodeError::Overflow) => (),
+    Err(ConstDecodeError::Overflow) => (),
     _ => panic!("Expected Overflow error"),
   }
 
   let buffer = [0x80u8; 4]; // More than 3 bytes
   match decode_u16_varint(&buffer) {
-    Err(DecodeError::Overflow) => (),
+    Err(ConstDecodeError::Overflow) => (),
     _ => panic!("Expected Overflow error"),
   }
 }
@@ -164,10 +164,10 @@ fn test_zigzag_encode_decode_i64() {
 
 #[test]
 fn test_encode_error_update() {
-  let ent = EncodeError::insufficient_space(1, 0).update(4, 0);
-  let exp = EncodeError::insufficient_space(4, 0);
+  let ent = ConstEncodeError::insufficient_space(1, 0).update(4, 0);
+  let exp = ConstEncodeError::insufficient_space(4, 0);
   assert_eq!(ent, exp);
 
-  let ent = EncodeError::other("test").update(4, 0);
-  assert!(matches!(ent, EncodeError::Other(_)));
+  let ent = ConstEncodeError::other("test").update(4, 0);
+  assert!(matches!(ent, ConstEncodeError::Other(_)));
 }

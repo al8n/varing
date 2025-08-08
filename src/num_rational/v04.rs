@@ -1,6 +1,6 @@
 use num_rational_0_4::Ratio;
 
-use crate::{DecodeError, EncodeError, Varint};
+use crate::{ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint};
 
 macro_rules! impl_varint_for_ratio {
   (@inner $($sign:ident::$bits:literal($merged_ty:ident)),+$(,)?) => {
@@ -17,6 +17,7 @@ macro_rules! impl_varint_for_ratio {
 
           fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
             $crate::utils::[< pack_ $sign $bits >](*self.numer(), *self.denom()).encode(buf)
+              .map_err(Into::into)
           }
 
           fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
@@ -60,18 +61,18 @@ macro_rules! impl_varint_for_ratio {
 
         #[doc = "Encodes the `Ratio<" $sign $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_ratio_ $sign $bits _to >](val: Ratio<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, EncodeError> {
+        pub const fn [< encode_ratio_ $sign $bits _to >](val: Ratio<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
           $encode_to_fn ($crate::utils::[< pack_ $sign $bits >](*val.numer(), *val.denom()), buf)
         }
 
         #[doc = "Decodes the `Ratio<" $sign $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_ratio_ $sign $bits >](buf: &[u8]) -> Result<(usize, Ratio<[< $sign $bits >]>), DecodeError> {
+        pub const fn [< decode_ratio_ $sign $bits >](buf: &[u8]) -> Result<(usize, Ratio<[< $sign $bits >]>), ConstDecodeError> {
           match $decode_fn(buf) {
             Ok((bytes_read, merged)) => {
               let (numer, denom) = $crate::utils::[< unpack_ $sign $bits >](merged);
               if denom == 0 {
-                Err(DecodeError::other("denominator cannot be zero"))
+                Err(ConstDecodeError::other("denominator cannot be zero"))
               } else {
                 Ok((bytes_read, Ratio::new_raw(numer, denom)))
               }

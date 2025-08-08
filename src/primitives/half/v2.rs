@@ -14,7 +14,7 @@ impl Varint for f16 {
 
   #[inline]
   fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
-    encode_f16_varint_to(*self, buf)
+    encode_f16_varint_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
@@ -22,7 +22,7 @@ impl Varint for f16 {
   where
     Self: Sized,
   {
-    decode_f16_varint(buf)
+    decode_f16_varint(buf).map_err(Into::into)
   }
 }
 
@@ -40,7 +40,10 @@ pub const fn encode_f16_varint(value: f16) -> crate::utils::Buffer<{ f16::MAX_EN
 
 /// Encodes an `f16` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_f16_varint_to(value: f16, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+pub const fn encode_f16_varint_to(
+  value: f16,
+  buf: &mut [u8],
+) -> Result<usize, crate::ConstEncodeError> {
   crate::encode_u16_varint_to(value.to_bits(), buf)
 }
 
@@ -48,7 +51,7 @@ pub const fn encode_f16_varint_to(value: f16, buf: &mut [u8]) -> Result<usize, c
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_f16_varint(buf: &[u8]) -> Result<(usize, f16), crate::DecodeError> {
+pub const fn decode_f16_varint(buf: &[u8]) -> Result<(usize, f16), crate::ConstDecodeError> {
   match crate::decode_u16_varint(buf) {
     Ok((len, bits)) => Ok((len, f16::from_bits(bits))),
     Err(e) => Err(e),
@@ -66,7 +69,7 @@ pub const fn encoded_f16_sequence_len(sequence: &[f16]) -> usize {
 pub const fn encode_f16_sequence_to(
   sequence: &[f16],
   buf: &mut [u8],
-) -> Result<usize, crate::EncodeError> {
+) -> Result<usize, crate::ConstEncodeError> {
   encode!(@sequence_encode_to_impl buf, sequence, encode_f16_varint_to, encoded_f16_sequence_len)
 }
 
