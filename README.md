@@ -21,7 +21,7 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 
 ```toml
 [dependencies]
-varing = "0.8"
+varing = "0.9"
 ```
 
 ## Optional Features
