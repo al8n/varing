@@ -14,7 +14,7 @@ macro_rules! fuzzy {
                 fn [<check_ $ty:snake>](value: $ty) {
                     {
                         {
-                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN)));
                             let consumed = consume_varint(&buf);

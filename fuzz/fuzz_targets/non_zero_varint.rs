@@ -11,7 +11,7 @@ macro_rules! fuzzy {
                 fn [<check_ $ty>](value: [< NonZero $ty:camel >]) {
                     {
                         {
-                            let mut buf = [0; <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN)));
                             let consumed = consume_varint(&buf);

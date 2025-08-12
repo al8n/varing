@@ -23,7 +23,7 @@ fuzz_target!(|value: Tz| {
     assert!(!(encoded.len() != encoded_tz_len(value) || (encoded.len() > <Tz>::MAX_ENCODED_LEN)));
 
     let consumed = consume_varint(&encoded);
-    assert_eq!(consumed, encoded.len());
+    assert_eq!(consumed.get(), encoded.len());
 
     let (bytes_read, decoded) = decode_tz(&encoded).unwrap();
     assert!(value == decoded && encoded.len() == bytes_read);

@@ -30,14 +30,14 @@ macro_rules! fuzzy {
                             assert!(!(encoded.len() != [< encoded_complex_ $ty:snake _len >] (value) || !(encoded.len() <= <Complex<$ty>>::MAX_ENCODED_LEN)));
 
                             let consumed = consume_varint(&encoded);
-                            assert_eq!(consumed, encoded.len());
+                            assert_eq!(consumed.get(), encoded.len());
 
                             let (bytes_read, decoded) = [< decode_complex_ $ty:snake >](&encoded).unwrap();
                             assert!(value == decoded && encoded.len() == bytes_read);
                         }
 
                         {
-                            let mut buf = [0; <Complex<$ty>>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <Complex<$ty>>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <Complex<$ty>>::MAX_ENCODED_LEN)));
                             let consumed = consume_varint(&buf);

@@ -15,7 +15,7 @@ macro_rules! fuzzy {
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN)));
                             let consumed = consume_varint(&buf);
-                            assert_eq!(consumed, encoded_len);
+                            assert_eq!(consumed.get(), encoded_len);
 
                             let (bytes_read, decoded) = <$ty>::decode(&buf).unwrap();
                             assert!(value == decoded && encoded_len == bytes_read);
