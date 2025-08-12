@@ -10,7 +10,7 @@ extern crate std;
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
 extern crate alloc as std;
 
-use core::ops::RangeInclusive;
+use core::{num::NonZeroUsize, ops::RangeInclusive};
 
 pub use char::*;
 pub use duration::*;
@@ -25,6 +25,9 @@ mod duration;
 mod error;
 mod primitives;
 
+// Safety: This is safe because 1 is non-zero.
+const NON_ZERO_USIZE_ONE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
 /// Varints are a method of serializing integers using one or more bytes that allows small
@@ -37,7 +40,7 @@ pub trait Varint {
   /// - For `u32` and `i32`, this is `1`.
   /// - For `u64` and `i64`, this is `1`.
   /// - For `u128` and `i128`, this is `1`.
-  const MIN_ENCODED_LEN: usize;
+  const MIN_ENCODED_LEN: NonZeroUsize;
 
   /// The maximum number of bytes that might be needed to encode any value of this type.
   ///
@@ -45,7 +48,7 @@ pub trait Varint {
   /// - For `u32` and `i32`, this is `5`.
   /// - For `u64` and `i64`, this is `10`.
   /// - For `u128` and `i128`, this is `19`.
-  const MAX_ENCODED_LEN: usize;
+  const MAX_ENCODED_LEN: NonZeroUsize;
 
   /// The range of possible encoded lengths for this type, from `MIN_ENCODED_LEN` to `MAX_ENCODED_LEN` inclusive.
   ///
@@ -55,21 +58,22 @@ pub trait Varint {
   /// - For `u32` and `i32`, this range is `1..=5`, representing possible encoded lengths of 1, 2, 3, 4, or 5 bytes.
   /// - For `u64` and `u64`, this range is `1..=10`, representing possible encoded lengths of 1 to 10 bytes.
   /// - For `u128` and `i128`, this range is `1..=19`, representing possible encoded lengths of 1 to 19 bytes.
-  const ENCODED_LEN_RANGE: RangeInclusive<usize> = Self::MIN_ENCODED_LEN..=Self::MAX_ENCODED_LEN;
+  const ENCODED_LEN_RANGE: RangeInclusive<NonZeroUsize> =
+    Self::MIN_ENCODED_LEN..=Self::MAX_ENCODED_LEN;
 
   /// Returns the encoded length of the value in LEB128 variable length format.
   /// The returned value will be in range [`Self::ENCODED_LEN_RANGE`](Varint::ENCODED_LEN_RANGE).
-  fn encoded_len(&self) -> usize;
+  fn encoded_len(&self) -> NonZeroUsize;
 
   /// Encodes the value as a varint and writes it to the buffer.
   ///
   /// Returns the number of bytes written to the buffer.
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError>;
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError>;
 
   /// Decodes the value from the buffer.
   ///
   /// Returns the number of bytes read from the buffer and the decoded value if successful.
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized;
 }
@@ -110,8 +114,9 @@ where
   let mut total_bytes = 0;
   for value in sequence {
     let bytes_written = value.encode(&mut buf[total_bytes..])?;
-    total_bytes += bytes_written;
+    total_bytes += bytes_written.get();
   }
+  // Safety: `total_bytes` is guaranteed to be non-zero here because if it is zero
   Ok(total_bytes)
 }
 
@@ -120,7 +125,7 @@ pub fn encoded_sequence_len<'i, V>(sequence: impl Iterator<Item = &'i V>) -> usi
 where
   V: ?Sized + Varint + 'i,
 {
-  sequence.map(|item| item.encoded_len()).sum::<usize>()
+  sequence.map(|item| item.encoded_len().get()).sum::<usize>()
 }
 
 /// Returns a sequence decoder for the given buffer.
@@ -149,7 +154,7 @@ where
 /// // `SequenceDecoder` is copy
 /// let mut decoder1 = decoder;
 /// while let Some(Ok((bytes_read, value))) = decoder.next() {
-///   readed += bytes_read;
+///   readed += bytes_read.get();
 ///   assert_eq!(readed, decoder.position());
 ///   decoded.push(value);
 /// }
@@ -203,7 +208,7 @@ where
     if readed < buf.len() {
       match V::decode(&buf[readed..]) {
         Ok((bytes_read, value)) => {
-          readed += bytes_read;
+          readed += bytes_read.get();
           Some(Ok(value))
         }
         Err(e) => Some(Err(e)),
@@ -254,9 +259,9 @@ where
   let mut total_bytes = 0;
   for (key, value) in map {
     let bytes_written = key.encode(&mut buf[total_bytes..])?;
-    total_bytes += bytes_written;
+    total_bytes += bytes_written.get();
     let bytes_written = value.encode(&mut buf[total_bytes..])?;
-    total_bytes += bytes_written;
+    total_bytes += bytes_written.get();
   }
   Ok(total_bytes)
 }
@@ -270,7 +275,7 @@ where
   V: Varint + 'a,
 {
   map
-    .map(|(key, value)| key.encoded_len() + value.encoded_len())
+    .map(|(key, value)| key.encoded_len().get() + value.encoded_len().get())
     .sum::<usize>()
 }
 
@@ -301,7 +306,7 @@ where
 /// // `MapDecoder` is copy
 /// let mut decoder1 = decoder;
 /// while let Some(Ok((bytes_read, (key, value)))) = decoder.next() {
-///   readed += bytes_read;
+///   readed += bytes_read.get();
 ///   assert_eq!(readed, decoder.position());
 ///   decoded.insert(key, value);
 /// }
@@ -356,10 +361,10 @@ where
   core::iter::from_fn(|| {
     if readed < buf.len() {
       Some(K::decode(&buf[readed..]).and_then(|(bytes_read, k)| {
-        readed += bytes_read;
+        readed += bytes_read.get();
 
         V::decode(&buf[readed..]).map(|(bytes_read, v)| {
-          readed += bytes_read;
+          readed += bytes_read.get();
           (k, v)
         })
       }))
@@ -377,9 +382,11 @@ where
 /// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
 /// marks the last byte of the varint.
 ///
-/// ## Returns
-/// * `Ok(usize)` - The number of bytes the varint occupies in the buffer
-/// * `Err(ConstDecodeError)` - If the buffer is empty or contains an incomplete varint
+/// See also [`try_consume_varint`](try_consume_varint) and [`consume_varint_checked`](consume_varint_checked) for non-panicking version.
+///
+/// ## Panics
+///
+/// - If the buffer does not contain a complete varint.
 ///
 /// ## Examples
 ///
@@ -387,14 +394,14 @@ where
 /// use varing::consume_varint;
 ///
 /// let buf = [0x96, 0x01]; // Varint encoding of 150
-/// assert_eq!(consume_varint(&buf), Ok(2));
+/// assert_eq!(consume_varint(&buf).get(), 2);
 ///
 /// let buf = [0x7F]; // Varint encoding of 127
-/// assert_eq!(consume_varint(&buf), Ok(1));
+/// assert_eq!(consume_varint(&buf).get(), 1);
 /// ```
-pub const fn consume_varint(buf: &[u8]) -> Result<usize, ConstDecodeError> {
+pub const fn consume_varint(buf: &[u8]) -> NonZeroUsize {
   if buf.is_empty() {
-    return Ok(0);
+    panic!("buffer is empty which cannot decode a complete varint");
   }
 
   // Scan the buffer to find the end of the varint
@@ -406,7 +413,107 @@ pub const fn consume_varint(buf: &[u8]) -> Result<usize, ConstDecodeError> {
     // Check if this is the last byte of the varint (MSB is not set)
     if byte & 0x80 == 0 {
       // Found the last byte, return the total number of bytes
-      return Ok(idx + 1);
+      // Safety: `idx + 1` is guaranteed to be non-zero because the buffer is not empty
+      return unsafe { NonZeroUsize::new_unchecked(idx + 1) };
+    }
+
+    // If we've reached the end of the buffer but haven't found the end of the varint
+    if idx == buf_len - 1 {
+      panic!("not enough bytes to decode varint value");
+    }
+    idx += 1;
+  }
+
+  // This point is reached only if all bytes have their MSB set and we've
+  // exhausted the buffer, which means the varint is incomplete
+  panic!("not enough bytes to decode varint value");
+}
+
+/// Calculates the number of bytes occupied by a varint encoded value in the buffer.
+///
+/// In varint encoding, each byte uses 7 bits for the value and the highest bit (MSB)
+/// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
+/// marks the last byte of the varint.
+///
+/// ## Examples
+///
+/// ```rust
+/// use varing::consume_varint_checked;
+///
+/// let buf = [0x96, 0x01]; // Varint encoding of 150
+/// assert_eq!(consume_varint_checked(&buf).map(|val| val.get()), Some(2));
+///
+/// let buf = [0x7F]; // Varint encoding of 127
+/// assert_eq!(consume_varint_checked(&buf).map(|val| val.get()), Some(1));
+///
+/// let buf = [0x80]; // Incomplete varint
+/// assert_eq!(consume_varint_checked(&buf), None);
+/// ```
+pub const fn consume_varint_checked(buf: &[u8]) -> Option<NonZeroUsize> {
+  if buf.is_empty() {
+    return None;
+  }
+
+  // Scan the buffer to find the end of the varint
+  let mut idx = 0;
+  let buf_len = buf.len();
+
+  while idx < buf_len {
+    let byte = buf[idx];
+    // Check if this is the last byte of the varint (MSB is not set)
+    if byte & 0x80 == 0 {
+      // Found the last byte, return the total number of bytes
+      return NonZeroUsize::new(idx + 1);
+    }
+
+    // If we've reached the end of the buffer but haven't found the end of the varint
+    if idx == buf_len - 1 {
+      return None;
+    }
+    idx += 1;
+  }
+
+  // This point is reached only if all bytes have their MSB set and we've
+  // exhausted the buffer, which means the varint is incomplete
+  None
+}
+
+/// Calculates the number of bytes occupied by a varint encoded value in the buffer.
+///
+/// In varint encoding, each byte uses 7 bits for the value and the highest bit (MSB)
+/// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
+/// marks the last byte of the varint.
+///
+/// ## Examples
+///
+/// ```rust
+/// use varing::{try_consume_varint, ConstDecodeError};
+///
+/// let buf = [0x96, 0x01]; // Varint encoding of 150
+/// assert_eq!(try_consume_varint(&buf).map(|val| val.get()), Ok(2));
+///
+/// let buf = [0x7F]; // Varint encoding of 127
+/// assert_eq!(try_consume_varint(&buf).map(|val| val.get()), Ok(1));
+///
+/// let buf = [0x80]; // Incomplete varint
+/// assert_eq!(try_consume_varint(&buf), Err(ConstDecodeError::insufficient_data(1)));
+/// ```
+pub const fn try_consume_varint(buf: &[u8]) -> Result<NonZeroUsize, ConstDecodeError> {
+  if buf.is_empty() {
+    return Err(ConstDecodeError::insufficient_data(0));
+  }
+
+  // Scan the buffer to find the end of the varint
+  let mut idx = 0;
+  let buf_len = buf.len();
+
+  while idx < buf_len {
+    let byte = buf[idx];
+    // Check if this is the last byte of the varint (MSB is not set)
+    if byte & 0x80 == 0 {
+      // Found the last byte, return the total number of bytes
+      // Safety: `idx + 1` is guaranteed to be non-zero because the buffer is not empty
+      return Ok(unsafe { NonZeroUsize::new_unchecked(idx + 1) });
     }
 
     // If we've reached the end of the buffer but haven't found the end of the varint
@@ -455,13 +562,13 @@ impl<'a, V: ?Sized> SequenceDecoder<'a, V> {
 }
 
 impl<V: Varint> Iterator for SequenceDecoder<'_, V> {
-  type Item = Result<(usize, V), DecodeError>;
+  type Item = Result<(NonZeroUsize, V), DecodeError>;
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.offset < self.buf.len() {
       match V::decode(&self.buf[self.offset..]) {
         Ok((bytes_read, value)) => {
-          self.offset += bytes_read;
+          self.offset += bytes_read.get();
           Some(Ok((bytes_read, value)))
         }
         Err(e) => Some(Err(e)),
@@ -507,21 +614,23 @@ impl<'a, K: ?Sized, V: ?Sized> MapDecoder<'a, K, V> {
 }
 
 impl<K: Varint, V: Varint> Iterator for MapDecoder<'_, K, V> {
-  type Item = Result<(usize, (K, V)), DecodeError>;
+  type Item = Result<(NonZeroUsize, (K, V)), DecodeError>;
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.offset < self.buf.len() {
-      let offset = self.offset;
-      Some(
-        K::decode(&self.buf[self.offset..]).and_then(|(bytes_read, k)| {
-          self.offset += bytes_read;
+      Some(K::decode(&self.buf[self.offset..]).and_then(|(klen, k)| {
+        self.offset += klen.get();
 
-          V::decode(&self.buf[self.offset..]).map(|(bytes_read, v)| {
-            self.offset += bytes_read;
-            (self.offset - offset, (k, v))
-          })
-        }),
-      )
+        V::decode(&self.buf[self.offset..]).map(|(vlen, v)| {
+          self.offset += vlen.get();
+          // Safety: `klen.get() + vlen.get()` is guaranteed to be non-zero because both `k` and `v` are Varint types
+          // and their encoded lengths are non-zero.
+          (
+            unsafe { NonZeroUsize::new_unchecked(klen.get() + vlen.get()) },
+            (k, v),
+          )
+        })
+      }))
     } else {
       None
     }

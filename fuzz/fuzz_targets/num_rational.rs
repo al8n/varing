@@ -46,20 +46,20 @@ macro_rules! fuzzy {
                     {
                         {
                             let encoded = [< encode_ratio_ $ty:snake >](value);
-                            assert!(!(encoded.len() != [< encoded_ratio_ $ty:snake _len >] (value) || !(encoded.len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
+                            assert!(!(encoded.len() != [< encoded_ratio_ $ty:snake _len >] (value).get() || !(encoded.len() <= <Ratio<$ty>>::MAX_ENCODED_LEN.get())));
 
-                            let consumed = consume_varint(&encoded).unwrap();
-                            assert_eq!(consumed, encoded.len());
+                            let consumed = consume_varint(&encoded);
+                            assert_eq!(consumed.get(), encoded.len());
 
                             let (bytes_read, decoded) = [< decode_ratio_ $ty:snake >](&encoded).unwrap();
-                            assert!(value == decoded && encoded.len() == bytes_read);
+                            assert!(value == decoded && encoded.len() == bytes_read.get());
                         }
 
                         {
-                            let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <Ratio<$ty>>::decode(&buf).unwrap();
@@ -79,10 +79,10 @@ macro_rules! fuzzy {
                     let value: Ratio<$ty> = value.into();
                     {
                         {
-                            let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <Ratio<$ty>>::decode(&buf).unwrap();

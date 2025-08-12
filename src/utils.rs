@@ -1,3 +1,5 @@
+use core::num::NonZeroUsize;
+
 pub use super::packable::builtin::*;
 
 /// A read-only buffer for storing LEB128 encoded values.
@@ -57,22 +59,24 @@ impl<const N: usize> core::borrow::Borrow<[u8]> for Buffer<N> {
 }
 
 impl<const N: usize> Buffer<N> {
-  pub(crate) const CAPACITY: usize = N - 1;
+  pub(crate) const CAPACITY: NonZeroUsize =
+    NonZeroUsize::new(N - 1).expect("Buffer size must be greater than zero");
 
   pub(crate) const fn new(buffer: [u8; N]) -> Self {
+    assert!(N > 0, "Buffer size must be greater than zero");
     Self(buffer)
   }
 
   /// Returns the length of buffer.
   #[inline]
   pub const fn len(&self) -> usize {
-    self.0[Self::CAPACITY] as usize
+    self.0[Self::CAPACITY.get()] as usize
   }
 
   /// Returns `true` if the buffer is empty.
   #[inline]
   pub const fn is_empty(&self) -> bool {
-    self.0[Self::CAPACITY] == 0
+    self.0[Self::CAPACITY.get()] == 0
   }
 
   /// Returns the buffer as a slice.

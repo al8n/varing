@@ -1,5 +1,6 @@
 use crate::{ruint_impl::Packable, DecodeError, EncodeError, Varint};
 use ::ruint_1::Uint;
+use core::num::NonZeroUsize;
 use num_complex_0_4::Complex;
 
 #[cfg(not(feature = "bnum_0_13"))]
@@ -13,18 +14,18 @@ macro_rules! impl_varint_for_complex_ruint {
     paste::paste! {
       $(
         impl Varint for Complex<Uint<$bits, { $bits / 64 } >> {
-          const MIN_ENCODED_LEN: usize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
-          const MAX_ENCODED_LEN: usize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
+          const MIN_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
+          const MAX_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> NonZeroUsize {
             Packable::<Uint::<{$bits * 2}, {($bits * 2) / 64}>>::pack(self.re, self.im).encoded_len()
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
             Packable::<Uint::<{$bits * 2}, {($bits * 2) / 64}>>::pack(self.re, self.im).encode(buf)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+          fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
           where
             Self: Sized,
           {

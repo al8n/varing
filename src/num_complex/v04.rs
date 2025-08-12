@@ -7,19 +7,19 @@ macro_rules! impl_varint_for_complex {
     paste::paste! {
       $(
         impl Varint for Complex<[< $sign $bits >]> {
-          const MIN_ENCODED_LEN: usize = $merged_ty::MAX_ENCODED_LEN;
+          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 
-          const MAX_ENCODED_LEN: usize = $merged_ty::MAX_ENCODED_LEN;
+          const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> ::core::num::NonZeroUsize {
             $crate::utils::[< pack_ $sign $bits >](self.re, self.im).encoded_len()
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, EncodeError> {
             $crate::utils::[< pack_ $sign $bits >](self.re, self.im).encode(buf)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+          fn decode(buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Self), DecodeError>
           where
             Self: Sized,
           {
@@ -40,25 +40,25 @@ macro_rules! impl_varint_for_complex {
       $(
         #[doc = "Returns the encoded length of the `Complex<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encoded_complex_ $sign $bits _len>](val: Complex<[< $sign $bits >]>) -> usize {
+        pub const fn [< encoded_complex_ $sign $bits _len>](val: Complex<[< $sign $bits >]>) -> ::core::num::NonZeroUsize {
           $crate::[< encoded_ $merged_ty _varint_len >] ($crate::utils::[< pack_ $sign $bits >](val.re, val.im))
         }
 
         #[doc = "Encodes the `Complex<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encode_complex_ $sign $bits >](val: Complex<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN + 1 }> {
+        pub const fn [< encode_complex_ $sign $bits >](val: Complex<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN.get() + 1 }> {
           $crate::[< encode_ $merged_ty _varint>] ($crate::utils::[< pack_ $sign $bits >](val.re, val.im))
         }
 
         #[doc = "Encodes the `Complex<" $sign $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_complex_ $sign $bits _to >](val: Complex<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_complex_ $sign $bits _to >](val: Complex<[< $sign $bits >]>, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, ConstEncodeError> {
           $crate::[< encode_ $merged_ty _varint_to>] ($crate::utils::[< pack_ $sign $bits >](val.re, val.im), buf)
         }
 
         #[doc = "Decodes the `Complex<" $sign $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_complex_ $sign $bits >](buf: &[u8]) -> Result<(usize, Complex<[< $sign $bits >]>), ConstDecodeError> {
+        pub const fn [< decode_complex_ $sign $bits >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Complex<[< $sign $bits >]>), ConstDecodeError> {
           match $crate::[< decode_ $merged_ty _varint >](buf) {
             Ok((bytes_read, merged)) => {
               let (re, im) = $crate::utils::[< unpack_ $sign $bits >](merged);
@@ -83,10 +83,10 @@ macro_rules! impl_varint_for_complex_floats {
   ($($bits:literal:$target:ty: $ty:ty), +$(,)?) => {
     $(
       impl Varint for Complex<$ty> {
-        const MAX_ENCODED_LEN: usize = <Complex<$target> as Varint>::MAX_ENCODED_LEN;
-        const MIN_ENCODED_LEN: usize = <Complex<$target> as Varint>::MIN_ENCODED_LEN;
+        const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = <Complex<$target> as Varint>::MAX_ENCODED_LEN;
+        const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = <Complex<$target> as Varint>::MIN_ENCODED_LEN;
 
-        fn encoded_len(&self) -> usize {
+        fn encoded_len(&self) -> ::core::num::NonZeroUsize {
           Complex {
             re: self.re.to_bits(),
             im: self.im.to_bits(),
@@ -94,7 +94,7 @@ macro_rules! impl_varint_for_complex_floats {
           .encoded_len()
         }
 
-        fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+        fn encode(&self, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, EncodeError> {
           Complex {
             re: self.re.to_bits(),
             im: self.im.to_bits(),
@@ -102,7 +102,7 @@ macro_rules! impl_varint_for_complex_floats {
           .encode(buf)
         }
 
-        fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+        fn decode(buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Self), DecodeError>
         where
           Self: Sized,
         {
@@ -117,7 +117,7 @@ macro_rules! impl_varint_for_complex_floats {
       paste::paste! {
         #[doc = "Returns the encoded length of the `Complex<f" $bits ">` value."]
         #[inline]
-        pub const fn [< encoded_complex_ $ty _len>](val: Complex<$ty>) -> usize {
+        pub const fn [< encoded_complex_ $ty _len>](val: Complex<$ty>) -> ::core::num::NonZeroUsize {
           $crate::num_complex::v04::[< encoded_complex_ $target _len >] (Complex {
             re: val.re.to_bits(),
             im: val.im.to_bits(),
@@ -126,7 +126,7 @@ macro_rules! impl_varint_for_complex_floats {
 
         #[doc = "Encodes the `Complex<f" $bits ">` value."]
         #[inline]
-        pub const fn [< encode_complex_f $bits >](val: Complex<$ty>) -> $crate::utils::Buffer<{ Complex::<$target>::MAX_ENCODED_LEN + 1 }> {
+        pub const fn [< encode_complex_f $bits >](val: Complex<$ty>) -> $crate::utils::Buffer<{ Complex::<$target>::MAX_ENCODED_LEN.get() + 1 }> {
           $crate::num_complex::v04::[< encode_complex_ $target>] (Complex {
             re: val.re.to_bits(),
             im: val.im.to_bits(),
@@ -135,7 +135,7 @@ macro_rules! impl_varint_for_complex_floats {
 
         #[doc = "Encodes the `Complex<f" $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_complex_ $ty _to >](val: Complex<$ty>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_complex_ $ty _to >](val: Complex<$ty>, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, ConstEncodeError> {
           $crate::num_complex::v04::[< encode_complex_ $target _to>] (Complex {
             re: val.re.to_bits(),
             im: val.im.to_bits(),
@@ -144,7 +144,7 @@ macro_rules! impl_varint_for_complex_floats {
 
         #[doc = "Decodes the `Complex<f" $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_complex_ $ty >](buf: &[u8]) -> Result<(usize, Complex<$ty>), ConstDecodeError> {
+        pub const fn [< decode_complex_ $ty >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Complex<$ty>), ConstDecodeError> {
           match $crate::num_complex::v04::[< decode_complex_ $target >](buf) {
             Ok((bytes_read, Complex {re, im})) => {
               Ok((bytes_read, Complex {

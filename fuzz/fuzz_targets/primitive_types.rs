@@ -12,11 +12,11 @@ macro_rules! fuzzy {
                 fn [<check_ $ty:snake>](value: $ty) {
                     {
                         {
-                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
                             let encoded = [< encode_ $ty:snake _to>](&value, &mut buf).unwrap();
                             assert!(!(encoded != [< encoded_ $ty:snake _len >] (&value) || !(encoded <= <$ty>::MAX_ENCODED_LEN)));
 
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded);
 
                             let (bytes_read, decoded) = [< decode_ $ty:snake >](&buf).unwrap();
@@ -24,10 +24,10 @@ macro_rules! fuzzy {
                         }
 
                         {
-                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <$ty>::decode(&buf).unwrap();

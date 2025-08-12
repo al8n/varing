@@ -1,15 +1,17 @@
+use core::ops::{Bound, RangeBounds};
+
 use super::*;
 
 fn check(value: u64, encoded: &[u8]) {
   let a = encode_u64_varint(value);
   assert_eq!(a.as_ref(), encoded);
   assert_eq!(a.len(), encoded.len());
-  assert_eq!(a.len(), encoded_u64_varint_len(value));
+  assert_eq!(a.len(), encoded_u64_varint_len(value).get());
 
   let (read, decoded) = decode_u64_varint(&a).unwrap();
   assert_eq!(decoded, value);
-  assert_eq!(read, encoded.len());
-  assert_eq!(a.len(), encoded_u64_varint_len(value));
+  assert_eq!(read.get(), encoded.len());
+  assert_eq!(a.len(), encoded_u64_varint_len(value).get());
 }
 
 #[test]
@@ -75,7 +77,7 @@ fn test_large_number_encode_decode() {
   let encoded = encode_u64_varint(original);
   let (bytes_read, decoded) = decode_u64_varint(&encoded).unwrap();
   assert_eq!(original, decoded);
-  assert_eq!(bytes_read, encoded.len());
+  assert_eq!(bytes_read.get(), encoded.len());
 }
 
 #[test]
@@ -120,7 +122,8 @@ where
   let (decoded_bytes, decoded_value) = decode_result.unwrap();
 
   assert_eq!(
-    decoded_bytes, bytes_written,
+    decoded_bytes.get(),
+    bytes_written,
     "Incorrect number of bytes decoded"
   );
   assert_eq!(
@@ -164,10 +167,110 @@ fn test_zigzag_encode_decode_i64() {
 
 #[test]
 fn test_encode_error_update() {
-  let ent = ConstEncodeError::insufficient_space(1, 0).update(4, 0);
-  let exp = ConstEncodeError::insufficient_space(4, 0);
+  let ent = ConstEncodeError::insufficient_space(NON_ZERO_USIZE_ONE, 0)
+    .update(NonZeroUsize::new(4).unwrap(), 0);
+  let exp = ConstEncodeError::insufficient_space(NonZeroUsize::new(4).unwrap(), 0);
   assert_eq!(ent, exp);
 
-  let ent = ConstEncodeError::other("test").update(4, 0);
+  let ent = ConstEncodeError::other("test").update(NonZeroUsize::new(4).unwrap(), 0);
   assert!(matches!(ent, ConstEncodeError::Other(_)));
+}
+
+#[test]
+#[should_panic]
+fn test_consume_varint_empty() {
+  consume_varint(&[]);
+}
+
+#[test]
+#[should_panic]
+fn test_consume_varint_bad() {
+  consume_varint(&[0x80, 0x80, 0x80, 0x80]);
+}
+
+#[test]
+fn test_consume_varint_checked_empty() {
+  let result = consume_varint_checked(&[]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_consume_varint_checked_bad1() {
+  let result = consume_varint_checked(&[0x80, 0x80, 0x80, 0x80]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_consume_varint_checked_bad2() {
+  let result = consume_varint_checked(&[0x80]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_try_consume_varint_empty() {
+  let result = try_consume_varint(&[]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_try_consume_varint_bad1() {
+  let result = try_consume_varint(&[0x80, 0x80, 0x80, 0x80]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_try_consume_varint_bad2() {
+  let result = try_consume_varint(&[0x80]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_map_decoder_clone_and_copy() {
+  let original = MapDecoder::<u64, u64>::new(&[]);
+  let cloned = original.clone();
+  let copied = original;
+
+  assert_eq!(cloned.position(), original.position());
+  assert_eq!(copied.position(), original.position());
+}
+
+#[test]
+fn test_seq_decoder_clone_and_copy() {
+  let original = SequenceDecoder::<u64>::new(&[]);
+  let cloned = original.clone();
+  let copied = original;
+
+  assert_eq!(cloned.position(), original.position());
+  assert_eq!(copied.position(), original.position());
+}
+
+#[allow(dead_code)]
+#[test]
+fn test_default_varint_range() {
+  struct Wrap(u64);
+
+  impl Varint for Wrap {
+    const MIN_ENCODED_LEN: NonZeroUsize = u64::MIN_ENCODED_LEN;
+
+    const MAX_ENCODED_LEN: NonZeroUsize = u64::MAX_ENCODED_LEN;
+
+    fn encoded_len(&self) -> NonZeroUsize {
+      todo!()
+    }
+
+    fn encode(&self, _: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
+      todo!()
+    }
+
+    fn decode(_: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
+    where
+      Self: Sized,
+    {
+      todo!()
+    }
+  }
+
+  let range = Wrap::ENCODED_LEN_RANGE;
+  assert_eq!(range.start_bound(), Bound::Included(&u64::MIN_ENCODED_LEN));
+  assert_eq!(range.end_bound(), Bound::Included(&u64::MAX_ENCODED_LEN));
 }

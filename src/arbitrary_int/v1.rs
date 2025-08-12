@@ -1,5 +1,7 @@
 use arbitrary_int_1::*;
 
+use core::num::NonZeroUsize;
+
 use crate::{utils::Buffer, *};
 
 macro_rules! generate {
@@ -21,25 +23,25 @@ macro_rules! generate {
           /// Returns the encoded length of the value in LEB128 variable length format.
           #[doc = "The returned value will be in range of [`" $inner "::ENCODED_LEN_RANGE`]."]
           #[inline]
-          pub const fn [< encoded_ $inner _varint_len >](value: $inner) -> usize {
+          pub const fn [< encoded_ $inner _varint_len >](value: $inner) -> NonZeroUsize {
             [<encoded_ $underlying _varint_len>](value.value())
           }
 
           #[doc = "Encodes an `" $inner "` value into LEB128 variable length format, and writes it to the buffer."]
           #[inline]
-          pub const fn [< encode_ $inner _varint >](x: $inner) -> $crate::utils::Buffer<{ $inner::MAX_ENCODED_LEN + 1 }> {
-            let mut buf = [0; $inner::MAX_ENCODED_LEN + 1];
+          pub const fn [< encode_ $inner _varint >](x: $inner) -> $crate::utils::Buffer<{ $inner::MAX_ENCODED_LEN.get() + 1 }> {
+            let mut buf = [0; { $inner::MAX_ENCODED_LEN.get() + 1 }];
             let len = match [< encode_ $inner _varint_to >](x, &mut buf) {
               Ok(len) => len,
               Err(_) => panic!("buffer should be large enough"),
             };
-            buf[$crate::utils::Buffer::<{ $inner::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
+            buf[$crate::utils::Buffer::<{ $inner::MAX_ENCODED_LEN.get() + 1 }>::CAPACITY.get()] = len.get() as u8;
             $crate::utils::Buffer::new(buf)
           }
 
           #[doc = "Encodes an `" $inner "` value into LEB128 variable length format, and writes it to the buffer."]
           #[inline]
-          pub const fn [< encode_ $inner _varint_to >](value: $inner, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+          pub const fn [< encode_ $inner _varint_to >](value: $inner, buf: &mut [u8]) -> Result<NonZeroUsize, ConstEncodeError> {
             [<encode_ $underlying _varint_to>](value.value(), buf)
           }
 
@@ -47,7 +49,7 @@ macro_rules! generate {
           ///
           /// Returns the bytes readed and the decoded value if successful.
           #[inline]
-          pub const fn [< decode_ $inner _varint >](buf: &[u8]) -> Result<(usize, $inner), ConstDecodeError> {
+          pub const fn [< decode_ $inner _varint >](buf: &[u8]) -> Result<(NonZeroUsize, $inner), ConstDecodeError> {
             match [<decode_ $underlying _varint>](buf) {
               Ok((readed, val)) => {
                 match $inner::try_new(val) {
@@ -84,11 +86,11 @@ macro_rules! generate {
           quickcheck::quickcheck! {
             fn [< fuzzy_ $inner _varint >](x: [< Fuzzy $inner:camel >]) -> bool {
               let x = x.0;
-              let mut buf = [0; $inner::MAX_ENCODED_LEN];
+              let mut buf = [0; $inner::MAX_ENCODED_LEN.get()];
               let len = [< encode_ $inner _varint_to >](x, &mut buf).unwrap();
               let buffer = [< encode_ $inner _varint >](x);
-              assert_eq!(buffer.len(), len);
-              assert_eq!(buffer.as_slice(), &buf[..len]);
+              assert_eq!(buffer.len(), len.get());
+              assert_eq!(buffer.as_slice(), &buf[..len.get()]);
 
               let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
               assert_eq!(readed, len);
@@ -108,12 +110,12 @@ macro_rules! generate {
             assert_eq!(min_encoded_len, $inner::MIN_ENCODED_LEN);
             assert_eq!(max_encoded_len, $inner::MAX_ENCODED_LEN);
 
-            let mut buf = [0; $inner::MAX_ENCODED_LEN];
+            let mut buf = [0; $inner::MAX_ENCODED_LEN.get()];
             let len = [< encode_ $inner _varint_to >](min, &mut buf).unwrap();
             assert_eq!(len, min_encoded_len);
             let buffer = [< encode_ $inner _varint >](min);
-            assert_eq!(buffer.len(), min_encoded_len);
-            assert_eq!(buffer.as_slice(), &buf[..min_encoded_len]);
+            assert_eq!(buffer.len(), min_encoded_len.get());
+            assert_eq!(buffer.as_slice(), &buf[..min_encoded_len.get()]);
 
             let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
             assert_eq!(readed, len);
@@ -122,8 +124,8 @@ macro_rules! generate {
             let len = [< encode_ $inner _varint_to >](max, &mut buf).unwrap();
             assert_eq!(len, max_encoded_len);
             let buffer = [< encode_ $inner _varint >](max);
-            assert_eq!(buffer.len(), max_encoded_len);
-            assert_eq!(buffer.as_slice(), &buf[..max_encoded_len]);
+            assert_eq!(buffer.len(), max_encoded_len.get());
+            assert_eq!(buffer.as_slice(), &buf[..max_encoded_len.get()]);
 
             let (readed, val) = [< decode_ $inner _varint >](&buf).unwrap();
             assert_eq!(readed, len);
@@ -137,22 +139,22 @@ macro_rules! generate {
     paste::paste! {
       $(
         #[doc = "Returns the encoded length of the value in LEB128 variable length format."]
-        pub const fn [< encoded_uint_d $storage _len >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> usize {
+        pub const fn [< encoded_uint_d $storage _len >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> NonZeroUsize {
           [< encoded_u $storage _varint_len >](value.value())
         }
 
         #[doc = "Encodes an `Uint<u" $storage ", BITS>` value into LEB128 variable length format, and writes it to the buffer."]
-        pub const fn [< encode_uint_d $storage _to >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_uint_d $storage _to >]<const BITS: usize>(value: UInt<[< u $storage>], BITS>, buf: &mut [u8]) -> Result<NonZeroUsize, ConstEncodeError> {
           [< encode_u $storage _varint_to >](value.value(), buf)
         }
 
         #[doc = "Encodes an `Uint<u" $storage ", BITS>` value into LEB128 variable length format, and writes it to the buffer."]
-        pub const fn [< encode_uint_d $storage>]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> Buffer<{ [< u $storage>]::MAX_ENCODED_LEN + 1 }> {
+        pub const fn [< encode_uint_d $storage>]<const BITS: usize>(value: UInt<[< u $storage>], BITS>) -> Buffer<{ [< u $storage>]::MAX_ENCODED_LEN.get() + 1 }> {
           [< encode_u $storage _varint >](value.value())
         }
 
         #[doc = "Decodes an `Uint<u" $storage ", BITS>` in LEB128 encoded format from the buffer."]
-        pub const fn [< decode_uint_d $storage>]<const BITS: usize>(buf: &[u8]) -> Result<(usize, UInt<[< u $storage>], BITS>), ConstDecodeError> {
+        pub const fn [< decode_uint_d $storage>]<const BITS: usize>(buf: &[u8]) -> Result<(NonZeroUsize, UInt<[< u $storage>], BITS>), ConstDecodeError> {
           match [< decode_u $storage _varint >](buf) {
             Ok((readed, val)) => {
               match UInt::<[< u $storage>], BITS>::try_new(val) {
@@ -165,18 +167,18 @@ macro_rules! generate {
         }
 
         impl<const BITS: usize> Varint for UInt<[< u $storage>], BITS> {
-          const MIN_ENCODED_LEN: usize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MIN);
-          const MAX_ENCODED_LEN: usize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MAX);
+          const MIN_ENCODED_LEN: NonZeroUsize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MIN);
+          const MAX_ENCODED_LEN: NonZeroUsize = [< encoded_uint_d $storage _len >](UInt::<[< u $storage>], BITS>::MAX);
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> NonZeroUsize {
             [< encoded_uint_d $storage _len >](*self)
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, crate::EncodeError> {
             [< encode_uint_d $storage _to >](*self, buf).map_err(Into::into)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
+          fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), crate::DecodeError>
           where
             Self: Sized,
           {

@@ -1,5 +1,11 @@
 # RELEASED
 
+## 0.10.0 (Aug 12nd, 2025)
+
+- Make `consume_varint` panic
+- Add `consume_varint_checked` and `try_consume_varint` for non-panicking version `consume_varint`
+- Change fn output from `usize` to `NonZeroUsize`
+
 ## 0.9.0 (Aug 9th, 2025)
 
 - Add `ConstEncodeError` and `ConstDecodeError`

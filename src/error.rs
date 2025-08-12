@@ -18,39 +18,30 @@ impl InsufficientSpace {
   ///
   /// # Panics
   ///
-  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
+  /// Panics if `requested` is not greater than `available`.
   #[inline]
-  pub const fn new(requested: usize, available: usize) -> Self {
-    debug_assert!(
-      requested > available,
+  pub const fn new(requested: NonZeroUsize, available: usize) -> Self {
+    assert!(
+      requested.get() > available,
       "InsufficientSpace: requested must be greater than available"
     );
 
     Self {
-      requested: NonZeroUsize::new(requested)
-        .expect("InsufficientSpace: requested must be non-zero"),
+      requested,
       available,
     }
   }
 
   /// Returns the number of bytes requested to encode the value.
   #[inline]
-  pub const fn requested(&self) -> usize {
-    self.requested.get()
+  pub const fn requested(&self) -> NonZeroUsize {
+    self.requested
   }
 
   /// Returns the number of bytes available in the buffer.
   #[inline]
   pub const fn available(&self) -> usize {
     self.available
-  }
-
-  /// Returns the number of additional bytes needed for the operation to succeed.
-  ///
-  /// This is equivalent to `requested() - available()`.
-  #[inline]
-  pub const fn shortage(&self) -> usize {
-    self.requested.get() - self.available
   }
 }
 
@@ -84,9 +75,9 @@ impl ConstEncodeError {
   ///
   /// # Panics
   ///
-  /// Panics if `requested` is not greater than `available` or if `requested` is zero.
+  /// Panics if `requested` is not greater than `available`.
   #[inline]
-  pub const fn insufficient_space(requested: usize, available: usize) -> Self {
+  pub const fn insufficient_space(requested: NonZeroUsize, available: usize) -> Self {
     Self::InsufficientSpace(InsufficientSpace::new(requested, available))
   }
 
@@ -106,7 +97,7 @@ impl ConstEncodeError {
   }
 
   #[inline]
-  pub(super) const fn update(self, requested: usize, available: usize) -> Self {
+  pub(super) const fn update(self, requested: NonZeroUsize, available: usize) -> Self {
     match self {
       Self::InsufficientSpace(_) => {
         Self::InsufficientSpace(InsufficientSpace::new(requested, available))
@@ -215,7 +206,7 @@ impl EncodeError {
   ///
   /// Panics if `requested` is not greater than `available` or if `requested` is zero.
   #[inline]
-  pub const fn insufficient_space(requested: usize, available: usize) -> Self {
+  pub const fn insufficient_space(requested: NonZeroUsize, available: usize) -> Self {
     Self::InsufficientSpace(InsufficientSpace::new(requested, available))
   }
 

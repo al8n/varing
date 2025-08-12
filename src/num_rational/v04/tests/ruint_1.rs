@@ -15,13 +15,13 @@ macro_rules! ratio_ruint_fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
           let value: $target = ::core::convert::Into::into(value);
-          let mut buf = [0; <$target>::MAX_ENCODED_LEN];
+          let mut buf = [0; <$target>::MAX_ENCODED_LEN.get()];
           let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
           if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$target>::MAX_ENCODED_LEN) {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {

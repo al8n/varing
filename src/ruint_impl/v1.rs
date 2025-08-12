@@ -2,22 +2,21 @@ use crate::*;
 
 use ruint_1::Uint;
 
-#[inline]
-const fn min_encoded_len<const BITS: usize>() -> usize {
-  if BITS == 0 {
-    0
-  } else {
-    1
-  }
-}
-
 impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
-  const MIN_ENCODED_LEN: usize = min_encoded_len::<BITS>();
-  const MAX_ENCODED_LEN: usize = BITS.div_ceil(7);
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = {
+    if BITS == 0 {
+      NON_ZERO_USIZE_ONE
+    } else {
+      // Each byte can store 7 bits, round up
+      // Safety: BITS > 0, so div_ceil(7) > 0
+      unsafe { NonZeroUsize::new_unchecked(BITS.div_ceil(7)) }
+    }
+  };
 
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     match BITS {
-      0 => 0,
+      0 => NON_ZERO_USIZE_ONE,
       1..=8 => encoded_u8_varint_len(self.to()),
       9..=16 => encoded_u16_varint_len(self.to()),
       17..=32 => encoded_u32_varint_len(self.to()),
@@ -27,21 +26,30 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
         // Each byte in LEB128 can store 7 bits
         // Special case for 0 since it always needs 1 byte
         if self.is_zero() {
-          return 1;
+          return NON_ZERO_USIZE_ONE;
         }
 
         // Calculate position of highest set bit
         let highest_bit = BITS - self.leading_zeros();
         // Convert to number of LEB128 bytes needed
         // Each byte holds 7 bits, but we need to round up
-        highest_bit.div_ceil(7)
+
+        // Safety: if highest_bit is non-zero, div_ceil(7) is also non-zero
+        unsafe { NonZeroUsize::new_unchecked(highest_bit.div_ceil(7)) }
       }
     }
   }
 
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
+    if buf.is_empty() {
+      return Err(EncodeError::insufficient_space(self.encoded_len(), 0));
+    }
+
     match BITS {
-      0 => Ok(0),
+      0 => {
+        buf[0] = 0;
+        Ok(NON_ZERO_USIZE_ONE)
+      }
       1..=8 => encode_u8_varint_to(self.to(), buf).map_err(Into::into),
       9..=16 => encode_u16_varint_to(self.to(), buf).map_err(Into::into),
       17..=32 => encode_u32_varint_to(self.to(), buf).map_err(Into::into),
@@ -50,7 +58,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
       _ => {
         let len = self.encoded_len();
         let buf_len = buf.len();
-        if buf_len < len {
+        if buf_len < len.get() {
           return Err(EncodeError::insufficient_space(len, buf_len));
         }
 
@@ -74,21 +82,26 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
           }
         }
 
-        Ok(bytes_written)
+        // Safety: bytes_written is guaranteed to be > 0 and <= buf_len
+        Ok(unsafe { NonZeroUsize::new_unchecked(bytes_written) })
       }
     }
   }
 
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
-    if BITS == 0 {
-      return Ok((0, Self::ZERO));
-    }
-
     if buf.is_empty() {
       return Err(DecodeError::insufficient_data(buf.len()));
+    }
+
+    if BITS == 0 {
+      if buf[0] != 0 {
+        return Err(DecodeError::Overflow);
+      }
+
+      return Ok((NON_ZERO_USIZE_ONE, Self::ZERO));
     }
 
     let mut result = Self::ZERO;
@@ -117,7 +130,8 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
 
       // If continuation bit is not set, we're done
       if byte & 0x80 == 0 {
-        return Ok((bytes_read, result));
+        // Safety: bytes_read is guaranteed to be > 0 here
+        return Ok((unsafe { NonZeroUsize::new_unchecked(bytes_read) }, result));
       }
 
       shift += 7;
@@ -171,13 +185,13 @@ mod tests_ruint_1 {
         paste::paste! {
           #[quickcheck]
           fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
-            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+            let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
             let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
             if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
               return false;
             }
 
-            let Ok(consumed) = crate::consume_varint(&buf) else {
+            let Some(consumed) = crate::consume_varint_checked(&buf) else {
               return false;
             };
             if consumed != encoded_len {
@@ -241,8 +255,8 @@ mod tests_ruint_1 {
     #[quickcheck]
     fn fuzzy_u256_buffer_underflow(bytes: ByteArray<32>, short_len: usize) -> bool {
       let uint = Uint::<256, 4>::from_be_bytes(bytes.0);
-      let short_len = short_len % (Uint::<256, 4>::MAX_ENCODED_LEN - 1);
-      if short_len >= uint.encoded_len() {
+      let short_len = short_len % (Uint::<256, 4>::MAX_ENCODED_LEN.get() - 1);
+      if short_len >= uint.encoded_len().get() {
         return true;
       }
       let mut short_buffer = vec![0u8; short_len];
@@ -255,8 +269,8 @@ mod tests_ruint_1 {
     #[quickcheck]
     fn fuzzy_u512_buffer_underflow(bytes: ByteArray<64>, short_len: usize) -> bool {
       let uint = Uint::<512, 8>::from_be_bytes(bytes.0);
-      let short_len = short_len % (Uint::<512, 8>::MAX_ENCODED_LEN - 1);
-      if short_len >= uint.encoded_len() {
+      let short_len = short_len % (Uint::<512, 8>::MAX_ENCODED_LEN.get() - 1);
+      if short_len >= uint.encoded_len().get() {
         return true;
       }
       let mut short_buffer = vec![0u8; short_len];

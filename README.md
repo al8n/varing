@@ -21,7 +21,7 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 
 ```toml
 [dependencies]
-varing = "0.9"
+varing = "0.10"
 ```
 
 ## Optional Features
@@ -31,6 +31,7 @@ varing = "0.9"
 - [`chrono`]: Support encode/decode [`chrono`] types by using LEB128 (not fully compatible in `const` context).
 - [`chrono-tz`]: Support encode/decode [`chrono-tz`] types by using LEB128.
 - [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
+- [`float8`]: Support encode/decode [`float8`] types by using LEB128.
 - [`half`]: Support encode/decode [`half`] types by using LEB128.
 - [`num-complex`]: Support encode/decode [`num-complex`] types by using LEB128.
 - [`num-rational`]: Support encode/decode [`num-rational`] types by using LEB128.
@@ -61,6 +62,7 @@ Copyright (c) 2025 Al Liu.
 [`bnum`]: https://docs.rs/bnum
 [`chrono`]: https://docs.rs/chrono
 [`chrono-tz`]: https://docs.rs/chrono-tz
+[`float8`]: https://docs.rs/float8
 [`half`]: https://docs.rs/half
 [`num-complex`]: https://docs.rs/num-complex
 [`num-rational`]: https://docs.rs/num-rational
