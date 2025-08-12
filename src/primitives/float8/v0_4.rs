@@ -81,7 +81,7 @@ macro_rules! generate {
           encode!(@sequence_encode_to_impl buf, sequence, [< encode_ $ty:lower _varint_to >], [< encoded_ $ty:lower _sequence_len >])
         }
       )*
-    }      
+    }
   };
 }
 
