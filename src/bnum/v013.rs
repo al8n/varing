@@ -267,7 +267,7 @@ mod tests {
               return false;
             }
 
-            let Ok(consumed) = crate::consume_varint(&buf) else {
+            let Some(consumed) = crate::consume_varint_checked(&buf) else {
               return false;
             };
             if consumed != encoded_len {

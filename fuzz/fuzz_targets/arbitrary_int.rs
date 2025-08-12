@@ -18,7 +18,7 @@ macro_rules! fuzzy {
                             let encoded = [< encode_ $ty _varint >](value);
                             assert!(!(encoded.len() != [< encoded_ $ty _varint_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN)));
 
-                            let consumed = consume_varint(&encoded).unwrap();
+                            let consumed = consume_varint(&encoded);
                             assert_eq!(consumed, encoded.len());
 
                             let (bytes_read, decoded) = [< decode_ $ty _varint >](&encoded).unwrap();
@@ -29,7 +29,7 @@ macro_rules! fuzzy {
                             let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <$ty>::decode(&buf).unwrap();

@@ -39,7 +39,7 @@ impl_for_non_zero!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128,);
 
 #[cfg(test)]
 mod tests {
-  use crate::{consume_varint, Varint};
+  use crate::{consume_varint_checked, Varint};
   use core::num::*;
 
   macro_rules! fuzzy {
@@ -60,7 +60,7 @@ mod tests {
               return false;
             }
 
-            let Ok(consumed) = consume_varint(&buf) else {
+            let Some(consumed) = consume_varint_checked(&buf) else {
               return false;
             };
             if consumed != encoded_len {

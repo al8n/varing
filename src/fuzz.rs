@@ -11,7 +11,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+          let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
           if consumed != encoded.len() {
@@ -37,7 +37,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+          let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
           if consumed != encoded.len() {
@@ -64,7 +64,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+          let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
           if consumed != encoded.len() {
@@ -90,7 +90,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&encoded) else {
+          let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
           if consumed != encoded.len() {
@@ -117,7 +117,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {
@@ -144,7 +144,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {
@@ -172,7 +172,7 @@ macro_rules! fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {

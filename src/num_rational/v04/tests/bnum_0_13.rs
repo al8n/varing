@@ -16,7 +16,7 @@ fn fuzzy_ratio_u128(value: ArbitraryRatio<u128>) -> bool {
     return false;
   }
 
-  let Ok(consumed) = crate::consume_varint(&buf) else {
+  let Some(consumed) = crate::consume_varint_checked(&buf) else {
     return false;
   };
   if consumed != encoded {
@@ -39,7 +39,7 @@ fn fuzzy_ratio_i128(value: ArbitraryRatio<i128>) -> bool {
     return false;
   }
 
-  let Ok(consumed) = crate::consume_varint(&buf) else {
+  let Some(consumed) = crate::consume_varint_checked(&buf) else {
     return false;
   };
   if consumed != encoded {
@@ -66,7 +66,7 @@ macro_rules! ratio_bnum_fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {

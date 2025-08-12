@@ -377,9 +377,11 @@ where
 /// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
 /// marks the last byte of the varint.
 ///
-/// ## Returns
-/// * `Ok(usize)` - The number of bytes the varint occupies in the buffer
-/// * `Err(ConstDecodeError)` - If the buffer is empty or contains an incomplete varint
+/// See also [`try_consume_varint`](try_consume_varint) and [`consume_varint_checked`](consume_varint_checked) for non-panicking version.
+///
+/// ## Panics
+///
+/// - If the buffer does not contain a complete varint.
 ///
 /// ## Examples
 ///
@@ -387,12 +389,110 @@ where
 /// use varing::consume_varint;
 ///
 /// let buf = [0x96, 0x01]; // Varint encoding of 150
-/// assert_eq!(consume_varint(&buf), Ok(2));
+/// assert_eq!(consume_varint(&buf), 2);
 ///
 /// let buf = [0x7F]; // Varint encoding of 127
-/// assert_eq!(consume_varint(&buf), Ok(1));
+/// assert_eq!(consume_varint(&buf), 1);
 /// ```
-pub const fn consume_varint(buf: &[u8]) -> Result<usize, ConstDecodeError> {
+pub const fn consume_varint(buf: &[u8]) -> usize {
+  if buf.is_empty() {
+    return 0;
+  }
+
+  // Scan the buffer to find the end of the varint
+  let mut idx = 0;
+  let buf_len = buf.len();
+
+  while idx < buf_len {
+    let byte = buf[idx];
+    // Check if this is the last byte of the varint (MSB is not set)
+    if byte & 0x80 == 0 {
+      // Found the last byte, return the total number of bytes
+      return idx + 1;
+    }
+
+    // If we've reached the end of the buffer but haven't found the end of the varint
+    if idx == buf_len - 1 {
+      panic!("not enough bytes to decode varint value");
+    }
+    idx += 1;
+  }
+
+  // This point is reached only if all bytes have their MSB set and we've
+  // exhausted the buffer, which means the varint is incomplete
+  panic!("not enough bytes to decode varint value");
+}
+
+/// Calculates the number of bytes occupied by a varint encoded value in the buffer.
+///
+/// In varint encoding, each byte uses 7 bits for the value and the highest bit (MSB)
+/// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
+/// marks the last byte of the varint.
+///
+/// ## Examples
+///
+/// ```rust
+/// use varing::consume_varint_checked;
+///
+/// let buf = [0x96, 0x01]; // Varint encoding of 150
+/// assert_eq!(consume_varint_checked(&buf), Some(2));
+///
+/// let buf = [0x7F]; // Varint encoding of 127
+/// assert_eq!(consume_varint_checked(&buf), Some(1));
+///
+/// let buf = [0x80]; // Incomplete varint
+/// assert_eq!(consume_varint_checked(&buf), None);
+/// ```
+pub const fn consume_varint_checked(buf: &[u8]) -> Option<usize> {
+  if buf.is_empty() {
+    return Some(0);
+  }
+
+  // Scan the buffer to find the end of the varint
+  let mut idx = 0;
+  let buf_len = buf.len();
+
+  while idx < buf_len {
+    let byte = buf[idx];
+    // Check if this is the last byte of the varint (MSB is not set)
+    if byte & 0x80 == 0 {
+      // Found the last byte, return the total number of bytes
+      return Some(idx + 1);
+    }
+
+    // If we've reached the end of the buffer but haven't found the end of the varint
+    if idx == buf_len - 1 {
+      return None;
+    }
+    idx += 1;
+  }
+
+  // This point is reached only if all bytes have their MSB set and we've
+  // exhausted the buffer, which means the varint is incomplete
+  None
+}
+
+/// Calculates the number of bytes occupied by a varint encoded value in the buffer.
+///
+/// In varint encoding, each byte uses 7 bits for the value and the highest bit (MSB)
+/// as a continuation flag. A set MSB (1) indicates more bytes follow, while an unset MSB (0)
+/// marks the last byte of the varint.
+///
+/// ## Examples
+///
+/// ```rust
+/// use varing::{try_consume_varint, ConstDecodeError};
+///
+/// let buf = [0x96, 0x01]; // Varint encoding of 150
+/// assert_eq!(try_consume_varint(&buf), Ok(2));
+///
+/// let buf = [0x7F]; // Varint encoding of 127
+/// assert_eq!(try_consume_varint(&buf), Ok(1));
+///
+/// let buf = [0x80]; // Incomplete varint
+/// assert_eq!(try_consume_varint(&buf), Err(ConstDecodeError::insufficient_data(1)));
+/// ```
+pub const fn try_consume_varint(buf: &[u8]) -> Result<usize, ConstDecodeError> {
   if buf.is_empty() {
     return Ok(0);
   }

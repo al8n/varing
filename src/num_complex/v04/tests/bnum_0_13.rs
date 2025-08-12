@@ -16,7 +16,7 @@ fn fuzzy_complex_u128(value: ArbitraryComplex<u128>) -> bool {
     return false;
   }
 
-  let Ok(consumed) = crate::consume_varint(&buf) else {
+  let Some(consumed) = crate::consume_varint_checked(&buf) else {
     return false;
   };
   if consumed != encoded {
@@ -39,7 +39,7 @@ fn fuzzy_complex_i128(value: ArbitraryComplex<i128>) -> bool {
     return false;
   }
 
-  let Ok(consumed) = crate::consume_varint(&buf) else {
+  let Some(consumed) = crate::consume_varint_checked(&buf) else {
     return false;
   };
   if consumed != encoded {
@@ -66,7 +66,7 @@ macro_rules! complex_bnum_fuzzy {
             return false;
           }
 
-          let Ok(consumed) = $crate::consume_varint(&buf) else {
+          let Some(consumed) = $crate::consume_varint_checked(&buf) else {
             return false;
           };
           if consumed != encoded_len {

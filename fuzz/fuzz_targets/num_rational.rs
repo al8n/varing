@@ -48,7 +48,7 @@ macro_rules! fuzzy {
                             let encoded = [< encode_ratio_ $ty:snake >](value);
                             assert!(!(encoded.len() != [< encoded_ratio_ $ty:snake _len >] (value) || !(encoded.len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
 
-                            let consumed = consume_varint(&encoded).unwrap();
+                            let consumed = consume_varint(&encoded);
                             assert_eq!(consumed, encoded.len());
 
                             let (bytes_read, decoded) = [< decode_ratio_ $ty:snake >](&encoded).unwrap();
@@ -59,7 +59,7 @@ macro_rules! fuzzy {
                             let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <Ratio<$ty>>::decode(&buf).unwrap();
@@ -82,7 +82,7 @@ macro_rules! fuzzy {
                             let mut buf = [0; <Ratio<$ty>>::MAX_ENCODED_LEN];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <Ratio<$ty>>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <Ratio<$ty>>::decode(&buf).unwrap();

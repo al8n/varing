@@ -14,7 +14,7 @@ macro_rules! fuzzy {
                             let mut buf = [0; <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN];
                             let encoded_len = value.encode(&mut buf).unwrap();
                             assert!(!(encoded_len != value.encoded_len() || !(value.encoded_len() <= <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN)));
-                            let consumed = consume_varint(&buf).unwrap();
+                            let consumed = consume_varint(&buf);
                             assert_eq!(consumed, encoded_len);
 
                             let (bytes_read, decoded) = <[< NonZero $ty:camel >]>::decode(&buf).unwrap();
