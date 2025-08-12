@@ -5,27 +5,26 @@ macro_rules! impl_for_non_zero {
     $(
       paste::paste! {
         impl $crate::Varint for [< NonZero $ty:camel >] {
-          const MIN_ENCODED_LEN: usize = $ty::MIN_ENCODED_LEN;
+          const MIN_ENCODED_LEN: NonZeroUsize = $ty::MIN_ENCODED_LEN;
 
-          const MAX_ENCODED_LEN: usize = $ty::MAX_ENCODED_LEN;
+          const MAX_ENCODED_LEN: NonZeroUsize = $ty::MAX_ENCODED_LEN;
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> NonZeroUsize {
             self.get().encoded_len()
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, crate::EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, crate::EncodeError> {
             self.get().encode(buf)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), crate::DecodeError>
+          fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), crate::DecodeError>
           where
             Self: Sized,
           {
             $ty::decode(buf).and_then(|(n, x)| {
-              if x == 0 {
-                Err(crate::DecodeError::other(concat!(stringify!([< NonZero $ty:camel >]), "cannot be zero")))
-              } else {
-                Ok((n, unsafe { Self::new_unchecked(x) }))
+              match Self::new(x) {
+                None => Err(crate::DecodeError::other(concat!(stringify!([< NonZero $ty:camel >]), "cannot be zero"))),
+                Some(v) => Ok((n, v)),
               }
             })
           }
@@ -54,7 +53,7 @@ mod tests {
 
             let value = [< NonZero $ty:camel >]::new(value).unwrap();
 
-            let mut buf = [0; <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN];
+            let mut buf = [0; { <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN.get() }];
             let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
             if encoded_len != value.encoded_len() || !(value.encoded_len() <= <[< NonZero $ty:camel >]>::MAX_ENCODED_LEN) {
               return false;

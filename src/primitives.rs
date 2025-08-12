@@ -1,4 +1,4 @@
-use core::num::NonZeroU64;
+use core::num::{NonZeroU64, NonZeroUsize};
 
 use super::{
   utils::{self, zigzag_encode_i64},
@@ -10,39 +10,39 @@ macro_rules! impl_varint {
     $(
       paste::paste! {
         impl Varint for [< u $ty >] {
-          const MIN_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](0);
-          const MAX_ENCODED_LEN: usize = [< encoded_ u $ty _varint_len >](<[< u $ty >]>::MAX);
+          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = [< encoded_ u $ty _varint_len >](0);
+          const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = [< encoded_ u $ty _varint_len >](<[< u $ty >]>::MAX);
 
           #[inline]
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> ::core::num::NonZeroUsize {
             [< encoded_ u $ty _varint_len >](*self)
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, EncodeError> {
             [< encode_ u $ty _varint_to >](*self, buf).map_err(Into::into)
           }
 
           #[inline]
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
+          fn decode(buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Self), DecodeError> {
             [< decode_ u $ty _varint >](buf).map_err(Into::into)
           }
         }
 
         impl Varint for [< i $ty >] {
-          const MIN_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](0);
-          const MAX_ENCODED_LEN: usize = [< encoded_ i $ty _varint_len >](<[< i $ty >]>::MAX);
+          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = [< encoded_ i $ty _varint_len >](0);
+          const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = [< encoded_ i $ty _varint_len >](<[< i $ty >]>::MAX);
 
           #[inline]
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> ::core::num::NonZeroUsize {
             [< encoded_ i $ty _varint_len >](*self)
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, EncodeError> {
             [< encode_ i $ty _varint_to >](*self, buf).map_err(Into::into)
           }
 
           #[inline]
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError> {
+          fn decode(buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Self), DecodeError> {
             [< decode_ i $ty _varint >](buf).map_err(Into::into)
           }
         }
@@ -53,12 +53,14 @@ macro_rules! impl_varint {
 
 macro_rules! decode_varint {
   (|$buf:ident| $ty:ident) => {{
+    const MAX_ENCODED_LEN: usize = <$ty as Varint>::MAX_ENCODED_LEN.get();
+
     let mut result = 0;
     let mut shift = 0;
     let mut index = 0;
 
     loop {
-      if index == $ty::MAX_ENCODED_LEN {
+      if index == MAX_ENCODED_LEN {
         return Err(ConstDecodeError::Overflow);
       }
 
@@ -88,7 +90,11 @@ macro_rules! decode_varint {
       shift += 7;
       index += 1;
     }
-    Ok((index + 1, result))
+    // Safety: +1 guaranteed to be non-zero
+    Ok((
+      unsafe { ::core::num::NonZeroUsize::new_unchecked(index + 1) },
+      result,
+    ))
   }};
 }
 
@@ -131,11 +137,13 @@ macro_rules! encode_varint {
 
       // Check buffer capacity before writing final byte
       if i >= $buf.len() {
-        return Err(ConstEncodeError::insufficient_space(i + 1, $buf.len()));
+        // Safety: +1 guaranteed to be non-zero
+        return Err(ConstEncodeError::insufficient_space(unsafe { ::core::num::NonZeroUsize::new_unchecked(i + 1) }, $buf.len()));
       }
 
       $buf[i] = $x as u8;
-      Ok(i + 1)
+      // Safety: +1 guaranteed to be non-zero
+      Ok(unsafe { ::core::num::NonZeroUsize::new_unchecked(i + 1) })
     }
   }};
 }
@@ -147,7 +155,7 @@ macro_rules! varint_len {
         /// Returns the encoded length of the value in LEB128 variable length format.
         #[doc = "The returned value will be in range of [`" $ty "::ENCODED_LEN_RANGE`]."]
         #[inline]
-        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> usize {
+        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> ::core::num::NonZeroUsize {
           encoded_u64_varint_len(value as u64)
         }
       }
@@ -159,7 +167,7 @@ macro_rules! varint_len {
         /// Returns the encoded length of the value in LEB128 variable length format.
         #[doc = "The returned value will be in range of [`" $ty "::ENCODED_LEN_RANGE`]."]
         #[inline]
-        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> usize {
+        pub const fn [< encoded_ $ty _varint_len >](value: $ty) -> ::core::num::NonZeroUsize {
           encoded_i64_varint_len(value as i64)
         }
       }
@@ -173,24 +181,24 @@ macro_rules! encode {
       paste::paste! {
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _varint >](mut x: [< u $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
-          let mut buf = [0; [<u $ty>]::MAX_ENCODED_LEN + 1];
+        pub const fn [< encode_ u $ty _varint >](mut x: [< u $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN.get() + 1 }> {
+          let mut buf = [0; { [<u $ty>]::MAX_ENCODED_LEN.get() + 1 }];
           let mut_buf = &mut buf;
           let len = encode_varint!(mut_buf[x]);
-          buf[$crate::utils::Buffer::<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }>::CAPACITY] = len as u8;
+          buf[$crate::utils::Buffer::<{ [<u $ty>]::MAX_ENCODED_LEN.get() + 1 }>::CAPACITY.get()] = len as u8;
           $crate::utils::Buffer::new(buf)
         }
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN + 1 }> {
+        pub const fn [< encode_ i $ty _varint >](x: [< i $ty >]) -> $crate::utils::Buffer<{ [<u $ty>]::MAX_ENCODED_LEN.get() + 1 }> {
           let x = utils::[< zigzag_encode_i $ty>](x);
           [< encode_ u $ty _varint >](x as [< u $ty >])
         }
 
         #[doc = "Encodes an `u" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_ u $ty _varint_to >](mut x: [< u $ty >], buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, ConstEncodeError> {
           encode_varint!(@to_buf [< u $ty >]::buf[x])
         }
 
@@ -208,7 +216,7 @@ macro_rules! encode {
 
         #[doc = "Encodes an `i" $ty "` value into LEB128 variable length format, and writes it to the buffer."]
         #[inline]
-        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_ i $ty _varint_to >](x: [< i $ty >], buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, ConstEncodeError> {
           let mut x = utils::[< zigzag_encode_i $ty>](x);
           encode_varint!(@to_buf [<u $ty>]::buf[x])
         }
@@ -237,9 +245,15 @@ macro_rules! encode {
       let (_, buf) = $buf.split_at_mut(total_bytes);
       let bytes_written = match $encode_to($sequence[idx], buf) {
         Ok(bytes_written) => bytes_written,
-        Err(e) => return Err(e.update($encoded_sequence_len($sequence), buf_len)),
+        Err(e) => return Err({
+          let encoded_len = $encoded_sequence_len($sequence);
+          match ::core::num::NonZeroUsize::new(encoded_len) {
+            None => e,
+            Some(encoded_len) => e.update(encoded_len, buf_len),
+          }
+        }),
       };
-      total_bytes += bytes_written;
+      total_bytes += bytes_written.get();
       idx += 1;
     }
 
@@ -251,7 +265,7 @@ macro_rules! encode {
     let len = $sequence.len();
 
     while idx < len {
-      total_bytes += $encoded_len($sequence[idx]);
+      total_bytes += $encoded_len($sequence[idx]).get();
       idx += 1;
     }
 
@@ -266,14 +280,14 @@ macro_rules! decode {
         #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(usize, [< u $ty >]), ConstDecodeError> {
+        pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, [< u $ty >]), ConstDecodeError> {
           decode_varint!(|buf| [< u $ty >])
         }
 
         #[doc = "Decodes an `u" $ty "` in LEB128 encoded format from the buffer."]
         ///
         /// Returns the bytes readed and the decoded value if successful.
-        pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(usize, [< i $ty >]), ConstDecodeError> {
+        pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, [< i $ty >]), ConstDecodeError> {
           match [< decode_ u $ty _varint >](buf) {
             Ok((bytes_read, value)) => {
               let value = utils::[<zigzag_decode_i $ty>](value);
@@ -296,25 +310,26 @@ decode!(128, 64, 32, 16, 8);
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`u128::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_u128_varint_len(value: u128) -> usize {
+pub const fn encoded_u128_varint_len(value: u128) -> NonZeroUsize {
   // Each byte in LEB128 encoding can hold 7 bits of data
   // We want to find how many groups of 7 bits are needed
   // Special case for 0 and small numbers
   if value < 128 {
-    return 1;
+    return super::NON_ZERO_USIZE_ONE;
   }
 
   // Calculate position of highest set bit
   let highest_bit = 128 - value.leading_zeros();
   // Convert to number of LEB128 bytes needed
   // Each byte holds 7 bits, but we need to round up
-  highest_bit.div_ceil(7) as usize
+  // Safety: highest_bit is guaranteed to be non-zero here
+  unsafe { NonZeroUsize::new_unchecked(highest_bit.div_ceil(7) as usize) }
 }
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`i128::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_i128_varint_len(x: i128) -> usize {
+pub const fn encoded_i128_varint_len(x: i128) -> NonZeroUsize {
   let x = utils::zigzag_encode_i128(x);
   encoded_u128_varint_len(x)
 }
@@ -322,7 +337,7 @@ pub const fn encoded_i128_varint_len(x: i128) -> usize {
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`i64::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_i64_varint_len(x: i64) -> usize {
+pub const fn encoded_i64_varint_len(x: i64) -> NonZeroUsize {
   let x = zigzag_encode_i64(x);
   encoded_u64_varint_len(x)
 }
@@ -330,31 +345,35 @@ pub const fn encoded_i64_varint_len(x: i64) -> usize {
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`u64::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_u64_varint_len(value: u64) -> usize {
+pub const fn encoded_u64_varint_len(value: u64) -> NonZeroUsize {
   // Based on [VarintSize64][1].
   // [1]: https://github.com/protocolbuffers/protobuf/blob/v28.3/src/google/protobuf/io/coded_stream.h#L1744-L1756
-  // Safety: (value | 1) is never zero
-  let log2value = unsafe { NonZeroU64::new_unchecked(value | 1) }.ilog2();
-  ((log2value * 9 + (64 + 9)) / 64) as usize
+
+  // Safety: The value is guaranteed to be non-zero, so the result will always be a valid NonZeroUsize.
+  unsafe {
+    // Safety: (value | 1) is never zero
+    let log2value = NonZeroU64::new_unchecked(value | 1).ilog2();
+    NonZeroUsize::new_unchecked(((log2value * 9 + (64 + 9)) / 64) as usize)
+  }
 }
 
 impl Varint for bool {
-  const MIN_ENCODED_LEN: usize = 1;
+  const MIN_ENCODED_LEN: NonZeroUsize = crate::NON_ZERO_USIZE_ONE;
 
-  const MAX_ENCODED_LEN: usize = 1;
+  const MAX_ENCODED_LEN: NonZeroUsize = crate::NON_ZERO_USIZE_ONE;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     encoded_u8_varint_len(*self as u8)
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     encode_u8_varint_to(*self as u8, buf).map_err(Into::into)
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -370,22 +389,22 @@ impl Varint for bool {
 }
 
 impl Varint for f32 {
-  const MIN_ENCODED_LEN: usize = u32::MIN_ENCODED_LEN;
+  const MIN_ENCODED_LEN: NonZeroUsize = u32::MIN_ENCODED_LEN;
 
-  const MAX_ENCODED_LEN: usize = u32::MAX_ENCODED_LEN;
+  const MAX_ENCODED_LEN: NonZeroUsize = u32::MAX_ENCODED_LEN;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     encoded_f32_varint_len(*self)
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     encode_f32_varint_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -394,22 +413,22 @@ impl Varint for f32 {
 }
 
 impl Varint for f64 {
-  const MIN_ENCODED_LEN: usize = u64::MIN_ENCODED_LEN;
+  const MIN_ENCODED_LEN: NonZeroUsize = u64::MIN_ENCODED_LEN;
 
-  const MAX_ENCODED_LEN: usize = u64::MAX_ENCODED_LEN;
+  const MAX_ENCODED_LEN: NonZeroUsize = u64::MAX_ENCODED_LEN;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     encoded_f64_varint_len(*self)
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     encode_f64_varint_to(*self, buf).map_err(Into::into)
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -419,13 +438,15 @@ impl Varint for f64 {
 
 /// Returns the encoded length of the value in LEB128 variable length format. The returned value will be in range of [`f32::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_f32_varint_len(value: f32) -> usize {
+pub const fn encoded_f32_varint_len(value: f32) -> NonZeroUsize {
   crate::encoded_u32_varint_len(value.to_bits())
 }
 
 /// Encodes an `f32` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_f32_varint(value: f32) -> crate::utils::Buffer<{ f32::MAX_ENCODED_LEN + 1 }> {
+pub const fn encode_f32_varint(
+  value: f32,
+) -> crate::utils::Buffer<{ f32::MAX_ENCODED_LEN.get() + 1 }> {
   crate::encode_u32_varint(value.to_bits())
 }
 
@@ -434,7 +455,7 @@ pub const fn encode_f32_varint(value: f32) -> crate::utils::Buffer<{ f32::MAX_EN
 pub const fn encode_f32_varint_to(
   value: f32,
   buf: &mut [u8],
-) -> Result<usize, crate::ConstEncodeError> {
+) -> Result<NonZeroUsize, crate::ConstEncodeError> {
   crate::encode_u32_varint_to(value.to_bits(), buf)
 }
 
@@ -442,7 +463,7 @@ pub const fn encode_f32_varint_to(
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_f32_varint(buf: &[u8]) -> Result<(usize, f32), crate::ConstDecodeError> {
+pub const fn decode_f32_varint(buf: &[u8]) -> Result<(NonZeroUsize, f32), crate::ConstDecodeError> {
   match crate::decode_u32_varint(buf) {
     Ok((len, bits)) => Ok((len, f32::from_bits(bits))),
     Err(e) => Err(e),
@@ -451,13 +472,15 @@ pub const fn decode_f32_varint(buf: &[u8]) -> Result<(usize, f32), crate::ConstD
 
 /// Returns the encoded length of the value in LEB128 variable length format. The returned value will be in range of [`f64::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_f64_varint_len(value: f64) -> usize {
+pub const fn encoded_f64_varint_len(value: f64) -> NonZeroUsize {
   crate::encoded_u64_varint_len(value.to_bits())
 }
 
 /// Encodes an `f64` value into LEB128 variable length format, and writes it to the buffer.
 #[inline]
-pub const fn encode_f64_varint(value: f64) -> crate::utils::Buffer<{ f64::MAX_ENCODED_LEN + 1 }> {
+pub const fn encode_f64_varint(
+  value: f64,
+) -> crate::utils::Buffer<{ f64::MAX_ENCODED_LEN.get() + 1 }> {
   crate::encode_u64_varint(value.to_bits())
 }
 
@@ -466,7 +489,7 @@ pub const fn encode_f64_varint(value: f64) -> crate::utils::Buffer<{ f64::MAX_EN
 pub const fn encode_f64_varint_to(
   value: f64,
   buf: &mut [u8],
-) -> Result<usize, crate::ConstEncodeError> {
+) -> Result<NonZeroUsize, crate::ConstEncodeError> {
   crate::encode_u64_varint_to(value.to_bits(), buf)
 }
 
@@ -474,7 +497,7 @@ pub const fn encode_f64_varint_to(
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_f64_varint(buf: &[u8]) -> Result<(usize, f64), crate::ConstDecodeError> {
+pub const fn decode_f64_varint(buf: &[u8]) -> Result<(NonZeroUsize, f64), crate::ConstDecodeError> {
   match crate::decode_u64_varint(buf) {
     Ok((len, bits)) => Ok((len, f64::from_bits(bits))),
     Err(e) => Err(e),
@@ -516,3 +539,9 @@ pub const fn encode_f64_sequence_to(
 mod half;
 #[cfg(feature = "half_2")]
 pub use half::*;
+
+/// LEB128 encoding/decoding for [`float8`](https://crates.io/crates/float8) types.
+#[cfg(feature = "float8_0_4")]
+mod float8;
+#[cfg(feature = "float8_0_4")]
+pub use float8::*;

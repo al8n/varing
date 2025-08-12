@@ -7,19 +7,19 @@ macro_rules! fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
           let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value).get() || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN.get()) {
             return false;
           }
 
           let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
-          if consumed != encoded.len() {
+          if consumed.get() != encoded.len() {
             return false;
           }
 
           if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
+            value == decoded && encoded.len() == bytes_read.get()
           } else {
             false
           }
@@ -33,19 +33,19 @@ macro_rules! fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
           let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value).get() || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN.get()) {
             return false;
           }
 
           let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
-          if consumed != encoded.len() {
+          if consumed.get() != encoded.len() {
             return false;
           }
 
           if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value.to_bits() == decoded.to_bits() && encoded.len() == bytes_read
+            value.to_bits() == decoded.to_bits() && encoded.len() == bytes_read.get()
           } else {
             false
           }
@@ -60,19 +60,19 @@ macro_rules! fuzzy {
         fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
           let value = ::core::convert::Into::into(value);
           let encoded = [< encode_ $ty:snake $(_$suffix)? >](value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value) || !(encoded.len() <= <$target>::MAX_ENCODED_LEN) {
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (value).get() || !(encoded.len() <= <$target>::MAX_ENCODED_LEN.get()) {
             return false;
           }
 
           let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
-          if consumed != encoded.len() {
+          if consumed.get() != encoded.len() {
             return false;
           }
 
           if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
+            value == decoded && encoded.len() == bytes_read.get()
           } else {
             false
           }
@@ -86,19 +86,19 @@ macro_rules! fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake >](value: $ty) -> bool {
           let encoded = [< encode_ $ty:snake $(_$suffix)? >](&value);
-          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (&value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN) {
+          if encoded.len() != [< encoded_ $ty:snake $(_$suffix)?_len >] (&value).get() || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN.get()) {
             return false;
           }
 
           let Some(consumed) = $crate::consume_varint_checked(&encoded) else {
             return false;
           };
-          if consumed != encoded.len() {
+          if consumed.get() != encoded.len() {
             return false;
           }
 
           if let Ok((bytes_read, decoded)) = [< decode_ $ty:snake $(_$suffix)? >](&encoded) {
-            value == decoded && encoded.len() == bytes_read
+            value == decoded && encoded.len() == bytes_read.get()
           } else {
             false
           }
@@ -111,7 +111,7 @@ macro_rules! fuzzy {
       paste::paste! {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
-          let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+          let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
           let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
           if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
             return false;
@@ -138,7 +138,7 @@ macro_rules! fuzzy {
       paste::paste! {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
-          let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+          let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
           let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
           if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN) {
             return false;
@@ -166,7 +166,7 @@ macro_rules! fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
           let value: $target = ::core::convert::Into::into(value);
-          let mut buf = [0; <$target>::MAX_ENCODED_LEN];
+          let mut buf = [0; <$target>::MAX_ENCODED_LEN.get()];
           let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
           if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$target>::MAX_ENCODED_LEN) {
             return false;
@@ -263,7 +263,7 @@ mod with_std {
   #[quickcheck_macros::quickcheck]
   fn fuzzy_buffer_underflow(value: u64, short_len: usize) -> bool {
     let short_len = short_len % 9; // Keep length under max varint size
-    if short_len >= value.encoded_len() {
+    if short_len >= value.encoded_len().get() {
       return true; // Skip test if buffer is actually large enough
     }
     let mut short_buffer = vec![0u8; short_len];

@@ -1,3 +1,5 @@
+use core::num::NonZeroUsize;
+
 use crate::{
   decode_i128_varint, decode_i32_varint, decode_u128_varint, decode_u64_varint,
   encode_i128_varint_to, encode_i32_varint_to, encode_u128_varint, encode_u128_varint_to,
@@ -71,13 +73,13 @@ pub(crate) const fn encode_datetime(
   nano: u32,
 ) -> DateTimeBuffer {
   let merged = date_time_to_merged(year, month, day, hour, minute, second, nano);
-  let mut buf = [0; DateTimeBuffer::CAPACITY + 1];
-  let (data_buf, len_buf) = buf.split_at_mut(DateTimeBuffer::CAPACITY);
+  let mut buf = [0; DateTimeBuffer::CAPACITY.get() + 1];
+  let (data_buf, len_buf) = buf.split_at_mut(DateTimeBuffer::CAPACITY.get());
   let len = match encode_i128_varint_to(merged, data_buf) {
     Ok(len) => len,
     Err(_) => panic!("invalid datetime"),
   };
-  len_buf[0] = len as u8;
+  len_buf[0] = len.get() as u8;
   DateTimeBuffer::new(buf)
 }
 
@@ -92,7 +94,7 @@ pub(crate) const fn encode_datetime_to(
   second: u8,
   nano: u32,
   buf: &mut [u8],
-) -> Result<usize, ConstEncodeError> {
+) -> Result<NonZeroUsize, ConstEncodeError> {
   let merged = date_time_to_merged(year, month, day, hour, minute, second, nano);
   encode_i128_varint_to(merged, buf)
 }
@@ -106,7 +108,7 @@ pub(crate) const fn encoded_datetime_len(
   minute: u8,
   second: u8,
   nano: u32,
-) -> usize {
+) -> NonZeroUsize {
   let merged = date_time_to_merged(year, month, day, hour, minute, second, nano);
   encoded_i128_varint_len(merged)
 }
@@ -115,7 +117,7 @@ pub(crate) const fn encoded_datetime_len(
 #[inline]
 pub(crate) const fn decode_datetime(
   buf: &[u8],
-) -> Result<(usize, i32, u8, u8, u8, u8, u8, u32), ConstDecodeError> {
+) -> Result<(NonZeroUsize, i32, u8, u8, u8, u8, u8, u32), ConstDecodeError> {
   match decode_i128_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (year, month, day, hour, minute, second, nano) = merged_to_date_time(merged);
@@ -147,7 +149,9 @@ pub(crate) const fn merged_to_time(merged: u64) -> (u32, u8, u8, u8) {
 }
 
 #[inline]
-pub(crate) const fn decode_time(buf: &[u8]) -> Result<(usize, u32, u8, u8, u8), ConstDecodeError> {
+pub(crate) const fn decode_time(
+  buf: &[u8],
+) -> Result<(NonZeroUsize, u32, u8, u8, u8), ConstDecodeError> {
   match decode_u64_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (nano, second, minute, hour) = merged_to_time(merged);
@@ -158,7 +162,7 @@ pub(crate) const fn decode_time(buf: &[u8]) -> Result<(usize, u32, u8, u8, u8), 
 }
 
 #[inline]
-pub(crate) const fn encoded_time_len(nano: u32, second: u8, minute: u8, hour: u8) -> usize {
+pub(crate) const fn encoded_time_len(nano: u32, second: u8, minute: u8, hour: u8) -> NonZeroUsize {
   let merged = time_to_merged(nano, second, minute, hour);
   encoded_u64_varint_len(merged)
 }
@@ -170,7 +174,7 @@ pub(crate) const fn encode_time_to(
   minute: u8,
   hour: u8,
   buf: &mut [u8],
-) -> Result<usize, ConstEncodeError> {
+) -> Result<NonZeroUsize, ConstEncodeError> {
   let merged = time_to_merged(nano, second, minute, hour);
   encode_u64_varint_to(merged, buf)
 }
@@ -179,13 +183,13 @@ pub(crate) const fn encode_time_to(
 #[inline]
 pub(crate) const fn encode_time(nano: u32, second: u8, minute: u8, hour: u8) -> TimeBuffer {
   let merged = time_to_merged(nano, second, minute, hour);
-  let mut buf = [0; TimeBuffer::CAPACITY + 1];
-  let (data_buf, len_buf) = buf.split_at_mut(TimeBuffer::CAPACITY);
+  let mut buf = [0; TimeBuffer::CAPACITY.get() + 1];
+  let (data_buf, len_buf) = buf.split_at_mut(TimeBuffer::CAPACITY.get());
   let len = match encode_u64_varint_to(merged, data_buf) {
     Ok(len) => len,
     Err(_) => panic!("invalid time"),
   };
-  len_buf[0] = len as u8;
+  len_buf[0] = len.get() as u8;
   TimeBuffer::new(buf)
 }
 
@@ -208,7 +212,9 @@ pub(crate) const fn merged_to_date(merged: i32) -> (i32, u8, u8) {
 }
 
 #[inline]
-pub(crate) const fn decode_date(buf: &[u8]) -> Result<(usize, i32, u8, u8), ConstDecodeError> {
+pub(crate) const fn decode_date(
+  buf: &[u8],
+) -> Result<(NonZeroUsize, i32, u8, u8), ConstDecodeError> {
   match decode_i32_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (year, month, day) = merged_to_date(merged);
@@ -219,7 +225,7 @@ pub(crate) const fn decode_date(buf: &[u8]) -> Result<(usize, i32, u8, u8), Cons
 }
 
 #[inline]
-pub(crate) const fn encoded_date_len(year: i32, month: u8, day: u8) -> usize {
+pub(crate) const fn encoded_date_len(year: i32, month: u8, day: u8) -> NonZeroUsize {
   let merged = date_to_merged(year, month, day);
   encoded_i32_varint_len(merged)
 }
@@ -230,7 +236,7 @@ pub(crate) const fn encode_date_to(
   month: u8,
   day: u8,
   buf: &mut [u8],
-) -> Result<usize, ConstEncodeError> {
+) -> Result<NonZeroUsize, ConstEncodeError> {
   let merged = date_to_merged(year, month, day);
   encode_i32_varint_to(merged, buf)
 }
@@ -239,13 +245,13 @@ pub(crate) const fn encode_date_to(
 #[inline]
 pub(crate) const fn encode_date(year: i32, month: u8, day: u8) -> DateBuffer {
   let merged = date_to_merged(year, month, day);
-  let mut buf = [0; DateBuffer::CAPACITY + 1];
-  let (data_buf, len_buf) = buf.split_at_mut(DateBuffer::CAPACITY);
+  let mut buf = [0; DateBuffer::CAPACITY.get() + 1];
+  let (data_buf, len_buf) = buf.split_at_mut(DateBuffer::CAPACITY.get());
   let len = match encode_i32_varint_to(merged, data_buf) {
     Ok(len) => len,
     Err(_) => panic!("invalid date"),
   };
-  len_buf[0] = len as u8;
+  len_buf[0] = len.get() as u8;
   DateBuffer::new(buf)
 }
 
@@ -281,13 +287,13 @@ pub(crate) const fn encode_secs_and_subsec_nanos_to(
   secs: i64,
   nanos: i32,
   buf: &mut [u8],
-) -> Result<usize, ConstEncodeError> {
+) -> Result<NonZeroUsize, ConstEncodeError> {
   let merged = secs_and_subsec_nanos_to_merged(secs, nanos);
   encode_u128_varint_to(merged, buf)
 }
 
 #[inline]
-pub(crate) const fn encoded_secs_and_subsec_nanos_len(secs: i64, nanos: i32) -> usize {
+pub(crate) const fn encoded_secs_and_subsec_nanos_len(secs: i64, nanos: i32) -> NonZeroUsize {
   let merged = secs_and_subsec_nanos_to_merged(secs, nanos);
   encoded_u128_varint_len(merged)
 }
@@ -295,7 +301,7 @@ pub(crate) const fn encoded_secs_and_subsec_nanos_len(secs: i64, nanos: i32) -> 
 #[inline]
 pub(crate) const fn decode_secs_and_subsec_nanos(
   buf: &[u8],
-) -> Result<(usize, i64, i32), ConstDecodeError> {
+) -> Result<(NonZeroUsize, i64, i32), ConstDecodeError> {
   match decode_u128_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (secs, nanos) = merged_to_secs_and_subsec_nanos(merged);
@@ -310,7 +316,7 @@ pub(crate) const fn decode_secs_and_subsec_nanos(
 /// [`core::time::Duration`]: std::time::Duration
 /// [`chrono::Duration`]: chrono::Duration
 /// [`time::Duration`]: time::Duration
-pub type DurationBuffer = Buffer<{ <u128 as crate::Varint>::MAX_ENCODED_LEN + 1 }>;
+pub type DurationBuffer = Buffer<{ <u128 as crate::Varint>::MAX_ENCODED_LEN.get() + 1 }>;
 
 /// A buffer for storing LEB128 encoded [`NaiveDate`] or [`Date`] value.
 ///

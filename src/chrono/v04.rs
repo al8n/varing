@@ -1,18 +1,20 @@
 use crate::{
   time_utils::{self, DurationBuffer},
-  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint, NON_ZERO_USIZE_ONE,
 };
 
 use chrono_0_4::{
   DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Timelike, Utc,
 };
 
+use core::num::NonZeroUsize;
+
 pub use time_utils::{DateBuffer, DateTimeBuffer, TimeBuffer};
 
 /// Returns the encoded length of the value in LEB128 variable length format.
 /// The returned value will be in range [`Duration::ENCODED_LEN_RANGE`].
 #[inline]
-pub const fn encoded_duration_len(duration: &Duration) -> usize {
+pub const fn encoded_duration_len(duration: &Duration) -> NonZeroUsize {
   time_utils::encoded_secs_and_subsec_nanos_len(duration.num_seconds(), duration.subsec_nanos())
 }
 
@@ -27,7 +29,7 @@ pub const fn encode_duration(duration: &Duration) -> DurationBuffer {
 pub const fn encode_duration_to(
   duration: &Duration,
   buf: &mut [u8],
-) -> Result<usize, ConstEncodeError> {
+) -> Result<NonZeroUsize, ConstEncodeError> {
   time_utils::encode_secs_and_subsec_nanos_to(duration.num_seconds(), duration.subsec_nanos(), buf)
 }
 
@@ -35,7 +37,7 @@ pub const fn encode_duration_to(
 ///
 /// Returns the bytes readed and the decoded value if successful.
 #[inline]
-pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), ConstDecodeError> {
+pub const fn decode_duration(buf: &[u8]) -> Result<(NonZeroUsize, Duration), ConstDecodeError> {
   match time_utils::decode_secs_and_subsec_nanos(buf) {
     Ok((bytes_read, secs, nanos)) => {
       match Duration::seconds(secs).checked_add(&Duration::nanoseconds(nanos as i64)) {
@@ -50,21 +52,21 @@ pub const fn decode_duration(buf: &[u8]) -> Result<(usize, Duration), ConstDecod
 }
 
 impl Varint for Duration {
-  const MIN_ENCODED_LEN: usize = i128::MIN_ENCODED_LEN;
-  const MAX_ENCODED_LEN: usize = i128::MAX_ENCODED_LEN;
+  const MIN_ENCODED_LEN: NonZeroUsize = i128::MIN_ENCODED_LEN;
+  const MAX_ENCODED_LEN: NonZeroUsize = i128::MAX_ENCODED_LEN;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     encoded_duration_len(self)
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     encode_duration_to(self, buf).map_err(Into::into)
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -73,22 +75,22 @@ impl Varint for Duration {
 }
 
 impl Varint for NaiveDate {
-  const MIN_ENCODED_LEN: usize = 1;
-  const MAX_ENCODED_LEN: usize = DateBuffer::CAPACITY;
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = DateBuffer::CAPACITY;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     time_utils::encoded_date_len(self.year(), self.month() as u8, self.day() as u8)
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     time_utils::encode_date_to(self.year(), self.month() as u8, self.day() as u8, buf)
       .map_err(Into::into)
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -103,11 +105,11 @@ impl Varint for NaiveDate {
 }
 
 impl Varint for NaiveTime {
-  const MIN_ENCODED_LEN: usize = 1;
-  const MAX_ENCODED_LEN: usize = TimeBuffer::CAPACITY;
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = TimeBuffer::CAPACITY;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     time_utils::encoded_time_len(
       self.nanosecond(),
       self.second() as u8,
@@ -117,7 +119,7 @@ impl Varint for NaiveTime {
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     time_utils::encode_time_to(
       self.nanosecond(),
       self.second() as u8,
@@ -129,7 +131,7 @@ impl Varint for NaiveTime {
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -145,11 +147,11 @@ impl Varint for NaiveTime {
 }
 
 impl Varint for NaiveDateTime {
-  const MIN_ENCODED_LEN: usize = 1;
-  const MAX_ENCODED_LEN: usize = DateTimeBuffer::CAPACITY;
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = DateTimeBuffer::CAPACITY;
 
   #[inline]
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     time_utils::encoded_datetime_len(
       self.year(),
       self.month() as u8,
@@ -162,7 +164,7 @@ impl Varint for NaiveDateTime {
   }
 
   #[inline]
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     time_utils::encode_datetime_to(
       self.year(),
       self.month() as u8,
@@ -177,7 +179,7 @@ impl Varint for NaiveDateTime {
   }
 
   #[inline]
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -200,19 +202,19 @@ impl Varint for NaiveDateTime {
 }
 
 impl Varint for DateTime<Utc> {
-  const MIN_ENCODED_LEN: usize = i128::MIN_ENCODED_LEN;
+  const MIN_ENCODED_LEN: NonZeroUsize = i128::MIN_ENCODED_LEN;
 
-  const MAX_ENCODED_LEN: usize = i128::MAX_ENCODED_LEN;
+  const MAX_ENCODED_LEN: NonZeroUsize = i128::MAX_ENCODED_LEN;
 
-  fn encoded_len(&self) -> usize {
+  fn encoded_len(&self) -> NonZeroUsize {
     self.naive_utc().encoded_len()
   }
 
-  fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+  fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
     self.naive_utc().encode(buf)
   }
 
-  fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
   where
     Self: Sized,
   {
@@ -285,7 +287,7 @@ mod tests {
               None => return true,
             };
 
-            let mut buf = [0; <<[< Time $ty >] as IntoChrono>::Target>::MAX_ENCODED_LEN];
+            let mut buf = [0; <<[< Time $ty >] as IntoChrono>::Target>::MAX_ENCODED_LEN.get()];
             let Ok(encoded_len) = value.encode(&mut buf) else {
               return false;
             };
@@ -328,8 +330,8 @@ mod tests {
   fn fuzzy_duration(value: DurationWrapper) -> bool {
     let value = value.0;
     let encoded = encode_duration(&value);
-    if encoded.len() != encoded_duration_len(&value)
-      || (encoded.len() > <Duration>::MAX_ENCODED_LEN)
+    if encoded.len() != encoded_duration_len(&value).get()
+      || (encoded.len() > <Duration>::MAX_ENCODED_LEN.get())
     {
       return false;
     }
@@ -337,12 +339,12 @@ mod tests {
     let Some(consumed) = crate::consume_varint_checked(&encoded) else {
       return false;
     };
-    if consumed != encoded.len() {
+    if consumed.get() != encoded.len() {
       return false;
     }
 
     if let Ok((bytes_read, decoded)) = decode_duration(&encoded) {
-      value == decoded && encoded.len() == bytes_read
+      value == decoded && encoded.len() == bytes_read.get()
     } else {
       false
     }
@@ -351,7 +353,7 @@ mod tests {
   #[quickcheck_macros::quickcheck]
   fn fuzzy_duration_varint(value: DurationWrapper) -> bool {
     let value = value.0;
-    let mut buf = [0; <Duration>::MAX_ENCODED_LEN];
+    let mut buf = [0; <Duration>::MAX_ENCODED_LEN.get()];
     let Ok(encoded_len) = value.encode(&mut buf) else {
       return false;
     };

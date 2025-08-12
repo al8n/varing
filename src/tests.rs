@@ -4,12 +4,12 @@ fn check(value: u64, encoded: &[u8]) {
   let a = encode_u64_varint(value);
   assert_eq!(a.as_ref(), encoded);
   assert_eq!(a.len(), encoded.len());
-  assert_eq!(a.len(), encoded_u64_varint_len(value));
+  assert_eq!(a.len(), encoded_u64_varint_len(value).get());
 
   let (read, decoded) = decode_u64_varint(&a).unwrap();
   assert_eq!(decoded, value);
-  assert_eq!(read, encoded.len());
-  assert_eq!(a.len(), encoded_u64_varint_len(value));
+  assert_eq!(read.get(), encoded.len());
+  assert_eq!(a.len(), encoded_u64_varint_len(value).get());
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_large_number_encode_decode() {
   let encoded = encode_u64_varint(original);
   let (bytes_read, decoded) = decode_u64_varint(&encoded).unwrap();
   assert_eq!(original, decoded);
-  assert_eq!(bytes_read, encoded.len());
+  assert_eq!(bytes_read.get(), encoded.len());
 }
 
 #[test]
@@ -120,7 +120,8 @@ where
   let (decoded_bytes, decoded_value) = decode_result.unwrap();
 
   assert_eq!(
-    decoded_bytes, bytes_written,
+    decoded_bytes.get(),
+    bytes_written,
     "Incorrect number of bytes decoded"
   );
   assert_eq!(
@@ -164,10 +165,11 @@ fn test_zigzag_encode_decode_i64() {
 
 #[test]
 fn test_encode_error_update() {
-  let ent = ConstEncodeError::insufficient_space(1, 0).update(4, 0);
-  let exp = ConstEncodeError::insufficient_space(4, 0);
+  let ent = ConstEncodeError::insufficient_space(NON_ZERO_USIZE_ONE, 0)
+    .update(NonZeroUsize::new(4).unwrap(), 0);
+  let exp = ConstEncodeError::insufficient_space(NonZeroUsize::new(4).unwrap(), 0);
   assert_eq!(ent, exp);
 
-  let ent = ConstEncodeError::other("test").update(4, 0);
+  let ent = ConstEncodeError::other("test").update(NonZeroUsize::new(4).unwrap(), 0);
   assert!(matches!(ent, ConstEncodeError::Other(_)));
 }

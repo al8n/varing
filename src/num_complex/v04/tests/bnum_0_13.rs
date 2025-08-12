@@ -10,7 +10,7 @@ fuzzy!(@varint_into(
 #[quickcheck_macros::quickcheck]
 fn fuzzy_complex_u128(value: ArbitraryComplex<u128>) -> bool {
   let value = ::core::convert::Into::into(value);
-  let mut buf = [0; <Complex<u128>>::MAX_ENCODED_LEN];
+  let mut buf = [0; <Complex<u128>>::MAX_ENCODED_LEN.get()];
   let encoded = encode_complex_u128_to(&value, &mut buf).unwrap();
   if encoded != encoded_complex_u128_len(&value) || !(encoded <= <Complex<u128>>::MAX_ENCODED_LEN) {
     return false;
@@ -33,7 +33,7 @@ fn fuzzy_complex_u128(value: ArbitraryComplex<u128>) -> bool {
 #[quickcheck_macros::quickcheck]
 fn fuzzy_complex_i128(value: ArbitraryComplex<i128>) -> bool {
   let value = ::core::convert::Into::into(value);
-  let mut buf = [0; <Complex<i128>>::MAX_ENCODED_LEN];
+  let mut buf = [0; <Complex<i128>>::MAX_ENCODED_LEN.get()];
   let encoded = encode_complex_i128_to(&value, &mut buf).unwrap();
   if encoded != encoded_complex_i128_len(&value) || !(encoded <= <Complex<i128>>::MAX_ENCODED_LEN) {
     return false;
@@ -60,7 +60,7 @@ macro_rules! complex_bnum_fuzzy {
         #[quickcheck_macros::quickcheck]
         fn [< fuzzy_ $ty:snake _varint>](value: $ty) -> bool {
           let value: $target = ::core::convert::Into::into(value);
-          let mut buf = [0; <$target>::MAX_ENCODED_LEN];
+          let mut buf = [0; <$target>::MAX_ENCODED_LEN.get()];
           let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
           if encoded_len != value.encoded_len() || !(value.encoded_len() <= <$target>::MAX_ENCODED_LEN) {
             return false;

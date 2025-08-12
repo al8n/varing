@@ -2,25 +2,27 @@ use num_rational_0_4::Ratio;
 
 use crate::{ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint};
 
+use core::num::NonZeroUsize;
+
 macro_rules! impl_varint_for_ratio {
   (@inner $($sign:ident::$bits:literal($merged_ty:ident)),+$(,)?) => {
     paste::paste! {
       $(
         impl Varint for Ratio<[< $sign $bits >]> {
-          const MIN_ENCODED_LEN: usize = $merged_ty::MAX_ENCODED_LEN;
+          const MIN_ENCODED_LEN: NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 
-          const MAX_ENCODED_LEN: usize = $merged_ty::MAX_ENCODED_LEN;
+          const MAX_ENCODED_LEN: NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> NonZeroUsize {
             $crate::utils::[< pack_ $sign $bits >](*self.numer(), *self.denom()).encoded_len()
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
             $crate::utils::[< pack_ $sign $bits >](*self.numer(), *self.denom()).encode(buf)
               .map_err(Into::into)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), DecodeError>
+          fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
           where
             Self: Sized,
           {
@@ -49,25 +51,25 @@ macro_rules! impl_varint_for_ratio {
       $(
         #[doc = "Returns the encoded length of the `Ratio<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encoded_ratio_ $sign $bits _len>](val: Ratio<[< $sign $bits >]>) -> usize {
+        pub const fn [< encoded_ratio_ $sign $bits _len>](val: Ratio<[< $sign $bits >]>) -> NonZeroUsize {
           $encoded_len_fn($crate::utils::[< pack_ $sign $bits >](*val.numer(), *val.denom()))
         }
 
         #[doc = "Encodes the `Ratio<" $sign $bits ">` value."]
         #[inline]
-        pub const fn [< encode_ratio_ $sign $bits >](val: Ratio<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN + 1 }> {
+        pub const fn [< encode_ratio_ $sign $bits >](val: Ratio<[< $sign $bits >]>) -> $crate::utils::Buffer<{ $merged_ty::MAX_ENCODED_LEN.get() + 1 }> {
           $encode_fn ($crate::utils::[< pack_ $sign $bits >](*val.numer(), *val.denom()))
         }
 
         #[doc = "Encodes the `Ratio<" $sign $bits ">` value into the provided buffer."]
         #[inline]
-        pub const fn [< encode_ratio_ $sign $bits _to >](val: Ratio<[< $sign $bits >]>, buf: &mut [u8]) -> Result<usize, ConstEncodeError> {
+        pub const fn [< encode_ratio_ $sign $bits _to >](val: Ratio<[< $sign $bits >]>, buf: &mut [u8]) -> Result<NonZeroUsize, ConstEncodeError> {
           $encode_to_fn ($crate::utils::[< pack_ $sign $bits >](*val.numer(), *val.denom()), buf)
         }
 
         #[doc = "Decodes the `Ratio<" $sign $bits ">` value from the provided buffer."]
         #[inline]
-        pub const fn [< decode_ratio_ $sign $bits >](buf: &[u8]) -> Result<(usize, Ratio<[< $sign $bits >]>), ConstDecodeError> {
+        pub const fn [< decode_ratio_ $sign $bits >](buf: &[u8]) -> Result<(NonZeroUsize, Ratio<[< $sign $bits >]>), ConstDecodeError> {
           match $decode_fn(buf) {
             Ok((bytes_read, merged)) => {
               let (numer, denom) = $crate::utils::[< unpack_ $sign $bits >](merged);

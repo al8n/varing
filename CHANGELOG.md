@@ -4,6 +4,7 @@
 
 - Make `consume_varint` panic
 - Add `consume_varint_checked` and `try_consume_varint` for non-paniking version `consume_varint`
+- Change fn output from `usize` to `NonZeroUsize`
 
 ## 0.9.0 (Aug 9th, 2025)
 

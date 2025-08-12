@@ -7,7 +7,7 @@ macro_rules! impl_varint_for {
       $(
         #[doc = "Returns the encoded length of the `" $ty "` value."]
         #[inline]
-        pub const fn [<encoded_ $ty:snake _len>](val: &$ty) -> usize {
+        pub const fn [<encoded_ $ty:snake _len>](val: &$ty) -> ::core::num::NonZeroUsize {
           $crate::bnum::encoded_uint_d64_len(&types::$ty::from_digits(val.0))
         }
 
@@ -16,7 +16,7 @@ macro_rules! impl_varint_for {
         pub const fn [<encode_ $ty:snake _to>](
           val: &$ty,
           buf: &mut [u8],
-        ) -> Result<usize, $crate::ConstEncodeError> {
+        ) -> Result<::core::num::NonZeroUsize, $crate::ConstEncodeError> {
           $crate::bnum::encode_uint_d64_to(types::$ty::from_digits(val.0), buf)
         }
 
@@ -24,7 +24,7 @@ macro_rules! impl_varint_for {
         ///
         /// Returns the bytes read and the value.
         #[inline]
-        pub const fn [<decode_ $ty:snake>](buf: &[u8]) -> Result<(usize, $ty), $crate::ConstDecodeError> {
+        pub const fn [<decode_ $ty:snake>](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, $ty), $crate::ConstDecodeError> {
           match $crate::bnum::decode_uint_d64(buf) {
             Ok((read, val)) => Ok((read, $ty(*val.digits()))),
             Err(e) => Err(e),
@@ -32,19 +32,19 @@ macro_rules! impl_varint_for {
         }
 
         impl $crate::Varint for $ty {
-          const MIN_ENCODED_LEN: usize = types::$ty::MIN_ENCODED_LEN;
+          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = types::$ty::MIN_ENCODED_LEN;
 
-          const MAX_ENCODED_LEN: usize = types::$ty::MAX_ENCODED_LEN;
+          const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = types::$ty::MAX_ENCODED_LEN;
 
-          fn encoded_len(&self) -> usize {
+          fn encoded_len(&self) -> ::core::num::NonZeroUsize {
             [<encoded_ $ty:snake _len>](self)
           }
 
-          fn encode(&self, buf: &mut [u8]) -> Result<usize, $crate::EncodeError> {
+          fn encode(&self, buf: &mut [u8]) -> Result<::core::num::NonZeroUsize, $crate::EncodeError> {
             [<encode_ $ty:snake _to>](self, buf).map_err(Into::into)
           }
 
-          fn decode(buf: &[u8]) -> Result<(usize, Self), $crate::DecodeError>
+          fn decode(buf: &[u8]) -> Result<(::core::num::NonZeroUsize, Self), $crate::DecodeError>
             where
               Self: Sized {
             types::$ty::decode(buf).map(|(len, value)| (len, $ty(value.into()))).map_err(Into::into)
@@ -109,7 +109,7 @@ mod tests {
           #[quickcheck_macros::quickcheck]
           fn [< fuzzy_ $ty:snake _varint >](value: [< AU $ty >]) -> bool {
             let value: [< U $ty >] = ::core::convert::Into::into(value);
-            let mut buf = [0; <[< U $ty >]>::MAX_ENCODED_LEN];
+            let mut buf = [0; <[< U $ty >]>::MAX_ENCODED_LEN.get()];
             let Ok(encoded_len) = value.encode(&mut buf) else { return false; };
             if encoded_len != value.encoded_len() || !(value.encoded_len() <= <[< U $ty >]>::MAX_ENCODED_LEN) {
               return false;
@@ -132,7 +132,7 @@ mod tests {
           #[quickcheck_macros::quickcheck]
           fn [< fuzzy_ $ty:snake >](value: [< AU $ty >]) -> bool {
             let value: [< U $ty >] = ::core::convert::Into::into(value);
-            let mut buf = [0; <[< U $ty >]>::MAX_ENCODED_LEN];
+            let mut buf = [0; <[< U $ty >]>::MAX_ENCODED_LEN.get()];
             let Ok(encoded) = [< encode_u $ty:snake _to>](&value, &mut buf) else { return false; };
             if encoded != [< encoded_u $ty:snake _len >] (&value) || !(encoded <= <[< U $ty >]>::MAX_ENCODED_LEN) {
               return false;
