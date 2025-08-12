@@ -11,13 +11,13 @@ macro_rules! fuzzy {
                     {
                         {
                             let encoded = [< encode_ $ty _varint >](value);
-                            assert!(!(encoded.len() != [< encoded_ $ty _varint_len >] (value) || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN)));
+                            assert!(!(encoded.len() != [< encoded_ $ty _varint_len >] (value).get() || !(encoded.len() <= <$ty>::MAX_ENCODED_LEN.get())));
 
                             let consumed = consume_varint(&encoded);
-                            assert_eq!(consumed, encoded.len());
+                            assert_eq!(consumed.get(), encoded.len());
 
                             let (bytes_read, decoded) = [< decode_ $ty _varint >](&encoded).unwrap();
-                            assert!(value == decoded && encoded.len() == bytes_read);
+                            assert!(value == decoded && encoded.len() == bytes_read.get());
                         }
 
                         {
