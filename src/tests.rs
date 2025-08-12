@@ -244,6 +244,7 @@ fn test_seq_decoder_clone_and_copy() {
   assert_eq!(copied.position(), original.position());
 }
 
+#[allow(dead_code)]
 #[test]
 fn test_default_varint_range() {
   struct Wrap(u64);
