@@ -1,3 +1,5 @@
+use core::ops::{Bound, RangeBounds};
+
 use super::*;
 
 fn check(value: u64, encoded: &[u8]) {
@@ -172,4 +174,102 @@ fn test_encode_error_update() {
 
   let ent = ConstEncodeError::other("test").update(NonZeroUsize::new(4).unwrap(), 0);
   assert!(matches!(ent, ConstEncodeError::Other(_)));
+}
+
+#[test]
+#[should_panic]
+fn test_consume_varint_empty() {
+  consume_varint(&[]);
+}
+
+#[test]
+#[should_panic]
+fn test_consume_varint_bad() {
+  consume_varint(&[0x80, 0x80, 0x80, 0x80]);
+}
+
+#[test]
+fn test_consume_varint_checked_empty() {
+  let result = consume_varint_checked(&[]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_consume_varint_checked_bad1() {
+  let result = consume_varint_checked(&[0x80, 0x80, 0x80, 0x80]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_consume_varint_checked_bad2() {
+  let result = consume_varint_checked(&[0x80]);
+  assert!(result.is_none());
+}
+
+#[test]
+fn test_try_consume_varint_empty() {
+  let result = try_consume_varint(&[]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_try_consume_varint_bad1() {
+  let result = try_consume_varint(&[0x80, 0x80, 0x80, 0x80]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_try_consume_varint_bad2() {
+  let result = try_consume_varint(&[0x80]);
+  assert!(result.is_err());
+}
+
+#[test]
+fn test_map_decoder_clone_and_copy() {
+  let original = MapDecoder::<u64, u64>::new(&[]);
+  let cloned = original.clone();
+  let copied = original;
+
+  assert_eq!(cloned.position(), original.position());
+  assert_eq!(copied.position(), original.position());
+}
+
+#[test]
+fn test_seq_decoder_clone_and_copy() {
+  let original = SequenceDecoder::<u64>::new(&[]);
+  let cloned = original.clone();
+  let copied = original;
+
+  assert_eq!(cloned.position(), original.position());
+  assert_eq!(copied.position(), original.position());
+}
+
+#[test]
+fn test_default_varint_range() {
+  struct Wrap(u64);
+
+  impl Varint for Wrap {
+    const MIN_ENCODED_LEN: NonZeroUsize = u64::MIN_ENCODED_LEN;
+
+    const MAX_ENCODED_LEN: NonZeroUsize = u64::MAX_ENCODED_LEN;
+
+    fn encoded_len(&self) -> NonZeroUsize {
+      todo!()
+    }
+
+    fn encode(&self, _: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
+      todo!()
+    }
+
+    fn decode(_: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
+    where
+      Self: Sized,
+    {
+      todo!()
+    }
+  }
+
+  let range = Wrap::ENCODED_LEN_RANGE;
+  assert_eq!(range.start_bound(), Bound::Included(&u64::MIN_ENCODED_LEN));
+  assert_eq!(range.end_bound(), Bound::Included(&u64::MAX_ENCODED_LEN));
 }
