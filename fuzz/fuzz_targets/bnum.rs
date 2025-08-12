@@ -14,13 +14,13 @@ macro_rules! fuzzy {
             paste::paste! {
                 fn [<check_ $ty:snake>](value: $ty) {
                     {
-                      let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                      let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
                       let encoded_len = value.encode(&mut buf).unwrap();
                       assert_eq!(encoded_len, value.encoded_len());
                       assert!(value.encoded_len() <= <$ty>::MAX_ENCODED_LEN);
 
                       let consumed = crate::consume_varint(&buf);
-                      assert_eq!(consumed.get(), encoded_len);
+                      assert_eq!(consumed, encoded_len);
 
                       let (bytes_read, decoded) = <$ty>::decode(&buf).unwrap();
                       assert!(value == decoded && encoded_len == bytes_read);

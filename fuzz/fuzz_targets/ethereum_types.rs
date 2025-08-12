@@ -12,7 +12,7 @@ macro_rules! fuzzy {
                 fn [<check_ $ty:snake>](value: $ty) {
                     {
                         {
-                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN];
+                            let mut buf = [0; <$ty>::MAX_ENCODED_LEN.get()];
                             let encoded = [< encode_ $ty:snake _to>](&value, &mut buf).unwrap();
                             assert!(!(encoded != [< encoded_ $ty:snake _len >] (&value) || !(encoded <= <$ty>::MAX_ENCODED_LEN)));
 
