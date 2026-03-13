@@ -517,7 +517,6 @@ pub const fn try_consume_varint(buf: &[u8]) -> Result<NonZeroUsize, ConstDecodeE
 
     // If we've reached the end of the buffer but haven't found the end of the varint
     if idx == buf_len - 1 {
-      // Safety: buf_len + 1 is always > 0
       return Err(ConstDecodeError::insufficient_data(buf_len));
     }
     idx += 1;
