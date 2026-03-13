@@ -94,8 +94,8 @@ The following feature flags enable varint support for types from third-party cra
 
 | Feature | Crate | Notes |
 |---------|-------|-------|
-| `arbitrary-int` (= v2) | [`arbitrary-int`] v1 | Unsigned types (`u1`..`u127`, `i1`..`i127`) |
-| `arbitrary-int_1` | [`arbitrary-int`] v1 | Unsigned + signed types (`u1`..`u127`) |
+| `arbitrary-int` (= v2) | [`arbitrary-int`] v1 | Unsigned types + signed types (`u1`..`u127`, `i1`..`i127`) |
+| `arbitrary-int_1` | [`arbitrary-int`] v1 | Unsigned (`u1`..`u127`) |
 | `bnum` (= v0.13) | [`bnum`] | |
 | `chrono` (= v0.4) | [`chrono`] | Not fully `const`-compatible |
 | `chrono-tz` (= v0.10) | [`chrono-tz`] | |
