@@ -8,13 +8,16 @@ edition = "2021"
 cargo-fuzz = true
 
 [features]
-ethereum-types = ["dep:ethereum-types", "varing/ethereum-types"]
-primitive-types = ["dep:primitive-types", "varing/primitive-types"]
+ethereum-types_0_15 = ["dep:ethereum-types_0_15", "varing/ethereum-types_0_15"]
+ethereum-types_0_16 = ["dep:ethereum-types_0_16", "varing/ethereum-types_0_16"]
+primitive-types_0_13 = ["dep:primitive-types_0_13", "varing/primitive-types_0_13"]
+primitive-types_0_14 = ["dep:primitive-types_0_14", "varing/primitive-types_0_14"]
 ruint = ["dep:ruint", "varing/ruint"]
 chrono = ["dep:chrono", "varing/chrono"]
 chrono-tz = ["dep:chrono-tz", "varing/chrono-tz"]
 time = ["dep:time", "chrono", "varing/time"]
-arbitrary-int = ["dep:arbitrary-int", "varing/arbitrary-int"]
+arbitrary-int_1 = ["dep:arbitrary-int_1", "varing/arbitrary-int_1"]
+arbitrary-int_2 = ["dep:arbitrary-int_2", "varing/arbitrary-int_2"]
 num-rational = ["dep:num-rational", "varing/num-rational"]
 num-complex = ["dep:num-complex", "varing/num-complex"]
 bnum = ["dep:bnum", "varing/bnum"]
@@ -24,8 +27,10 @@ arbitrary = { version = "1", features = ["derive"] }
 libfuzzer-sys = "0.4"
 paste = "1"
 seq-macro = "0.3"
-ethereum-types = { version = "0.15", features = ["arbitrary"], optional = true }
-primitive-types = { version = "0.13", features = ["arbitrary"], optional = true }
+ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", features = ["arbitrary"], optional = true }
+ethereum-types_0_16 = { package = "ethereum-types", version = "0.16", features = ["arbitrary"], optional = true }
+primitive-types_0_13 = { package = "primitive-types", version = "0.13", features = ["arbitrary"], optional = true }
+primitive-types_0_14 = { package = "primitive-types", version = "0.14", features = ["arbitrary"], optional = true }
 ruint = { version = "1", features = ["arbitrary", "num-traits"], optional = true }
 chrono = { version = "0.4", optional = true, features = ["arbitrary"] }
 chrono-tz = { version = "0.10", optional = true, features = ["arbitrary"] }
@@ -33,7 +38,8 @@ time = { version = "0.3", optional = true, features = ["large-dates"] }
 num-traits = { version = "0.2" }
 bnum = { version = "0.13", optional = true, features = ["arbitrary"] }
 
-arbitrary-int = { version = "1", optional = true }
+arbitrary-int_1 = { package = "arbitrary-int", version = "1", optional = true }
+arbitrary-int_2 = { package = "arbitrary-int", version = "2", optional = true }
 num-rational = { version = "0.4", optional = true }
 num-complex = { version = "0.4", optional = true }
 
@@ -56,20 +62,36 @@ doc = false
 bench = false
 
 [[bin]]
-name = "ethereum-types"
-path = "fuzz_targets/ethereum_types.rs"
+name = "ethereum-types_0_15"
+path = "fuzz_targets/ethereum_types_0_15.rs"
 test = false
 doc = false
 bench = false
-required-features = ["ethereum-types"]
+required-features = ["ethereum-types_0_15"]
 
 [[bin]]
-name = "primitive-types"
-path = "fuzz_targets/primitive_types.rs"
+name = "ethereum-types_0_16"
+path = "fuzz_targets/ethereum_types_0_16.rs"
 test = false
 doc = false
 bench = false
-required-features = ["primitive-types"]
+required-features = ["ethereum-types_0_16"]
+
+[[bin]]
+name = "primitive-types_0_13"
+path = "fuzz_targets/primitive_types_0_13.rs"
+test = false
+doc = false
+bench = false
+required-features = ["primitive-types_0_13"]
+
+[[bin]]
+name = "primitive-types_0_14"
+path = "fuzz_targets/primitive_types_0_14.rs"
+test = false
+doc = false
+bench = false
+required-features = ["primitive-types_0_14"]
 
 [[bin]]
 name = "ruint"
@@ -104,12 +126,20 @@ bench = false
 required-features = ["time", "chrono"]
 
 [[bin]]
-name = "arbitrary-int"
-path = "fuzz_targets/arbitrary_int.rs"
+name = "arbitrary-int_1"
+path = "fuzz_targets/arbitrary_int_1.rs"
 test = false
 doc = false
 bench = false
-required-features = ["arbitrary-int"]
+required-features = ["arbitrary-int_1"]
+
+[[bin]]
+name = "arbitrary-int_2"
+path = "fuzz_targets/arbitrary_int_2.rs"
+test = false
+doc = false
+bench = false
+required-features = ["arbitrary-int_2"]
 
 [[bin]]
 name = "num-rational"

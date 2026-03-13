@@ -105,13 +105,13 @@ fn unpack_uint<
 }
 
 impl<
-    const LBITS: usize,
-    const LLIMBS: usize,
-    const RBITS: usize,
-    const RLIMBS: usize,
-    const PBITS: usize,
-    const PLIMBS: usize,
-  > Packable<Uint<LBITS, LLIMBS>, Uint<RBITS, RLIMBS>> for Uint<PBITS, PLIMBS>
+  const LBITS: usize,
+  const LLIMBS: usize,
+  const RBITS: usize,
+  const RLIMBS: usize,
+  const PBITS: usize,
+  const PLIMBS: usize,
+> Packable<Uint<LBITS, LLIMBS>, Uint<RBITS, RLIMBS>> for Uint<PBITS, PLIMBS>
 {
   fn pack(&self, rhs: &Uint<LBITS, LLIMBS>) -> Uint<RBITS, RLIMBS> {
     pack_uint(self, rhs)

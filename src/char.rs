@@ -1,8 +1,8 @@
 use crate::utils::Buffer;
 
 use super::{
-  decode_u32_varint, encode_u32_varint, encode_u32_varint_to, encoded_u32_varint_len,
-  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint, decode_u32_varint,
+  encode_u32_varint, encode_u32_varint_to, encoded_u32_varint_len,
 };
 
 use core::num::NonZeroUsize;
@@ -31,7 +31,7 @@ pub const fn encode_char_to(char: &char, buf: &mut [u8]) -> Result<NonZeroUsize,
 
 /// Decodes a `char` in LEB128 encoded format from the buffer.
 ///
-/// Returns the bytes readed and the decoded value if successful.
+/// Returns the bytes read and the decoded value if successful.
 #[inline]
 pub const fn decode_char(buf: &[u8]) -> Result<(NonZeroUsize, char), ConstDecodeError> {
   match decode_u32_varint(buf) {

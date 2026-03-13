@@ -1,8 +1,8 @@
 #![no_main]
 
-use arbitrary_int::*;
+use arbitrary_int_1::*;
 use libfuzzer_sys::fuzz_target;
-use varing::{arbitrary_int::*, consume_varint, Varint};
+use varing::{arbitrary_int::v1::*, consume_varint, Varint};
 
 fuzz_target!(|data: Types| {
   data.check();

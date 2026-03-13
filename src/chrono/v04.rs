@@ -1,6 +1,6 @@
 use crate::{
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, NON_ZERO_USIZE_ONE, Varint,
   time_utils::{self, DurationBuffer},
-  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint, NON_ZERO_USIZE_ONE,
 };
 
 use chrono_0_4::{

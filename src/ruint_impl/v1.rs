@@ -10,7 +10,7 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     } else {
       // Each byte can store 7 bits, round up
       // Safety: BITS > 0, so div_ceil(7) > 0
-      unsafe { NonZeroUsize::new_unchecked(BITS.div_ceil(7)) }
+      NonZeroUsize::new(BITS.div_ceil(7)).unwrap()
     }
   };
 
@@ -174,7 +174,7 @@ mod tests_ruint_1 {
   use super::*;
 
   use ruint_1::aliases::{
-    U0, U1, U1024, U128, U16, U2048, U256, U32, U320, U384, U4096, U448, U512, U64, U768,
+    U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096,
   };
 
   use quickcheck_macros::quickcheck;
@@ -209,7 +209,9 @@ mod tests_ruint_1 {
     };
   }
 
-  fuzzy!(U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096);
+  fuzzy!(
+    U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096
+  );
 
   macro_rules! max_encoded_len {
     ($($ty:ident), +$(,)?) => {

@@ -5,7 +5,9 @@ use core::num::NonZeroUsize;
 /// This error indicates that a write operation failed because the buffer does not have
 /// enough remaining capacity to hold the data.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, thiserror::Error)]
-#[error("not enough space available to encode value (requested {requested} but only {available} available)")]
+#[error(
+  "not enough space available to encode value (requested {requested} but only {available} available)"
+)]
 pub struct InsufficientSpace {
   /// The number of bytes needed to encode the value.
   requested: NonZeroUsize,

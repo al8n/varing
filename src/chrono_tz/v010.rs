@@ -1,8 +1,8 @@
-use chrono_tz_0_10::{Tz, TZ_VARIANTS};
+use chrono_tz_0_10::{TZ_VARIANTS, Tz};
 
 use crate::{
-  decode_i16_varint, encode_i16_varint_to, encoded_i16_varint_len, utils::Buffer, ConstDecodeError,
-  ConstEncodeError, DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint, decode_i16_varint,
+  encode_i16_varint_to, encoded_i16_varint_len, utils::Buffer,
 };
 
 use core::num::NonZeroUsize;
@@ -37,7 +37,9 @@ pub const fn encode_tz(tz: Tz) -> Buffer<{ Tz::MAX_ENCODED_LEN.get() + 1 }> {
   let mut buf = [0; Tz::MAX_ENCODED_LEN.get() + 1];
   let len = match encode_tz_to(tz, &mut buf) {
     Ok(len) => len,
-    Err(_) => panic!("Timezone value is larger than buffer capacity, please report bug to https://github.com/al8n/varing/issues"),
+    Err(_) => panic!(
+      "Timezone value is larger than buffer capacity, please report bug to https://github.com/al8n/varing/issues"
+    ),
   };
 
   buf[Tz::MAX_ENCODED_LEN.get()] = len.get() as u8;
@@ -101,7 +103,7 @@ impl Varint for Tz {
 mod tests {
   use quickcheck::Arbitrary;
 
-  use super::{decode_tz, encode_tz, encoded_tz_len, Varint, TZ_VALUES, TZ_VARIANTS};
+  use super::{TZ_VALUES, TZ_VARIANTS, Varint, decode_tz, encode_tz, encoded_tz_len};
 
   #[derive(Debug, Clone, Copy, PartialEq, Eq)]
   struct Tz(super::Tz);
