@@ -1,5 +1,13 @@
 # RELEASED
 
+## 0.12.0 (Mar 14th, 2026)
+
+- Extract `InsufficientData` into a standalone error struct (mirrors `InsufficientSpace`)
+  - `required` field is now `Option<NonZeroUsize>` to support cases where the exact required size is unknown
+  - Add `InsufficientData::new(available)` and `InsufficientData::with_required(required, available)` constructors
+  - Add `insufficient_data_with_required` constructors on `ConstDecodeError` and `DecodeError`
+- Change `ConstDecodeError::InsufficientData` and `DecodeError::InsufficientData` from struct variants to tuple variants wrapping `InsufficientData`
+
 ## 0.10.0 (Aug 12nd, 2025)
 
 - Make `consume_varint` panic

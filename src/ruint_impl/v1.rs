@@ -285,10 +285,7 @@ mod tests_ruint_1 {
     #[quickcheck]
     fn fuzzy_invalid_sequences(bytes: Vec<u8>) -> bool {
       if bytes.is_empty() {
-        return matches!(
-          U256::decode(&bytes),
-          Err(DecodeError::InsufficientData { .. })
-        );
+        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData(_)));
       }
 
       // Only test sequences up to max varint length
@@ -298,10 +295,7 @@ mod tests_ruint_1 {
 
       // If all bytes have continuation bit set, should get Underflow
       if bytes.iter().all(|b| b & 0x80 != 0) {
-        return matches!(
-          U256::decode(&bytes),
-          Err(DecodeError::InsufficientData { .. })
-        );
+        return matches!(U256::decode(&bytes), Err(DecodeError::InsufficientData(_)));
       }
 
       // For other cases, we should get either a valid decode or an error
