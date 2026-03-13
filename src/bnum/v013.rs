@@ -1,4 +1,4 @@
-use bnum_0_13::{BInt, BIntD16, BIntD32, BIntD8, BUint, BUintD16, BUintD32, BUintD8};
+use bnum_0_13::{BInt, BIntD8, BIntD16, BIntD32, BUint, BUintD8, BUintD16, BUintD32};
 
 use crate::{ConstDecodeError, ConstEncodeError, Varint};
 

@@ -2,8 +2,8 @@
 
 use libfuzzer_sys::fuzz_target;
 
-use ethereum_types::{U128, U256, U512, U64};
-use varing::{consume_varint, ethereum_types::*, Varint};
+use ethereum_types_0_15::U64;
+use varing::{consume_varint, ethereum_types::v0_15::*, Varint};
 
 macro_rules! fuzzy {
     ($($ty:ident), +$(,)?) => {
@@ -39,8 +39,15 @@ macro_rules! fuzzy {
     };
 }
 
-fuzzy!(U64, U128, U256, U512);
+fuzzy!(U64);
 
+#[cfg(not(feature = "primitive-types_0_13"))]
+use ethereum_types_0_15::{U128, U256, U512};
+
+#[cfg(not(feature = "primitive-types_0_13"))]
+fuzzy!(U128, U256, U512);
+
+#[cfg(not(feature = "primitive-types_0_13"))]
 #[derive(Debug, Clone, Copy, arbitrary::Arbitrary)]
 enum Number {
   U64(U64),
@@ -49,6 +56,7 @@ enum Number {
   U512(U512),
 }
 
+#[cfg(not(feature = "primitive-types_0_13"))]
 impl Number {
   fn check(self) {
     match self {
@@ -56,6 +64,21 @@ impl Number {
       Self::U128(value) => check_u128(value),
       Self::U256(value) => check_u256(value),
       Self::U512(value) => check_u512(value),
+    }
+  }
+}
+
+#[cfg(feature = "primitive-types_0_13")]
+#[derive(Debug, Clone, Copy, arbitrary::Arbitrary)]
+enum Number {
+  U64(U64),
+}
+
+#[cfg(feature = "primitive-types_0_13")]
+impl Number {
+  fn check(self) {
+    match self {
+      Self::U64(value) => check_u64(value),
     }
   }
 }

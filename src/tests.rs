@@ -224,6 +224,7 @@ fn test_try_consume_varint_bad2() {
   assert!(result.is_err());
 }
 
+#[allow(clippy::clone_on_copy)]
 #[test]
 fn test_map_decoder_clone_and_copy() {
   let original = MapDecoder::<u64, u64>::new(&[]);
@@ -234,6 +235,7 @@ fn test_map_decoder_clone_and_copy() {
   assert_eq!(copied.position(), original.position());
 }
 
+#[allow(clippy::clone_on_copy)]
 #[test]
 fn test_seq_decoder_clone_and_copy() {
   let original = SequenceDecoder::<u64>::new(&[]);

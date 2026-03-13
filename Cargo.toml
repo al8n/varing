@@ -1,13 +1,13 @@
 [package]
 name = "varing"
-version = "0.10.0"
-edition = "2021"
+version = "0.11.0"
+edition = "2024"
 repository = "https://github.com/al8n/varing"
 homepage = "https://github.com/al8n/varing"
 documentation = "https://docs.rs/varing"
 description = "Protobuf's varint encoding/decoding for LEB128 friendly types with full const context operations supports."
 license = "MIT OR Apache-2.0"
-rust-version = "1.81.0"
+rust-version = "1.85.0"
 keywords = ["leb128", "varint", "protobuf", "proto", "const"]
 categories = ["no-std", "no-std::no-alloc", "encoding", "data-structures", "network-programming"]
 
@@ -29,7 +29,8 @@ float8_0_4 = ["dep:float8_0_4"]
 float8 = ["float8_0_4"]
 
 arbitrary-int_1 = ["dep:arbitrary-int_1"]
-arbitrary-int = ["arbitrary-int_1"]
+arbitrary-int_2 = ["dep:arbitrary-int_2"]
+arbitrary-int = ["arbitrary-int_2"]
 
 num-rational_0_4 = ["dep:num-rational_0_4"]
 num-rational = ["num-rational_0_4"]
@@ -40,10 +41,12 @@ num-complex = ["num-complex_0_4"]
 num-traits = ["ruint_1?/num-traits"]
 
 primitive-types_0_13 = ["dep:primitive-types_0_13", "bnum"]
-primitive-types = ["primitive-types_0_13"]
+primitive-types_0_14 = ["dep:primitive-types_0_14", "bnum"]
+primitive-types = ["primitive-types_0_14"]
 
 ethereum-types_0_15 = ["dep:ethereum-types_0_15", "bnum"]
-ethereum-types = ["ethereum-types_0_15"]
+ethereum-types_0_16 = ["dep:ethereum-types_0_16", "bnum"]
+ethereum-types = ["ethereum-types_0_16"]
 
 bnum_0_13 = ["dep:bnum_0_13"]
 bnum = ["bnum_0_13"]
@@ -63,15 +66,18 @@ paste = "1"
 seq-macro = "0.3"
 
 arbitrary-int_1 = { package = "arbitrary-int", version = "1", default-features = false, optional = true }
+arbitrary-int_2 = { package = "arbitrary-int", version = "2", default-features = false, optional = true }
 bnum_0_13 = { package = "bnum", version = "0.13", default-features = false, optional = true }
 chrono_0_4 = { package = "chrono", version = "0.4", default-features = false, optional = true }
 chrono-tz_0_10 = { package = "chrono-tz", version = "0.10", default-features = false, optional = true }
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15", default-features = false, optional = true }
+ethereum-types_0_16 = { package = "ethereum-types", version = "0.16", default-features = false, optional = true }
 float8_0_4 = { package = "float8", version = "0.4", default-features = false, optional = true }
 half_2 = { package = "half", version = "2", default-features = false, optional = true }
 num-rational_0_4 = { package = "num-rational", version = "0.4", default-features = false, optional = true }
 num-complex_0_4 = { package = "num-complex", version = "0.4", default-features = false, optional = true }
 primitive-types_0_13 = { package = "primitive-types", version = "0.13", default-features = false, optional = true }
+primitive-types_0_14 = { package = "primitive-types", version = "0.14", default-features = false, optional = true }
 ruint_1 = { package = "ruint", version = "1", default-features = false, optional = true }
 time_0_3 = { package = "time", version = "0.3", default-features = false, optional = true }
 
@@ -82,6 +88,8 @@ quickcheck_macros = "1"
 ruint_1 = { package = "ruint", version = "1", features = ["arbitrary", "quickcheck"] }
 primitive-types_0_13 = { package = "primitive-types", version = "0.13" }
 ethereum-types_0_15 = { package = "ethereum-types", version = "0.15" }
+primitive-types_0_14 = { package = "primitive-types", version = "0.14" }
+ethereum-types_0_16 = { package = "ethereum-types", version = "0.16" }
 time_0_3 = { package = "time", version = "0.3", features = ["quickcheck"], default-features = false }
 chrono_0_4 = { package = "chrono", version = "0.4", default-features = false }
 chrono-tz_0_10 = { package = "chrono-tz", version = "0.10", default-features = false }

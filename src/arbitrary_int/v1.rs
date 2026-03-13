@@ -47,7 +47,7 @@ macro_rules! generate {
 
           #[doc = "Decodes an `" $inner "` in LEB128 encoded format from the buffer."]
           ///
-          /// Returns the bytes readed and the decoded value if successful.
+          /// Returns the bytes read and the decoded value if successful.
           #[inline]
           pub const fn [< decode_ $inner _varint >](buf: &[u8]) -> Result<(NonZeroUsize, $inner), ConstDecodeError> {
             match [<decode_ $underlying _varint>](buf) {

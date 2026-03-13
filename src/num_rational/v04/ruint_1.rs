@@ -1,4 +1,4 @@
-use crate::{ruint_impl::Packable, DecodeError, EncodeError, Varint};
+use crate::{DecodeError, EncodeError, Varint, ruint_impl::Packable};
 use ::ruint_1::Uint;
 use num_rational_0_4::Ratio;
 

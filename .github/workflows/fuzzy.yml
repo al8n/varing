@@ -18,14 +18,14 @@ on:
       - '**.md'
       - '**.txt'
       - 'art'
-  schedule: [cron: "0 1 */7 * *"]
+  schedule: [cron: "0 1 */30 * *"]
   workflow_dispatch:
 
 jobs:
   fuzz:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -42,7 +42,7 @@ jobs:
   fuzz-non-zero:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -57,45 +57,81 @@ jobs:
           cargo fuzz build
           cargo fuzz run non-zero-varint -- -max_total_time=300
 
-  fuzz-ethereum-types:
+  fuzz-ethereum-types_0_15:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          
+
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
 
       - name: Run fuzzing
         run: |
           cargo fuzz build
-          cargo fuzz run ethereum-types --features ethereum-types -- -max_total_time=300
-  
-  fuzz-primitive-types:
+          cargo fuzz run ethereum-types_0_15 --features ethereum-types_0_15 -- -max_total_time=300
+
+  fuzz-ethereum-types_0_16:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          
+
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
 
       - name: Run fuzzing
         run: |
           cargo fuzz build
-          cargo fuzz run primitive-types --features primitive-types -- -max_total_time=300
+          cargo fuzz run ethereum-types_0_16 --features ethereum-types_0_16 -- -max_total_time=300
+
+  fuzz-primitive-types_0_13:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run primitive-types_0_13 --features primitive-types_0_13 -- -max_total_time=300
+
+  fuzz-primitive-types_0_14:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run primitive-types_0_14 --features primitive-types_0_14 -- -max_total_time=300
   fuzz-ruint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -113,7 +149,7 @@ jobs:
   fuzz-chrono:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -131,7 +167,7 @@ jobs:
   fuzz-chrono-tz:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -149,7 +185,7 @@ jobs:
   fuzz-time:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -167,7 +203,7 @@ jobs:
   fuzz-num-rational:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -185,7 +221,7 @@ jobs:
   fuzz-num-complex:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -200,28 +236,46 @@ jobs:
           cargo fuzz build
           cargo fuzz run num-complex --features num-complex,ruint -- -max_total_time=300
   
-  fuzz-arbitrary-int:
+  fuzz-arbitrary-int_1:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v6
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
-          
+
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
 
       - name: Run fuzzing
         run: |
           cargo fuzz build
-          cargo fuzz run arbitrary-int --features arbitrary-int -- -max_total_time=300
+          cargo fuzz run arbitrary-int_1 --features arbitrary-int_1 -- -max_total_time=300
+
+  fuzz-arbitrary-int_2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Run fuzzing
+        run: |
+          cargo fuzz build
+          cargo fuzz run arbitrary-int_2 --features arbitrary-int_2 -- -max_total_time=300
 
   fuzz-bnum:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master

@@ -21,27 +21,101 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 
 ```toml
 [dependencies]
-varing = "0.10"
+varing = "0.11"
+```
+
+`no_std` is supported by disabling the default `std` feature:
+
+```toml
+[dependencies]
+varing = { version = "0.11", default-features = false }
+```
+
+## Quick Start
+
+Encode and decode primitive integers as varints:
+
+```rust
+use varing::Varint;
+
+// Encode
+let mut buf = [0u8; u32::MAX_ENCODED_LEN.get()];
+let len = 300u32.encode(&mut buf).unwrap();
+
+// Decode
+let (bytes_read, decoded) = u32::decode(&buf).unwrap();
+assert_eq!(decoded, 300u32);
+assert_eq!(bytes_read, len);
+```
+
+Signed integers use zigzag encoding, so small absolute values stay compact:
+
+```rust
+use varing::Varint;
+
+let mut buf = [0u8; i64::MAX_ENCODED_LEN.get()];
+let len = (-1i64).encode(&mut buf).unwrap();
+assert_eq!(len.get(), 1); // -1 encodes to a single byte
+```
+
+Encode/decode sequences:
+
+```rust
+use varing::{Varint, encode_sequence, decode_sequence, encoded_sequence_len};
+
+let values: Vec<u64> = (0..1024).collect();
+let encoded_len = encoded_sequence_len(values.iter());
+let mut buf = vec![0; encoded_len];
+
+encode_sequence(values.iter(), &mut buf).unwrap();
+let (_bytes_read, decoded) = decode_sequence::<u64, Vec<u64>>(&buf).unwrap();
+assert_eq!(decoded, values);
+```
+
+All encoding and decoding functions are available in `const` context as free functions:
+
+```rust
+use varing::{encode_u32_varint, decode_u32_varint, encoded_u32_varint_len};
+
+const ENCODED: varing::utils::Buffer<6> = encode_u32_varint(300);
+
+const VALUE: u32 = {
+    let Ok((_len, val)) = decode_u32_varint(ENCODED.as_slice()) else { panic!() };
+    val
+};
+
+assert_eq!(VALUE, 300);
+assert_eq!(ENCODED.len(), encoded_u32_varint_len(300).get());
 ```
 
 ## Optional Features
 
-- [`arbitrary-int`]: Support encode/decode [`arbitrary-int`] types by using LEB128.
-- [`bnum`]: Support encode/decode [`bnum`] types by using LEB128.
-- [`chrono`]: Support encode/decode [`chrono`] types by using LEB128 (not fully compatible in `const` context).
-- [`chrono-tz`]: Support encode/decode [`chrono-tz`] types by using LEB128.
-- [`ethereum-types`]: Support encode/decode [`ethereum-types`] types by using LEB128.
-- [`float8`]: Support encode/decode [`float8`] types by using LEB128.
-- [`half`]: Support encode/decode [`half`] types by using LEB128.
-- [`num-complex`]: Support encode/decode [`num-complex`] types by using LEB128.
-- [`num-rational`]: Support encode/decode [`num-rational`] types by using LEB128.
-- [`primitive-types`]: Support encode/decode [`primitive-types`] types by using LEB128.
-- [`ruint`]: Support encode/decode [`ruint`] types by using LEB128 (not compatible in `const` context).
-- [`time`]: Support encode/decode [`time`] types by using LEB128.
+The following feature flags enable varint support for types from third-party crates. Multiple versions of the same crate can be enabled simultaneously.
+
+| Feature | Crate | Notes |
+|---------|-------|-------|
+| `arbitrary-int` (= v2) | [`arbitrary-int`] v1 | Unsigned types + signed types (`u1`..`u127`, `i1`..`i127`) |
+| `arbitrary-int_1` | [`arbitrary-int`] v1 | Unsigned (`u1`..`u127`) |
+| `bnum` (= v0.13) | [`bnum`] | |
+| `chrono` (= v0.4) | [`chrono`] | Not fully `const`-compatible |
+| `chrono-tz` (= v0.10) | [`chrono-tz`] | |
+| `ethereum-types` (= v0.16) | [`ethereum-types`] | |
+| `ethereum-types_0_16` | [`ethereum-types`] v0.16 | |
+| `ethereum-types_0_15` | [`ethereum-types`] v0.15 | |
+| `float8` (= v0.4) | [`float8`] | |
+| `half` (= v2) | [`half`] | |
+| `num-complex` (= v0.4) | [`num-complex`] | |
+| `num-rational` (= v0.4) | [`num-rational`] | |
+| `primitive-types` (= v0.14) | [`primitive-types`] | |
+| `primitive-types_0_14` | [`primitive-types`] v0.14 | |
+| `primitive-types_0_13` | [`primitive-types`] v0.13 | |
+| `ruint` (= v1) | [`ruint`] | Not `const`-compatible |
+| `time` (= v0.3) | [`time`] | |
 
 ## Testing
 
-This crate is tested with the [`quickcheck`](https://docs.rs/quickcheck/latest/quickcheck/) crate and `cargo fuzz` (including all optional features).
+- Property-based testing with [`quickcheck`](https://docs.rs/quickcheck) for all types (including optional features).
+- Fuzz testing with `cargo fuzz` for all types.
 
 #### License
 
@@ -50,7 +124,7 @@ Apache License (Version 2.0).
 
 See [LICENSE-APACHE](LICENSE-APACHE), [LICENSE-MIT](LICENSE-MIT) for details.
 
-Copyright (c) 2025 Al Liu.
+Copyright (c) 2026 Al Liu.
 
 [Github-url]: https://github.com/al8n/varing/
 [CI-url]: https://github.com/al8n/varing/actions/workflows/ci.yml

@@ -1,10 +1,10 @@
 use crate::{
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
   bnum::{decode_uint_d8, encode_uint_d8_to, encoded_uint_d8_len},
   packable::Packable,
   utils::{pack_i128, pack_u128, unpack_i128, unpack_u128},
-  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
 };
-use ::bnum_0_13::{BInt, BIntD16, BIntD32, BIntD8, BUint, BUintD16, BUintD32, BUintD8};
+use ::bnum_0_13::{BInt, BIntD8, BIntD16, BIntD32, BUint, BUintD8, BUintD16, BUintD32};
 
 use num_complex_0_4::Complex;
 

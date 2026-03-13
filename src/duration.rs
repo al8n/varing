@@ -1,8 +1,8 @@
 use crate::utils::Buffer;
 
 use super::{
-  decode_u128_varint, encode_u128_varint, encode_u128_varint_to, encoded_u128_varint_len,
-  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
+  ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint, decode_u128_varint,
+  encode_u128_varint, encode_u128_varint_to, encoded_u128_varint_len,
 };
 
 use core::{num::NonZeroUsize, time::Duration};
@@ -39,7 +39,7 @@ pub const fn encode_duration_to(
 
 /// Decodes a `Duration` in LEB128 encoded format from the buffer.
 ///
-/// Returns the bytes readed and the decoded value if successful.
+/// Returns the bytes read and the decoded value if successful.
 #[inline]
 pub const fn decode_duration(buf: &[u8]) -> Result<(NonZeroUsize, Duration), ConstDecodeError> {
   match decode_u128_varint(buf) {

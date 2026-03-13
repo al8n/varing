@@ -1,8 +1,8 @@
 use core::num::{NonZeroU64, NonZeroUsize};
 
 use super::{
-  utils::{self, zigzag_encode_i64},
   ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint,
+  utils::{self, zigzag_encode_i64},
 };
 
 macro_rules! impl_varint {
@@ -277,16 +277,16 @@ macro_rules! decode {
   ($($ty:literal), + $(,)?) => {
     $(
       paste::paste! {
-        #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
+        #[doc = "Decodes a `u" $ty "` in LEB128 encoded format from the buffer."]
         ///
-        /// Returns the bytes readed and the decoded value if successful.
+        /// Returns the bytes read and the decoded value if successful.
         pub const fn [< decode_ u $ty _varint >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, [< u $ty >]), ConstDecodeError> {
           decode_varint!(|buf| [< u $ty >])
         }
 
-        #[doc = "Decodes an `u" $ty "` in LEB128 encoded format from the buffer."]
+        #[doc = "Decodes an `i" $ty "` in LEB128 encoded format from the buffer."]
         ///
-        /// Returns the bytes readed and the decoded value if successful.
+        /// Returns the bytes read and the decoded value if successful.
         pub const fn [< decode_ i $ty _varint >](buf: &[u8]) -> Result<(::core::num::NonZeroUsize, [< i $ty >]), ConstDecodeError> {
           match [< decode_ u $ty _varint >](buf) {
             Ok((bytes_read, value)) => {
@@ -461,7 +461,7 @@ pub const fn encode_f32_varint_to(
 
 /// Decodes an `f32` in LEB128 encoded format from the buffer.
 ///
-/// Returns the bytes readed and the decoded value if successful.
+/// Returns the bytes read and the decoded value if successful.
 #[inline]
 pub const fn decode_f32_varint(buf: &[u8]) -> Result<(NonZeroUsize, f32), crate::ConstDecodeError> {
   match crate::decode_u32_varint(buf) {
@@ -495,7 +495,7 @@ pub const fn encode_f64_varint_to(
 
 /// Decodes an `f64` in LEB128 encoded format from the buffer.
 ///
-/// Returns the bytes readed and the decoded value if successful.
+/// Returns the bytes read and the decoded value if successful.
 #[inline]
 pub const fn decode_f64_varint(buf: &[u8]) -> Result<(NonZeroUsize, f64), crate::ConstDecodeError> {
   match crate::decode_u64_varint(buf) {

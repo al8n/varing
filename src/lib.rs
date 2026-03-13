@@ -26,7 +26,7 @@ mod error;
 mod primitives;
 
 // Safety: This is safe because 1 is non-zero.
-const NON_ZERO_USIZE_ONE: NonZeroUsize = unsafe { NonZeroUsize::new_unchecked(1) };
+const NON_ZERO_USIZE_ONE: NonZeroUsize = NonZeroUsize::new(1).unwrap();
 
 /// A trait for types that can be encoded as variable-length integers (varints).
 ///
@@ -56,7 +56,7 @@ pub trait Varint {
   ///
   /// - For `u16` and `i16`, this range is `1..=3`, representing possible encoded lengths of 1, 2, or 3 bytes.
   /// - For `u32` and `i32`, this range is `1..=5`, representing possible encoded lengths of 1, 2, 3, 4, or 5 bytes.
-  /// - For `u64` and `u64`, this range is `1..=10`, representing possible encoded lengths of 1 to 10 bytes.
+  /// - For `u64` and `i64`, this range is `1..=10`, representing possible encoded lengths of 1 to 10 bytes.
   /// - For `u128` and `i128`, this range is `1..=19`, representing possible encoded lengths of 1 to 19 bytes.
   const ENCODED_LEN_RANGE: RangeInclusive<NonZeroUsize> =
     Self::MIN_ENCODED_LEN..=Self::MAX_ENCODED_LEN;
@@ -116,7 +116,6 @@ where
     let bytes_written = value.encode(&mut buf[total_bytes..])?;
     total_bytes += bytes_written.get();
   }
-  // Safety: `total_bytes` is guaranteed to be non-zero here because if it is zero
   Ok(total_bytes)
 }
 
@@ -571,7 +570,10 @@ impl<V: Varint> Iterator for SequenceDecoder<'_, V> {
           self.offset += bytes_read.get();
           Some(Ok((bytes_read, value)))
         }
-        Err(e) => Some(Err(e)),
+        Err(e) => {
+          self.offset = self.buf.len();
+          Some(Err(e))
+        }
       }
     } else {
       None
@@ -618,7 +620,7 @@ impl<K: Varint, V: Varint> Iterator for MapDecoder<'_, K, V> {
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.offset < self.buf.len() {
-      Some(K::decode(&self.buf[self.offset..]).and_then(|(klen, k)| {
+      match K::decode(&self.buf[self.offset..]).and_then(|(klen, k)| {
         self.offset += klen.get();
 
         V::decode(&self.buf[self.offset..]).map(|(vlen, v)| {
@@ -630,7 +632,13 @@ impl<K: Varint, V: Varint> Iterator for MapDecoder<'_, K, V> {
             (k, v),
           )
         })
-      }))
+      }) {
+        Ok(val) => Some(Ok(val)),
+        Err(e) => {
+          self.offset = self.buf.len();
+          Some(Err(e))
+        }
+      }
     } else {
       None
     }
@@ -646,9 +654,12 @@ mod tests;
 
 mod non_zero;
 
-/// LEB128 encoding/decoding for `u1`, `u2` .. `u127`
-#[cfg(feature = "arbitrary-int_1")]
-#[cfg_attr(docsrs, doc(cfg(feature = "arbitrary-int")))]
+/// LEB128 encoding/decoding for `u1`, `u2` .. `u127` and `i1`, `i2` .. `i127` (v2)
+#[cfg(any(feature = "arbitrary-int_1", feature = "arbitrary-int_2"))]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(feature = "arbitrary-int_1", feature = "arbitrary-int_2")))
+)]
 pub mod arbitrary_int;
 
 /// LEB128 encoding/decoding for [`num-rational`](https://crates.io/crates/num-rational) types.
@@ -682,13 +693,19 @@ pub mod chrono_tz;
 pub mod time;
 
 /// LEB128 encoding/decoding for [`primitive-types`](https://crates.io/crates/primitive-types) types.
-#[cfg(feature = "primitive-types_0_13")]
-#[cfg_attr(docsrs, doc(cfg(feature = "primitive-types_0_13")))]
+#[cfg(any(feature = "primitive-types_0_13", feature = "primitive-types_0_14"))]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(feature = "primitive-types_0_13", feature = "primitive-types_0_14")))
+)]
 pub mod primitive_types;
 
 /// LEB128 encoding/decoding for [`ethereum-types`](https://crates.io/crates/ethereum-types) types.
-#[cfg(feature = "ethereum-types_0_15")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ethereum-types_0_15")))]
+#[cfg(any(feature = "ethereum-types_0_15", feature = "ethereum-types_0_16"))]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(feature = "ethereum-types_0_15", feature = "ethereum-types_0_16")))
+)]
 pub mod ethereum_types;
 
 /// Packable trait for types that can be packed into a single value.
