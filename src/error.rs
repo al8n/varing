@@ -1,5 +1,77 @@
 use core::num::NonZeroUsize;
 
+/// An error that occurs when trying to decode data from a buffer with insufficient data.
+///
+/// This error indicates that a decode operation failed because the buffer does not have
+/// enough remaining bytes to decode the value.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct InsufficientData {
+  /// The number of bytes needed to decode the value, if known.
+  required: Option<NonZeroUsize>,
+  /// The number of bytes available.
+  available: usize,
+}
+
+impl InsufficientData {
+  /// Creates a new `InsufficientData` error with only the available bytes.
+  #[inline]
+  pub const fn new(available: usize) -> Self {
+    Self {
+      required: None,
+      available,
+    }
+  }
+
+  /// Creates a new `InsufficientData` error with the required and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `required` is not greater than `available`.
+  #[inline]
+  pub const fn with_required(required: NonZeroUsize, available: usize) -> Self {
+    assert!(
+      required.get() > available,
+      "InsufficientData: required must be greater than available"
+    );
+
+    Self {
+      required: Some(required),
+      available,
+    }
+  }
+
+  /// Returns the number of bytes required to decode the value, if known.
+  #[inline]
+  pub const fn required(&self) -> Option<NonZeroUsize> {
+    self.required
+  }
+
+  /// Returns the number of bytes available in the buffer.
+  #[inline]
+  pub const fn available(&self) -> usize {
+    self.available
+  }
+}
+
+impl core::fmt::Display for InsufficientData {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    match self.required {
+      Some(required) => write!(
+        f,
+        "not enough bytes to decode value (required {} but only {} available)",
+        required, self.available
+      ),
+      None => write!(
+        f,
+        "not enough bytes to decode value (only {} available)",
+        self.available
+      ),
+    }
+  }
+}
+
+impl core::error::Error for InsufficientData {}
+
 /// An error that occurs when trying to write data to a buffer with insufficient space.
 ///
 /// This error indicates that a write operation failed because the buffer does not have
@@ -117,13 +189,8 @@ pub enum ConstDecodeError {
   #[error("decoded value would overflow the target type")]
   Overflow,
   /// The buffer does not contain enough data to decode.
-  #[error(
-    "not enough bytes to decode value: only {available} were available, but more were requested"
-  )]
-  InsufficientData {
-    /// The number of bytes available in the buffer.
-    available: usize,
-  },
+  #[error(transparent)]
+  InsufficientData(#[from] InsufficientData),
   /// A custom error message.
   #[error("{0}")]
   Other(&'static str),
@@ -135,7 +202,7 @@ impl From<ConstDecodeError> for std::io::Error {
   fn from(err: ConstDecodeError) -> Self {
     match err {
       ConstDecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      ConstDecodeError::InsufficientData { .. } => {
+      ConstDecodeError::InsufficientData(_) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       ConstDecodeError::Other(msg) => std::io::Error::other(msg),
@@ -154,7 +221,17 @@ impl ConstDecodeError {
   /// to decode a value.
   #[inline]
   pub const fn insufficient_data(available: usize) -> Self {
-    Self::InsufficientData { available }
+    Self::InsufficientData(InsufficientData::new(available))
+  }
+
+  /// Creates a new `ConstDecodeError::InsufficientData` with the required and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `required` is not greater than `available`.
+  #[inline]
+  pub const fn insufficient_data_with_required(required: NonZeroUsize, available: usize) -> Self {
+    Self::InsufficientData(InsufficientData::with_required(required, available))
   }
 
   /// Creates a new `ConstDecodeError::Other` with the given message.
@@ -253,13 +330,8 @@ pub enum DecodeError {
   #[error("decoded value would overflow the target type")]
   Overflow,
   /// The buffer does not contain enough data to decode.
-  #[error(
-    "not enough bytes to decode value: only {available} were available, but more were requested"
-  )]
-  InsufficientData {
-    /// The number of bytes available in the buffer.
-    available: usize,
-  },
+  #[error(transparent)]
+  InsufficientData(#[from] InsufficientData),
   /// A custom error message.
   #[error("{0}")]
   #[cfg(not(any(feature = "std", feature = "alloc")))]
@@ -276,7 +348,7 @@ impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
       DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      DecodeError::InsufficientData { .. } => {
+      DecodeError::InsufficientData(_) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       DecodeError::Other(msg) => std::io::Error::other(msg),
@@ -288,7 +360,7 @@ impl From<ConstDecodeError> for DecodeError {
   fn from(err: ConstDecodeError) -> Self {
     match err {
       ConstDecodeError::Overflow => Self::Overflow,
-      ConstDecodeError::InsufficientData { available } => Self::InsufficientData { available },
+      ConstDecodeError::InsufficientData(e) => Self::InsufficientData(e),
       ConstDecodeError::Other(msg) => Self::other(msg),
     }
   }
@@ -305,7 +377,17 @@ impl DecodeError {
   /// to decode a value.
   #[inline]
   pub const fn insufficient_data(available: usize) -> Self {
-    Self::InsufficientData { available }
+    Self::InsufficientData(InsufficientData::new(available))
+  }
+
+  /// Creates a new `DecodeError::InsufficientData` with the required and available bytes.
+  ///
+  /// # Panics
+  ///
+  /// Panics if `required` is not greater than `available`.
+  #[inline]
+  pub const fn insufficient_data_with_required(required: NonZeroUsize, available: usize) -> Self {
+    Self::InsufficientData(InsufficientData::with_required(required, available))
   }
 
   /// Creates a new `DecodeError::Other` with the given message.

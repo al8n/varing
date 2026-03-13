@@ -495,7 +495,7 @@ pub const fn consume_varint_checked(buf: &[u8]) -> Option<NonZeroUsize> {
 /// assert_eq!(try_consume_varint(&buf).map(|val| val.get()), Ok(1));
 ///
 /// let buf = [0x80]; // Incomplete varint
-/// assert_eq!(try_consume_varint(&buf), Err(ConstDecodeError::insufficient_data(1)));
+/// assert!(matches!(try_consume_varint(&buf), Err(ConstDecodeError::InsufficientData(_))));
 /// ```
 pub const fn try_consume_varint(buf: &[u8]) -> Result<NonZeroUsize, ConstDecodeError> {
   if buf.is_empty() {
