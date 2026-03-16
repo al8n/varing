@@ -36,7 +36,7 @@ chrono = { version = "0.4", optional = true, features = ["arbitrary"] }
 chrono-tz = { version = "0.10", optional = true, features = ["arbitrary"] }
 time = { version = "0.3", optional = true, features = ["large-dates"] }
 num-traits = { version = "0.2" }
-bnum = { version = "0.13", optional = true, features = ["arbitrary"] }
+bnum = { version = "0.14", optional = true, features = ["arbitrary"] }
 
 arbitrary-int_1 = { package = "arbitrary-int", version = "1", optional = true }
 arbitrary-int_2 = { package = "arbitrary-int", version = "2", optional = true }
