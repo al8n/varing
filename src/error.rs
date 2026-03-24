@@ -179,6 +179,28 @@ impl ConstEncodeError {
       Self::Other(msg) => Self::Other(msg),
     }
   }
+
+  /// Converts this `ConstEncodeError` into an `EncodeError`.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::{ConstEncodeError, EncodeError};
+  ///
+  /// let const_error = ConstEncodeError::other("Other error message");
+  /// let error: EncodeError = const_error.into_encode_error();
+  /// assert_eq!(error.to_string(), "Other error message");
+  /// ```
+  #[inline]
+  pub const fn into_encode_error(self) -> EncodeError {
+    match self {
+      Self::InsufficientSpace(iss) => EncodeError::InsufficientSpace(iss),
+      #[cfg(any(feature = "std", feature = "alloc"))]
+      Self::Other(msg) => EncodeError::Other(std::borrow::Cow::Borrowed(msg)),
+      #[cfg(not(any(feature = "std", feature = "alloc")))]
+      Self::Other(msg) => EncodeError::Other(msg),
+    }
+  }
 }
 
 /// Decoding varint error.
@@ -238,6 +260,29 @@ impl ConstDecodeError {
   #[inline]
   pub const fn other(msg: &'static str) -> Self {
     Self::Other(msg)
+  }
+
+  /// Converts this `ConstDecodeError` into a `DecodeError`.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::{ConstDecodeError, DecodeError};
+  ///
+  /// let const_error = ConstDecodeError::other("Other error message");
+  /// let error: DecodeError = const_error.into_decode_error();
+  /// assert_eq!(error.to_string(), "Other error message");
+  /// ```
+  #[inline]
+  pub const fn into_decode_error(self) -> DecodeError {
+    match self {
+      Self::Overflow => DecodeError::Overflow,
+      Self::InsufficientData(e) => DecodeError::InsufficientData(e),
+      #[cfg(any(feature = "std", feature = "alloc"))]
+      Self::Other(msg) => DecodeError::Other(std::borrow::Cow::Borrowed(msg)),
+      #[cfg(not(any(feature = "std", feature = "alloc")))]
+      Self::Other(msg) => DecodeError::Other(msg),
+    }
   }
 }
 
