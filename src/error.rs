@@ -72,6 +72,14 @@ impl core::fmt::Display for InsufficientData {
 
 impl core::error::Error for InsufficientData {}
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl From<InsufficientData> for std::io::Error {
+  fn from(err: InsufficientData) -> Self {
+    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
+  }
+}
+
 /// An error that occurs when trying to write data to a buffer with insufficient space.
 ///
 /// This error indicates that a write operation failed because the buffer does not have
@@ -116,6 +124,14 @@ impl InsufficientSpace {
   #[inline]
   pub const fn available(&self) -> usize {
     self.available
+  }
+}
+
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl From<InsufficientSpace> for std::io::Error {
+  fn from(err: InsufficientSpace) -> Self {
+    std::io::Error::new(std::io::ErrorKind::WriteZero, err)
   }
 }
 
@@ -401,7 +417,7 @@ impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
       DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      DecodeError::InsufficientData(_) => {
+      DecodeError::InsufficientData(err) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       DecodeError::Other(msg) => std::io::Error::other(msg),
