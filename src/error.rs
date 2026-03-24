@@ -72,6 +72,14 @@ impl core::fmt::Display for InsufficientData {
 
 impl core::error::Error for InsufficientData {}
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl From<InsufficientData> for std::io::Error {
+  fn from(err: InsufficientData) -> Self {
+    std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
+  }
+}
+
 /// An error that occurs when trying to write data to a buffer with insufficient space.
 ///
 /// This error indicates that a write operation failed because the buffer does not have
@@ -119,6 +127,14 @@ impl InsufficientSpace {
   }
 }
 
+#[cfg(feature = "std")]
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+impl From<InsufficientSpace> for std::io::Error {
+  fn from(err: InsufficientSpace) -> Self {
+    std::io::Error::new(std::io::ErrorKind::WriteZero, err)
+  }
+}
+
 /// Encode varint error
 #[derive(Debug, Clone, PartialEq, Eq, Hash, thiserror::Error)]
 #[non_exhaustive]
@@ -136,7 +152,7 @@ pub enum ConstEncodeError {
 impl From<ConstEncodeError> for std::io::Error {
   fn from(err: ConstEncodeError) -> Self {
     match err {
-      ConstEncodeError::InsufficientSpace(_) => {
+      ConstEncodeError::InsufficientSpace(err) => {
         std::io::Error::new(std::io::ErrorKind::WriteZero, err)
       }
       ConstEncodeError::Other(msg) => std::io::Error::other(msg),
@@ -227,7 +243,7 @@ impl From<ConstDecodeError> for std::io::Error {
   fn from(err: ConstDecodeError) -> Self {
     match err {
       ConstDecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      ConstDecodeError::InsufficientData(_) => {
+      ConstDecodeError::InsufficientData(err) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       ConstDecodeError::Other(msg) => std::io::Error::other(msg),
@@ -316,7 +332,9 @@ pub enum EncodeError {
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
-      EncodeError::InsufficientSpace(_) => std::io::Error::new(std::io::ErrorKind::WriteZero, err),
+      EncodeError::InsufficientSpace(err) => {
+        std::io::Error::new(std::io::ErrorKind::WriteZero, err)
+      }
       EncodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
@@ -401,7 +419,7 @@ impl From<DecodeError> for std::io::Error {
   fn from(err: DecodeError) -> Self {
     match err {
       DecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      DecodeError::InsufficientData(_) => {
+      DecodeError::InsufficientData(err) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       DecodeError::Other(msg) => std::io::Error::other(msg),

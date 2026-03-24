@@ -21,14 +21,14 @@ Protobuf's varint encoding/decoding for LEB128 friendly types with full const co
 
 ```toml
 [dependencies]
-varing = "0.12"
+varing = "0.13"
 ```
 
 `no_std` is supported by disabling the default `std` feature:
 
 ```toml
 [dependencies]
-varing = { version = "0.12", default-features = false }
+varing = { version = "0.13", default-features = false }
 ```
 
 ## Quick Start
