@@ -179,6 +179,31 @@ impl ConstEncodeError {
       Self::Other(msg) => Self::Other(msg),
     }
   }
+
+  /// Converts this `ConstEncodeError` into an `EncodeError`.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::{ConstEncodeError, EncodeError};
+  /// use core::num::NonZeroUsize;
+  ///
+  /// let const_error = ConstEncodeError::other("Other error message");
+  /// let error: EncodeError = const_error.into_encode_error();
+  ///
+  /// let const_error_insufficient = ConstEncodeError::insufficient_space(NonZeroUsize::new(10).unwrap(), 5);
+  /// let error_insufficient: EncodeError = const_error_insufficient.into_encode_error();
+  /// ```
+  #[inline]
+  pub const fn into_encode_error(self) -> EncodeError {
+    match self {
+      Self::InsufficientSpace(iss) => EncodeError::InsufficientSpace(iss),
+      #[cfg(any(feature = "std", feature = "alloc"))]
+      Self::Other(msg) => EncodeError::Other(std::borrow::Cow::Borrowed(msg)),
+      #[cfg(not(any(feature = "std", feature = "alloc")))]
+      Self::Other(msg) => EncodeError::Other(msg),
+    }
+  }
 }
 
 /// Decoding varint error.
@@ -238,6 +263,34 @@ impl ConstDecodeError {
   #[inline]
   pub const fn other(msg: &'static str) -> Self {
     Self::Other(msg)
+  }
+
+  /// Converts this `ConstDecodeError` into a `DecodeError`.
+  ///
+  /// ## Example
+  ///
+  /// ```rust
+  /// use varing::{ConstDecodeError, DecodeError};
+  ///
+  /// let const_error = ConstDecodeError::other("Other error message");
+  /// let error: DecodeError = const_error.into_decode_error();
+  ///
+  /// let const_error_overflow = ConstDecodeError::overflow();
+  /// let error_overflow: DecodeError = const_error_overflow.into_decode_error();
+  ///
+  /// let const_error_insufficient = ConstDecodeError::insufficient_data(5);
+  /// let error_insufficient: DecodeError = const_error_insufficient.into_decode_error();
+  /// ```
+  #[inline]
+  pub const fn into_decode_error(self) -> DecodeError {
+    match self {
+      Self::Overflow => DecodeError::Overflow,
+      Self::InsufficientData(e) => DecodeError::InsufficientData(e),
+      #[cfg(any(feature = "std", feature = "alloc"))]
+      Self::Other(msg) => DecodeError::Other(std::borrow::Cow::Borrowed(msg)),
+      #[cfg(not(any(feature = "std", feature = "alloc")))]
+      Self::Other(msg) => DecodeError::Other(msg),
+    }
   }
 }
 
