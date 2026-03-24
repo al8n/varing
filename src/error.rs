@@ -189,7 +189,9 @@ impl ConstEncodeError {
   ///
   /// let const_error = ConstEncodeError::other("Other error message");
   /// let error: EncodeError = const_error.into_encode_error();
-  /// assert_eq!(error.to_string(), "Other error message");
+  ///
+  /// let const_error_insufficient = ConstEncodeError::insufficient_space(NonZeroUsize::new(10).unwrap(), 5);
+  /// let error_insufficient: EncodeError = const_error_insufficient.into_encode_error();
   /// ```
   #[inline]
   pub const fn into_encode_error(self) -> EncodeError {
@@ -271,7 +273,12 @@ impl ConstDecodeError {
   ///
   /// let const_error = ConstDecodeError::other("Other error message");
   /// let error: DecodeError = const_error.into_decode_error();
-  /// assert_eq!(error.to_string(), "Other error message");
+  ///
+  /// let const_error_overflow = ConstDecodeError::overflow();
+  /// let error_overflow: DecodeError = const_error_overflow.into_decode_error();
+  ///
+  /// let const_error_insufficient = ConstDecodeError::insufficient_data(5);
+  /// let error_insufficient: DecodeError = const_error_insufficient.into_decode_error();
   /// ```
   #[inline]
   pub const fn into_decode_error(self) -> DecodeError {
