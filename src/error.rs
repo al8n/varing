@@ -186,6 +186,7 @@ impl ConstEncodeError {
   ///
   /// ```rust
   /// use varing::{ConstEncodeError, EncodeError};
+  /// use core::num::NonZeroUsize;
   ///
   /// let const_error = ConstEncodeError::other("Other error message");
   /// let error: EncodeError = const_error.into_encode_error();
