@@ -152,7 +152,7 @@ pub enum ConstEncodeError {
 impl From<ConstEncodeError> for std::io::Error {
   fn from(err: ConstEncodeError) -> Self {
     match err {
-      ConstEncodeError::InsufficientSpace(_) => {
+      ConstEncodeError::InsufficientSpace(err) => {
         std::io::Error::new(std::io::ErrorKind::WriteZero, err)
       }
       ConstEncodeError::Other(msg) => std::io::Error::other(msg),
@@ -243,7 +243,7 @@ impl From<ConstDecodeError> for std::io::Error {
   fn from(err: ConstDecodeError) -> Self {
     match err {
       ConstDecodeError::Overflow => std::io::Error::new(std::io::ErrorKind::InvalidData, err),
-      ConstDecodeError::InsufficientData(_) => {
+      ConstDecodeError::InsufficientData(err) => {
         std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err)
       }
       ConstDecodeError::Other(msg) => std::io::Error::other(msg),
@@ -332,7 +332,9 @@ pub enum EncodeError {
 impl From<EncodeError> for std::io::Error {
   fn from(err: EncodeError) -> Self {
     match err {
-      EncodeError::InsufficientSpace(_) => std::io::Error::new(std::io::ErrorKind::WriteZero, err),
+      EncodeError::InsufficientSpace(err) => {
+        std::io::Error::new(std::io::ErrorKind::WriteZero, err)
+      }
       EncodeError::Other(msg) => std::io::Error::other(msg),
     }
   }
