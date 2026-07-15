@@ -246,6 +246,98 @@ fn test_seq_decoder_clone_and_copy() {
   assert_eq!(copied.position(), original.position());
 }
 
+#[derive(Debug)]
+struct AdversarialDecodeLength;
+
+impl Varint for AdversarialDecodeLength {
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+
+  fn encoded_len(&self) -> NonZeroUsize {
+    NON_ZERO_USIZE_ONE
+  }
+
+  fn encode(&self, _: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
+    Err(EncodeError::other("encoding is not used by this test type"))
+  }
+
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError> {
+    let consumed = if matches!(buf.first(), Some(0)) {
+      NON_ZERO_USIZE_ONE
+    } else {
+      NonZeroUsize::new(usize::MAX).unwrap()
+    };
+    Ok((consumed, Self))
+  }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ItemCount(usize);
+
+impl<T> core::iter::FromIterator<T> for ItemCount {
+  fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    Self(iter.into_iter().count())
+  }
+}
+
+#[test]
+fn sequence_decoder_rejects_wrapping_consumed_length() {
+  let buf = [0, 1];
+  let mut decoder = sequence_decoder::<AdversarialDecodeLength>(&buf);
+
+  let (consumed, _) = decoder.next().unwrap().unwrap();
+  assert_eq!(consumed, NON_ZERO_USIZE_ONE);
+  assert_eq!(decoder.position(), 1);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn decode_sequence_rejects_invalid_consumed_length() {
+  assert!(matches!(
+    decode_sequence::<AdversarialDecodeLength, ItemCount>(&[0, 1]),
+    Err(DecodeError::Other(_))
+  ));
+  assert!(matches!(
+    decode_sequence::<AdversarialDecodeLength, ItemCount>(&[1]),
+    Err(DecodeError::Other(_))
+  ));
+}
+
+#[test]
+fn map_decoder_rejects_wrapping_consumed_length() {
+  let buf = [0];
+  let mut decoder = map_decoder::<AdversarialDecodeLength, AdversarialDecodeLength>(&buf);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn map_decoder_rejects_out_of_bounds_key_length() {
+  let buf = [1];
+  let mut decoder = map_decoder::<AdversarialDecodeLength, AdversarialDecodeLength>(&buf);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn decode_map_rejects_invalid_consumed_lengths() {
+  assert!(matches!(
+    decode_map::<AdversarialDecodeLength, AdversarialDecodeLength, ItemCount>(&[0]),
+    Err(DecodeError::Other(_))
+  ));
+  assert!(matches!(
+    decode_map::<AdversarialDecodeLength, AdversarialDecodeLength, ItemCount>(&[1]),
+    Err(DecodeError::Other(_))
+  ));
+}
+
 #[allow(dead_code)]
 #[test]
 fn test_default_varint_range() {

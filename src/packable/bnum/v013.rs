@@ -34,7 +34,7 @@ macro_rules! impl_packable {
 
         #[doc = "Packs `BU`" $suffix "<L>` and `BU" $suffix "<R>` into a single `BU" $suffix "<P>` value."]
         pub const fn [< pack_u $suffix:snake>]<const L: usize, const R: usize, const P: usize>(a: &[< BU $suffix >]<L>, b: &[< BU $suffix >]<R>) -> [< BU $suffix >]<P> {
-          assert!(L + R <= P, "L + R must be less than or equal to P");
+          assert!(L <= P && R <= P - L, "L + R must be less than or equal to P");
 
           if L == 0 && R == 0 {
             return [< BU $suffix >]::<P>::ZERO;
@@ -45,16 +45,38 @@ macro_rules! impl_packable {
 
           // Determine which input has smaller size (in bits)
           let (high_bits, high_value, low_value, low_bits) = if L > R {
-            unsafe { core::ptr::copy(b.digits().as_ptr(), low.as_mut_ptr(), L) };
-            unsafe { core::ptr::copy(a.digits().as_ptr(), high.as_mut_ptr(), R) };
+            let b_digits = b.digits();
+            let mut idx = 0;
+            while idx < R {
+              low[idx] = b_digits[idx];
+              idx += 1;
+            }
+
+            let a_digits = a.digits();
+            idx = 0;
+            while idx < L {
+              high[idx] = a_digits[idx];
+              idx += 1;
+            }
 
             let low = [< BU $suffix >]::<P>::from_digits(low);
             let high = [< BU $suffix >]::<P>::from_digits(high);
 
             (L * $storage, high, low, R * $storage)
           } else {
-            unsafe { core::ptr::copy(a.digits().as_ptr(), low.as_mut_ptr(), R) };
-            unsafe { core::ptr::copy(b.digits().as_ptr(), high.as_mut_ptr(), L) };
+            let a_digits = a.digits();
+            let mut idx = 0;
+            while idx < L {
+              low[idx] = a_digits[idx];
+              idx += 1;
+            }
+
+            let b_digits = b.digits();
+            idx = 0;
+            while idx < R {
+              high[idx] = b_digits[idx];
+              idx += 1;
+            }
 
             let low = [< BU $suffix >]::<P>::from_digits(low);
             let high = [< BU $suffix >]::<P>::from_digits(high);
@@ -87,7 +109,7 @@ macro_rules! impl_packable {
 
         #[doc = "Unpacks `BU`" $suffix "<P>` into `BU" $suffix "<L>` and `BU" $suffix "<R>`"]
         pub const fn [< unpack_u $suffix:snake >]<const L: usize, const R: usize, const P: usize>(packed: [< BU $suffix >]<P>) -> ([< BU $suffix >]<L>, [< BU $suffix >]<R>) {
-          assert!(L + R <= P, "L + R must be less than or equal to P");
+          assert!(L <= P && R <= P - L, "L + R must be less than or equal to P");
 
           if L == 0 && R == 0 {
             return ([< BU $suffix >]::<L>::ZERO, [< BU $suffix >]::<R>::ZERO);
@@ -115,25 +137,39 @@ macro_rules! impl_packable {
 
           if L > R {
             let mut lhs = [0; L];
-            unsafe {
-              core::ptr::copy(high_value.digits().as_ptr(), lhs.as_mut_ptr(), L);
+            let high_digits = high_value.digits();
+            let mut idx = 0;
+            while idx < L {
+              lhs[idx] = high_digits[idx];
+              idx += 1;
             }
             let lhs = [< BU $suffix >]::<L>::from_digits(lhs);
+
             let mut rhs = [0; R];
-            unsafe {
-              core::ptr::copy(low_value.digits().as_ptr(), rhs.as_mut_ptr(), R);
+            let low_digits = low_value.digits();
+            idx = 0;
+            while idx < R {
+              rhs[idx] = low_digits[idx];
+              idx += 1;
             }
             let rhs = [< BU $suffix >]::<R>::from_digits(rhs);
             (lhs, rhs)
           } else {
             let mut lhs = [0; L];
-            unsafe {
-              core::ptr::copy(low_value.digits().as_ptr(), lhs.as_mut_ptr(), L);
+            let low_digits = low_value.digits();
+            let mut idx = 0;
+            while idx < L {
+              lhs[idx] = low_digits[idx];
+              idx += 1;
             }
             let lhs = [< BU $suffix >]::<L>::from_digits(lhs);
+
             let mut rhs = [0; R];
-            unsafe {
-              core::ptr::copy(high_value.digits().as_ptr(), rhs.as_mut_ptr(), R);
+            let high_digits = high_value.digits();
+            idx = 0;
+            while idx < R {
+              rhs[idx] = high_digits[idx];
+              idx += 1;
             }
             let rhs = [< BU $suffix >]::<R>::from_digits(rhs);
             (lhs, rhs)
@@ -293,6 +329,40 @@ macro_rules! impl_packable {
           let packed = <[< B $suffix:camel>]<L> as Packable<[< BU $suffix>]<R>, [< BU $suffix>]<P>>>::pack(&lhs, &rhs);
           let (lhs2, rhs2) = <[< B $suffix:camel>]<L> as Packable<[< BU $suffix>]<R>, _>>::unpack(packed);
           lhs == lhs2 && rhs == rhs2
+        }
+
+        #[cfg(test)]
+        #[test]
+        fn [< packable_u $suffix:snake _width_order_roundtrips>]() {
+          const LESS_LHS: [< BU $suffix>]<1> = [< BU $suffix>]::from_digits([0x12]);
+          const LESS_RHS: [< BU $suffix>]<2> = [< BU $suffix>]::from_digits([0x34, 0x56]);
+          const LESS_PACKED: [< BU $suffix>]<3> =
+            [< pack_u $suffix:snake >]::<1, 2, 3>(&LESS_LHS, &LESS_RHS);
+          const LESS_UNPACKED: ([< BU $suffix>]<1>, [< BU $suffix>]<2>) =
+            [< unpack_u $suffix:snake >]::<1, 2, 3>(LESS_PACKED);
+          assert_eq!(LESS_PACKED.digits(), &[0x12, 0x34, 0x56]);
+          assert_eq!(LESS_UNPACKED, (LESS_LHS, LESS_RHS));
+          assert!([< roundtrip_u $suffix:snake _test>]::<1, 2, 3>(LESS_LHS, LESS_RHS));
+
+          const EQUAL_LHS: [< BU $suffix>]<2> = [< BU $suffix>]::from_digits([0x12, 0x34]);
+          const EQUAL_RHS: [< BU $suffix>]<2> = [< BU $suffix>]::from_digits([0x56, 0x78]);
+          const EQUAL_PACKED: [< BU $suffix>]<4> =
+            [< pack_u $suffix:snake >]::<2, 2, 4>(&EQUAL_LHS, &EQUAL_RHS);
+          const EQUAL_UNPACKED: ([< BU $suffix>]<2>, [< BU $suffix>]<2>) =
+            [< unpack_u $suffix:snake >]::<2, 2, 4>(EQUAL_PACKED);
+          assert_eq!(EQUAL_PACKED.digits(), &[0x12, 0x34, 0x56, 0x78]);
+          assert_eq!(EQUAL_UNPACKED, (EQUAL_LHS, EQUAL_RHS));
+          assert!([< roundtrip_u $suffix:snake _test>]::<2, 2, 4>(EQUAL_LHS, EQUAL_RHS));
+
+          const GREATER_LHS: [< BU $suffix>]<2> = [< BU $suffix>]::from_digits([0x12, 0x34]);
+          const GREATER_RHS: [< BU $suffix>]<1> = [< BU $suffix>]::from_digits([0x56]);
+          const GREATER_PACKED: [< BU $suffix>]<3> =
+            [< pack_u $suffix:snake >]::<2, 1, 3>(&GREATER_LHS, &GREATER_RHS);
+          const GREATER_UNPACKED: ([< BU $suffix>]<2>, [< BU $suffix>]<1>) =
+            [< unpack_u $suffix:snake >]::<2, 1, 3>(GREATER_PACKED);
+          assert_eq!(GREATER_PACKED.digits(), &[0x56, 0x12, 0x34]);
+          assert_eq!(GREATER_UNPACKED, (GREATER_LHS, GREATER_RHS));
+          assert!([< roundtrip_u $suffix:snake _test>]::<2, 1, 3>(GREATER_LHS, GREATER_RHS));
         }
       )*
     }
