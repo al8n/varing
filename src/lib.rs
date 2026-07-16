@@ -78,6 +78,23 @@ pub trait Varint {
     Self: Sized;
 }
 
+#[inline]
+fn invalid_consumed_length() -> DecodeError {
+  DecodeError::other("Varint::decode returned an invalid consumed length")
+}
+
+#[inline]
+fn checked_decode_offset(
+  offset: usize,
+  consumed: NonZeroUsize,
+  buf_len: usize,
+) -> Result<usize, DecodeError> {
+  match offset.checked_add(consumed.get()) {
+    Some(next_offset) if next_offset <= buf_len => Ok(next_offset),
+    _ => Err(invalid_consumed_length()),
+  }
+}
+
 /// Encodes a sequence of values as varints and writes them to the buffer.
 ///
 /// Returns the total number of bytes written to the buffer.
@@ -202,22 +219,12 @@ where
   V: Varint,
   O: core::iter::FromIterator<V>,
 {
-  let mut readed = 0;
-  core::iter::from_fn(|| {
-    if readed < buf.len() {
-      match V::decode(&buf[readed..]) {
-        Ok((bytes_read, value)) => {
-          readed += bytes_read.get();
-          Some(Ok(value))
-        }
-        Err(e) => Some(Err(e)),
-      }
-    } else {
-      None
-    }
-  })
-  .collect::<Result<O, _>>()
-  .map(|output| (readed, output))
+  let mut decoder = sequence_decoder::<V>(buf);
+  let output = decoder
+    .by_ref()
+    .map(|result| result.map(|(_, value)| value))
+    .collect::<Result<O, _>>()?;
+  Ok((decoder.position(), output))
 }
 
 /// Encodes a map of entries as varints and writes them to the buffer.
@@ -356,23 +363,12 @@ where
   V: Varint + Sized,
   O: core::iter::FromIterator<(K, V)>,
 {
-  let mut readed = 0;
-  core::iter::from_fn(|| {
-    if readed < buf.len() {
-      Some(K::decode(&buf[readed..]).and_then(|(bytes_read, k)| {
-        readed += bytes_read.get();
-
-        V::decode(&buf[readed..]).map(|(bytes_read, v)| {
-          readed += bytes_read.get();
-          (k, v)
-        })
-      }))
-    } else {
-      None
-    }
-  })
-  .collect::<Result<O, _>>()
-  .map(|output| (readed, output))
+  let mut decoder = map_decoder::<K, V>(buf);
+  let output = decoder
+    .by_ref()
+    .map(|result| result.map(|(_, entry)| entry))
+    .collect::<Result<O, _>>()?;
+  Ok((decoder.position(), output))
 }
 
 /// Calculates the number of bytes occupied by a varint encoded value in the buffer.
@@ -567,8 +563,16 @@ impl<V: Varint> Iterator for SequenceDecoder<'_, V> {
     if self.offset < self.buf.len() {
       match V::decode(&self.buf[self.offset..]) {
         Ok((bytes_read, value)) => {
-          self.offset += bytes_read.get();
-          Some(Ok((bytes_read, value)))
+          match checked_decode_offset(self.offset, bytes_read, self.buf.len()) {
+            Ok(next_offset) => {
+              self.offset = next_offset;
+              Some(Ok((bytes_read, value)))
+            }
+            Err(e) => {
+              self.offset = self.buf.len();
+              Some(Err(e))
+            }
+          }
         }
         Err(e) => {
           self.offset = self.buf.len();
@@ -620,20 +624,25 @@ impl<K: Varint, V: Varint> Iterator for MapDecoder<'_, K, V> {
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.offset < self.buf.len() {
-      match K::decode(&self.buf[self.offset..]).and_then(|(klen, k)| {
-        self.offset += klen.get();
+      let start_offset = self.offset;
+      let result: Result<_, DecodeError> = (|| {
+        let (klen, k) = K::decode(&self.buf[start_offset..])?;
+        let value_offset = checked_decode_offset(start_offset, klen, self.buf.len())?;
+        let (vlen, v) = V::decode(&self.buf[value_offset..])?;
+        let next_offset = checked_decode_offset(value_offset, vlen, self.buf.len())?;
+        let consumed = next_offset
+          .checked_sub(start_offset)
+          .and_then(NonZeroUsize::new)
+          .ok_or_else(invalid_consumed_length)?;
 
-        V::decode(&self.buf[self.offset..]).map(|(vlen, v)| {
-          self.offset += vlen.get();
-          // Safety: `klen.get() + vlen.get()` is guaranteed to be non-zero because both `k` and `v` are Varint types
-          // and their encoded lengths are non-zero.
-          (
-            unsafe { NonZeroUsize::new_unchecked(klen.get() + vlen.get()) },
-            (k, v),
-          )
-        })
-      }) {
-        Ok(val) => Some(Ok(val)),
+        Ok((next_offset, consumed, (k, v)))
+      })();
+
+      match result {
+        Ok((next_offset, consumed, entry)) => {
+          self.offset = next_offset;
+          Some(Ok((consumed, entry)))
+        }
         Err(e) => {
           self.offset = self.buf.len();
           Some(Err(e))

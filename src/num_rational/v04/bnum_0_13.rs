@@ -11,7 +11,13 @@ use core::num::NonZeroUsize;
 
 type U256 = BUintD8<32>;
 
-impl_varint_for_ratio!(128(U256));
+// `MIN_ENCODED_LEN` is the encoded length of the shortest representable `Ratio`,
+// `0/1`, whose packed form is `pack(0, 1)` (numerator low, denominator high) —
+// not the merged `U256`'s one-byte minimum.
+impl_varint_for_ratio!(@inner
+  u::128(U256) => crate::bnum::encoded_uint_d8_len(&crate::utils::pack_u128(0, 1)),
+  i::128(U256) => crate::bnum::encoded_uint_d8_len(&crate::utils::pack_i128(0, 1)),
+);
 
 /// Returns the encoded length of the `Ratio<u128>` value.
 #[inline]
@@ -87,7 +93,14 @@ macro_rules! impl_varint_for_ratio_bnum {
       $(
         $(
           impl Varint for Ratio<$base<{ $bits / 8 }>> {
-            const MIN_ENCODED_LEN: NonZeroUsize = $base::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
+            // Shortest representable `Ratio` is `0/1`, which packs to `1 << BITS`
+            // (numerator low, denominator high); its encoded length is
+            // `ceil((BITS + 1) / 7)`, not the merged integer's one-byte minimum.
+            const MIN_ENCODED_LEN: NonZeroUsize =
+              match NonZeroUsize::new(($base::<{ $bits / 8 }>::BITS as usize + 1).div_ceil(7)) {
+                Some(v) => v,
+                None => unreachable!(),
+              };
 
             const MAX_ENCODED_LEN: NonZeroUsize = $base::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
 
@@ -120,7 +133,14 @@ macro_rules! impl_varint_for_ratio_bnum {
       $(
         $(
           impl Varint for Ratio<$base<{ $bits / 8 }>> {
-            const MIN_ENCODED_LEN: NonZeroUsize = $unsigned::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
+            // Shortest representable `Ratio` is `0/1`; the signed denominator `1`
+            // zigzag-encodes to `2`, so it packs to `2 << BITS` and its encoded
+            // length is `ceil((BITS + 2) / 7)`, not the merged integer's minimum.
+            const MIN_ENCODED_LEN: NonZeroUsize =
+              match NonZeroUsize::new(($base::<{ $bits / 8 }>::BITS as usize + 2).div_ceil(7)) {
+                Some(v) => v,
+                None => unreachable!(),
+              };
 
             const MAX_ENCODED_LEN: NonZeroUsize = $unsigned::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
 

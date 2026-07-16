@@ -133,3 +133,74 @@ test_mod!(
   I::BIntD32::32,
   I::BInt::64,
 );
+
+// F6 + F7: the packed `Complex<bnum>` types must advertise a `MIN_ENCODED_LEN` that
+// lower-bounds every value's encoded length. `Complex { 0, 0 }` is the shortest.
+#[test]
+fn min_encoded_len_in_range() {
+  fn check<T: crate::Varint>(v: T) {
+    let len = v.encoded_len().get();
+    assert!(len >= T::MIN_ENCODED_LEN.get());
+    assert!(len <= T::MAX_ENCODED_LEN.get());
+    assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+  }
+  // unsigned: small (8-bit component) and wide (256-bit component)
+  check(Complex {
+    re: BUintD8::<1>::ZERO,
+    im: BUintD8::<1>::ZERO,
+  });
+  check(Complex {
+    re: BUintD8::<32>::ZERO,
+    im: BUintD8::<32>::ZERO,
+  });
+  // signed: small and wide
+  check(Complex {
+    re: BIntD8::<1>::ZERO,
+    im: BIntD8::<1>::ZERO,
+  });
+  check(Complex {
+    re: BIntD8::<32>::ZERO,
+    im: BIntD8::<32>::ZERO,
+  });
+}
+
+// F7: the unsigned `Complex<bnum>` path previously packed 8-bit components into an
+// 8x-oversized `BUintD8<bits*2>`. The corrected `BUintD8<(bits/8)*2>` preserves the
+// wire encoding of valid values, gives a tight `MAX_ENCODED_LEN`, and rejects
+// over-wide malformed encodings the oversized type used to silently accept.
+#[test]
+fn f7_unsigned_complex_wire_and_rejection() {
+  type C8 = Complex<BUintD8<1>>;
+
+  // MAX_ENCODED_LEN now equals the (bits/8)*2 = `BUintD8<2>` (16-bit) bound of 3,
+  // strictly smaller than the pre-fix `BUintD8<16>` (128-bit) bound of 19.
+  assert_eq!(
+    <C8 as crate::Varint>::MAX_ENCODED_LEN,
+    BUintD8::<2>::MAX_ENCODED_LEN,
+  );
+  assert_eq!(<C8 as crate::Varint>::MAX_ENCODED_LEN.get(), 3);
+  assert!(<C8 as crate::Varint>::MAX_ENCODED_LEN.get() < BUintD8::<16>::MAX_ENCODED_LEN.get());
+
+  // Wire preservation: zero, small, and a value exercising the high bits of both
+  // components all round-trip through encode/decode.
+  let cases = [
+    (BUintD8::<1>::ZERO, BUintD8::<1>::ZERO),
+    (BUintD8::<1>::ONE, BUintD8::<1>::TWO),
+    (BUintD8::<1>::MAX, BUintD8::<1>::MAX),
+  ];
+  for &(re, im) in cases.iter() {
+    let value = Complex { re, im };
+    let mut buf = [0u8; <C8 as crate::Varint>::MAX_ENCODED_LEN.get()];
+    let n = value.encode(&mut buf).unwrap();
+    let (read, decoded) = C8::decode(&buf).unwrap();
+    assert_eq!(read, n);
+    assert_eq!(decoded.re, re);
+    assert_eq!(decoded.im, im);
+  }
+
+  // Rejection: `[0x80, 0x80, 0x04]` is the LEB128 encoding of `0x1_0000` (17 bits),
+  // which sets a bit above the 16-bit merged width. The corrected merged type
+  // overflows and rejects it; the pre-fix 128-bit merged type decoded it to
+  // `Complex { 0, 0 }` (an over-wide alias of zero).
+  assert!(C8::decode(&[0x80, 0x80, 0x04]).is_err());
+}

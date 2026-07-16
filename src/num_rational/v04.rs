@@ -5,11 +5,16 @@ use crate::{ConstDecodeError, ConstEncodeError, DecodeError, EncodeError, Varint
 use core::num::NonZeroUsize;
 
 macro_rules! impl_varint_for_ratio {
-  (@inner $($sign:ident::$bits:literal($merged_ty:ident)),+$(,)?) => {
+  (@inner $($sign:ident::$bits:literal($merged_ty:ident) => $min_encoded_len:expr),+$(,)?) => {
     paste::paste! {
       $(
         impl Varint for Ratio<[< $sign $bits >]> {
-          const MIN_ENCODED_LEN: NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
+          // The shortest representable `Ratio` is `0/1` (numerator `0` over the
+          // smallest nonzero denominator). Because `pack` stores the numerator in
+          // the low half and the denominator in the high half, that value does not
+          // pack to `0`, so `MIN_ENCODED_LEN` is the encoded length of `pack(0, 1)`
+          // rather than the merged integer's own (one-byte) minimum.
+          const MIN_ENCODED_LEN: NonZeroUsize = $min_encoded_len;
 
           const MAX_ENCODED_LEN: NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 
@@ -38,8 +43,16 @@ macro_rules! impl_varint_for_ratio {
     }
   };
   ($($bits:literal($merged_ty:ident)),+$(,)?) => {
-    impl_varint_for_ratio!(@inner $(u::$bits($merged_ty)),+);
-    impl_varint_for_ratio!(@inner $(i::$bits($merged_ty)),+);
+    paste::paste! {
+      // `MIN_ENCODED_LEN` is the encoded length of `pack(0, 1)`, computed with the
+      // same const encoded-length function the impl uses on the packed value.
+      impl_varint_for_ratio!(@inner $(
+        u::$bits($merged_ty) => $crate::[< encoded_ $merged_ty:snake _varint_len >]($crate::utils::[< pack_ u $bits >](0, 1))
+      ),+);
+      impl_varint_for_ratio!(@inner $(
+        i::$bits($merged_ty) => $crate::[< encoded_ $merged_ty:snake _varint_len >]($crate::utils::[< pack_ i $bits >](0, 1))
+      ),+);
+    }
   };
   (@const_inner $($sign:ident::$bits:literal($merged_ty:ident) {
     encoded_len_fn:$encoded_len_fn:path,

@@ -121,6 +121,13 @@ pub(crate) const fn decode_datetime(
   match decode_i128_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (year, month, day, hour, minute, second, nano) = merged_to_date_time(merged);
+      // Canonicity: `merged_to_date_time` truncates the year to `i32` and masks
+      // every sub-field, so high or masked-off bits would let a non-canonical
+      // `merged` alias a valid datetime. Re-encode the extracted fields and
+      // require an exact match; a well-formed encoder always matches.
+      if date_time_to_merged(year, month, day, hour, minute, second, nano) != merged {
+        return Err(ConstDecodeError::other("non-canonical datetime"));
+      }
       Ok((bytes_read, year, month, day, hour, minute, second, nano))
     }
     Err(e) => Err(e),
@@ -155,6 +162,13 @@ pub(crate) const fn decode_time(
   match decode_u64_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (nano, second, minute, hour) = merged_to_time(merged);
+      // Canonicity: `merged_to_time` only reads the low 48 layout bits, so bits
+      // 48-63 (and any masked-off field bits) are silently dropped and would let
+      // a non-canonical `merged` alias a valid time. Re-encode the extracted
+      // fields and require an exact match; a well-formed encoder always matches.
+      if time_to_merged(nano, second, minute, hour) != merged {
+        return Err(ConstDecodeError::other("non-canonical time"));
+      }
       Ok((bytes_read, nano, second, minute, hour))
     }
     Err(e) => Err(e),
@@ -218,6 +232,14 @@ pub(crate) const fn decode_date(
   match decode_i32_varint(buf) {
     Ok((bytes_read, merged)) => {
       let (year, month, day) = merged_to_date(merged);
+      // Canonicity: `merged_to_date`/`date_to_merged` partition all 32 bits
+      // bijectively (day: 5 bits, month: 4 bits, year: the remaining 23 bits),
+      // so this guard is provably always-true today. It is kept for uniformity
+      // with the other temporal decoders and to stay correct if the layout ever
+      // gains padding or narrower fields.
+      if date_to_merged(year, month, day) != merged {
+        return Err(ConstDecodeError::other("non-canonical date"));
+      }
       Ok((bytes_read, year, month, day))
     }
     Err(e) => Err(e),
@@ -304,6 +326,13 @@ pub(crate) const fn decode_secs_and_subsec_nanos(
 ) -> Result<(NonZeroUsize, i64, i32), ConstDecodeError> {
   match decode_u128_varint(buf) {
     Ok((bytes_read, merged)) => {
+      // The wire layout uses exactly 96 bits: a 64-bit zigzag seconds field above
+      // a 32-bit zigzag nanos field, so every valid merged value is < 2^96. Reject
+      // anything with a bit at or above position 96 instead of silently discarding
+      // those high bits and decoding a malformed value to a wrong result.
+      if merged >> 96 != 0 {
+        return Err(ConstDecodeError::other("value out of range"));
+      }
       let (secs, nanos) = merged_to_secs_and_subsec_nanos(merged);
       Ok((bytes_read, secs, nanos))
     }

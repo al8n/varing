@@ -241,7 +241,7 @@ macro_rules! encode {
     let len = $sequence.len();
     let buf_len = $buf.len();
 
-    while idx < len && total_bytes < buf_len {
+    while idx < len {
       let (_, buf) = $buf.split_at_mut(total_bytes);
       let bytes_written = match $encode_to($sequence[idx], buf) {
         Ok(bytes_written) => bytes_written,

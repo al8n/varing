@@ -7,7 +7,7 @@ macro_rules! impl_varint_for_complex {
     paste::paste! {
       $(
         impl Varint for Complex<[< $sign $bits >]> {
-          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
+          const MIN_ENCODED_LEN: ::core::num::NonZeroUsize = $merged_ty::MIN_ENCODED_LEN;
 
           const MAX_ENCODED_LEN: ::core::num::NonZeroUsize = $merged_ty::MAX_ENCODED_LEN;
 

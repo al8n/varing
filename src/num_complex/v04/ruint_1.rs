@@ -14,7 +14,7 @@ macro_rules! impl_varint_for_complex_ruint {
     paste::paste! {
       $(
         impl Varint for Complex<Uint<$bits, { $bits / 64 } >> {
-          const MIN_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
+          const MIN_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MIN_ENCODED_LEN;
           const MAX_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
 
           fn encoded_len(&self) -> NonZeroUsize {

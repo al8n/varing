@@ -246,6 +246,98 @@ fn test_seq_decoder_clone_and_copy() {
   assert_eq!(copied.position(), original.position());
 }
 
+#[derive(Debug)]
+struct AdversarialDecodeLength;
+
+impl Varint for AdversarialDecodeLength {
+  const MIN_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+  const MAX_ENCODED_LEN: NonZeroUsize = NON_ZERO_USIZE_ONE;
+
+  fn encoded_len(&self) -> NonZeroUsize {
+    NON_ZERO_USIZE_ONE
+  }
+
+  fn encode(&self, _: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
+    Err(EncodeError::other("encoding is not used by this test type"))
+  }
+
+  fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError> {
+    let consumed = if matches!(buf.first(), Some(0)) {
+      NON_ZERO_USIZE_ONE
+    } else {
+      NonZeroUsize::new(usize::MAX).unwrap()
+    };
+    Ok((consumed, Self))
+  }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct ItemCount(usize);
+
+impl<T> core::iter::FromIterator<T> for ItemCount {
+  fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+    Self(iter.into_iter().count())
+  }
+}
+
+#[test]
+fn sequence_decoder_rejects_wrapping_consumed_length() {
+  let buf = [0, 1];
+  let mut decoder = sequence_decoder::<AdversarialDecodeLength>(&buf);
+
+  let (consumed, _) = decoder.next().unwrap().unwrap();
+  assert_eq!(consumed, NON_ZERO_USIZE_ONE);
+  assert_eq!(decoder.position(), 1);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn decode_sequence_rejects_invalid_consumed_length() {
+  assert!(matches!(
+    decode_sequence::<AdversarialDecodeLength, ItemCount>(&[0, 1]),
+    Err(DecodeError::Other(_))
+  ));
+  assert!(matches!(
+    decode_sequence::<AdversarialDecodeLength, ItemCount>(&[1]),
+    Err(DecodeError::Other(_))
+  ));
+}
+
+#[test]
+fn map_decoder_rejects_wrapping_consumed_length() {
+  let buf = [0];
+  let mut decoder = map_decoder::<AdversarialDecodeLength, AdversarialDecodeLength>(&buf);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn map_decoder_rejects_out_of_bounds_key_length() {
+  let buf = [1];
+  let mut decoder = map_decoder::<AdversarialDecodeLength, AdversarialDecodeLength>(&buf);
+
+  assert!(matches!(decoder.next(), Some(Err(DecodeError::Other(_)))));
+  assert_eq!(decoder.position(), buf.len());
+  assert!(decoder.next().is_none());
+}
+
+#[test]
+fn decode_map_rejects_invalid_consumed_lengths() {
+  assert!(matches!(
+    decode_map::<AdversarialDecodeLength, AdversarialDecodeLength, ItemCount>(&[0]),
+    Err(DecodeError::Other(_))
+  ));
+  assert!(matches!(
+    decode_map::<AdversarialDecodeLength, AdversarialDecodeLength, ItemCount>(&[1]),
+    Err(DecodeError::Other(_))
+  ));
+}
+
 #[allow(dead_code)]
 #[test]
 fn test_default_varint_range() {
@@ -275,4 +367,201 @@ fn test_default_varint_range() {
   let range = Wrap::ENCODED_LEN_RANGE;
   assert_eq!(range.start_bound(), Bound::Included(&u64::MIN_ENCODED_LEN));
   assert_eq!(range.end_bound(), Bound::Included(&u64::MAX_ENCODED_LEN));
+}
+
+// The specialized sequence encoders (`encode_<ty>_sequence_to`) must never silently
+// stop early and return `Ok` with a partial result: if the buffer cannot hold every
+// element, the whole call must fail with `ConstEncodeError::InsufficientSpace`, and
+// the reported `requested`/`available` must reflect the *full* sequence requirement,
+// not just the first failing element.
+
+#[test]
+fn encode_u8_sequence_to_empty_buffer_and_nonempty_sequence_errors() {
+  let err = encode_u8_sequence_to(&[1u8, 2u8], &mut []).unwrap_err();
+  assert!(matches!(err, ConstEncodeError::InsufficientSpace(_)));
+}
+
+#[test]
+fn encode_u8_sequence_to_one_byte_too_short_errors() {
+  // The exact regression: the buffer fills exactly after the first element,
+  // silently dropping the second. Must be `Err`, not `Ok(1)`.
+  let err = encode_u8_sequence_to(&[1u8, 2u8], &mut [0u8; 1]).unwrap_err();
+  match err {
+    ConstEncodeError::InsufficientSpace(iss) => {
+      assert_eq!(iss.requested().get(), 2);
+      assert_eq!(iss.available(), 1);
+    }
+    other => panic!("expected InsufficientSpace, got {other:?}"),
+  }
+}
+
+#[test]
+fn encode_u8_sequence_to_exact_fit_roundtrips() {
+  let seq = [1u8, 2u8, 200u8];
+  let total = encoded_u8_sequence_len(&seq);
+  assert_eq!(total, 4);
+
+  let mut buf = [0u8; 4];
+  let written = encode_u8_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_u8_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_u8_sequence_to_oversized_buffer_ok() {
+  let seq = [1u8, 2u8, 200u8];
+  let total = encoded_u8_sequence_len(&seq);
+
+  let mut buf = [0xFFu8; 16];
+  let written = encode_u8_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_u8_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_u8_sequence_to_empty_sequence_ok() {
+  let seq: [u8; 0] = [];
+  assert_eq!(encode_u8_sequence_to(&seq, &mut []).unwrap(), 0);
+  assert_eq!(encode_u8_sequence_to(&seq, &mut [0xFFu8; 4]).unwrap(), 0);
+}
+
+#[test]
+fn encode_u16_sequence_to_empty_buffer_and_nonempty_sequence_errors() {
+  let err = encode_u16_sequence_to(&[1u16, 2u16], &mut []).unwrap_err();
+  assert!(matches!(err, ConstEncodeError::InsufficientSpace(_)));
+}
+
+#[test]
+fn encode_u16_sequence_to_one_byte_too_short_errors() {
+  // Two multi-byte elements (300 needs 2 bytes each, 4 bytes total); a 2-byte
+  // buffer holds only the first element and must still error rather than
+  // silently reporting `Ok(2)`.
+  let err = encode_u16_sequence_to(&[300u16, 300u16], &mut [0u8; 2]).unwrap_err();
+  match err {
+    ConstEncodeError::InsufficientSpace(iss) => {
+      assert_eq!(iss.requested().get(), 4);
+      assert_eq!(iss.available(), 2);
+    }
+    other => panic!("expected InsufficientSpace, got {other:?}"),
+  }
+}
+
+#[test]
+fn encode_u16_sequence_to_exact_fit_roundtrips() {
+  let seq = [1u16, 2u16, 300u16];
+  let total = encoded_u16_sequence_len(&seq);
+  assert_eq!(total, 4);
+
+  let mut buf = [0u8; 4];
+  let written = encode_u16_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_u16_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_u16_sequence_to_oversized_buffer_ok() {
+  let seq = [1u16, 2u16, 300u16];
+  let total = encoded_u16_sequence_len(&seq);
+
+  let mut buf = [0xFFu8; 16];
+  let written = encode_u16_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_u16_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_u16_sequence_to_empty_sequence_ok() {
+  let seq: [u16; 0] = [];
+  assert_eq!(encode_u16_sequence_to(&seq, &mut []).unwrap(), 0);
+  assert_eq!(encode_u16_sequence_to(&seq, &mut [0xFFu8; 4]).unwrap(), 0);
+}
+
+#[test]
+fn encode_i16_sequence_to_empty_buffer_and_nonempty_sequence_errors() {
+  let err = encode_i16_sequence_to(&[1i16, 2i16], &mut []).unwrap_err();
+  assert!(matches!(err, ConstEncodeError::InsufficientSpace(_)));
+}
+
+#[test]
+fn encode_i16_sequence_to_one_byte_too_short_errors() {
+  let err = encode_i16_sequence_to(&[1i16, 2i16], &mut [0u8; 1]).unwrap_err();
+  match err {
+    ConstEncodeError::InsufficientSpace(iss) => {
+      assert_eq!(iss.requested().get(), 2);
+      assert_eq!(iss.available(), 1);
+    }
+    other => panic!("expected InsufficientSpace, got {other:?}"),
+  }
+}
+
+#[test]
+fn encode_i16_sequence_to_exact_fit_roundtrips() {
+  let seq = [1i16, -2i16, 1000i16];
+  let total = encoded_i16_sequence_len(&seq);
+  assert_eq!(total, 4);
+
+  let mut buf = [0u8; 4];
+  let written = encode_i16_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_i16_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_i16_sequence_to_oversized_buffer_ok() {
+  let seq = [1i16, -2i16, 1000i16];
+  let total = encoded_i16_sequence_len(&seq);
+
+  let mut buf = [0xFFu8; 16];
+  let written = encode_i16_sequence_to(&seq, &mut buf).unwrap();
+  assert_eq!(written, total);
+
+  let mut offset = 0;
+  for &expected in &seq {
+    let (read, value) = decode_i16_varint(&buf[offset..written]).unwrap();
+    assert_eq!(value, expected);
+    offset += read.get();
+  }
+  assert_eq!(offset, written);
+}
+
+#[test]
+fn encode_i16_sequence_to_empty_sequence_ok() {
+  let seq: [i16; 0] = [];
+  assert_eq!(encode_i16_sequence_to(&seq, &mut []).unwrap(), 0);
+  assert_eq!(encode_i16_sequence_to(&seq, &mut [0xFFu8; 4]).unwrap(), 0);
 }
