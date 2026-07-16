@@ -44,8 +44,21 @@ pub const fn encode_duration_to(
 pub const fn decode_duration(buf: &[u8]) -> Result<(NonZeroUsize, Duration), ConstDecodeError> {
   match decode_u128_varint(buf) {
     Ok((bytes_read, value)) => {
+      // The wire layout uses exactly 96 bits: 32 for nanos, 64 for seconds.
+      // Reject any value with a bit at or above position 96 instead of silently
+      // discarding those high bits (which would decode a malformed value to a
+      // wrong `Duration` such as `Duration::ZERO`).
+      if value >> 96 != 0 {
+        return Err(ConstDecodeError::other("value out of range"));
+      }
       let secs = (value >> 32) as u64; // get upper 64 bits
       let nanos = (value & 0xFFFFFFFF) as u32; // get lower 32 bits
+      // A well-formed encoder always emits `subsec_nanos() < 1_000_000_000`.
+      // Reject malformed input so `Duration::new`'s nanos->secs carry cannot
+      // overflow `u64` and panic.
+      if nanos >= 1_000_000_000 {
+        return Err(ConstDecodeError::other("nanos out of range"));
+      }
       Ok((bytes_read, Duration::new(secs, nanos)))
     }
     Err(e) => Err(e),
@@ -112,5 +125,39 @@ mod tests {
     } else {
       false
     }
+  }
+
+  #[cfg(feature = "std")]
+  #[test]
+  fn decode_rejects_nanos_overflow_without_panic() {
+    // Malformed wire: secs = u64::MAX, nanos = 1_000_000_000 (>= 1e9), which
+    // makes `Duration::new`'s nanos->secs carry overflow `u64` and panic.
+    let value = ((u64::MAX as u128) << 32) | 1_000_000_000;
+    let encoded = encode_u128_varint(value);
+    let result = std::panic::catch_unwind(move || decode_duration(&encoded));
+    assert!(matches!(result, Ok(Err(_))));
+
+    // A normal duration still round-trips.
+    let normal = Duration::new(42, 123_456_789);
+    let enc = encode_duration(&normal);
+    let (read, decoded) = decode_duration(&enc).unwrap();
+    assert_eq!(decoded, normal);
+    assert_eq!(read.get(), enc.len());
+  }
+
+  #[test]
+  fn decode_rejects_out_of_range_seconds() {
+    // Malformed wire: any value with a bit at or above position 96 exceeds the
+    // 96-bit duration layout (32-bit nanos + 64-bit secs). The decoder must reject
+    // it instead of silently discarding the high bits and returning `Duration::ZERO`.
+    let encoded = encode_u128_varint(1u128 << 96);
+    assert!(decode_duration(&encoded).is_err());
+
+    // A normal duration still round-trips.
+    let normal = Duration::new(42, 123_456_789);
+    let enc = encode_duration(&normal);
+    let (read, decoded) = decode_duration(&enc).unwrap();
+    assert_eq!(decoded, normal);
+    assert_eq!(read.get(), enc.len());
   }
 }

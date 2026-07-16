@@ -7,15 +7,36 @@ use core::num::NonZeroUsize;
 #[cfg(not(feature = "bnum_0_13"))]
 use ::ruint_1::aliases::U256;
 
+// `MIN_ENCODED_LEN` is the encoded length of the shortest representable `Ratio`,
+// `0/1`, which packs to `1 << 128` (unsigned) / `2 << 128` (signed, denominator
+// `1` zigzags to `2`) — not the merged `U256`'s one-byte minimum. `ruint`'s pack
+// and `encoded_len` are not `const`, so the length is computed directly as
+// `ceil((128 + off) / 7)`.
 #[cfg(not(feature = "bnum_0_13"))]
-impl_varint_for_ratio!(128(U256));
+impl_varint_for_ratio!(@inner
+  u::128(U256) => match NonZeroUsize::new((128usize + 1).div_ceil(7)) {
+    Some(v) => v,
+    None => unreachable!(),
+  },
+  i::128(U256) => match NonZeroUsize::new((128usize + 2).div_ceil(7)) {
+    Some(v) => v,
+    None => unreachable!(),
+  },
+);
 
 macro_rules! impl_varint_for_ratio_ruint {
   ($($bits:literal),+$(,)?) => {
     paste::paste! {
       $(
         impl Varint for Ratio<Uint<$bits, { $bits / 64 } >> {
-          const MIN_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
+          // Shortest representable `Ratio` is `0/1`, which packs to `1 << BITS`
+          // (numerator low, denominator high); its encoded length is
+          // `ceil((BITS + 1) / 7)`, not the merged integer's one-byte minimum.
+          const MIN_ENCODED_LEN: NonZeroUsize =
+            match NonZeroUsize::new(($bits as usize + 1).div_ceil(7)) {
+              Some(v) => v,
+              None => unreachable!(),
+            };
 
           const MAX_ENCODED_LEN: NonZeroUsize = Uint::<{$bits * 2}, {($bits * 2) / 64}>::MAX_ENCODED_LEN;
 

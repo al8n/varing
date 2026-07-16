@@ -82,24 +82,24 @@ macro_rules! impl_varint_for_complex_bnum {
       $(
         $(
           impl Varint for Complex<$base<{ $bits / 8 }>> {
-            const MIN_ENCODED_LEN: NonZeroUsize = $base::<{ ($bits) * 2 }>::MAX_ENCODED_LEN;
+            const MIN_ENCODED_LEN: NonZeroUsize = $base::<{ ($bits / 8) * 2 }>::MIN_ENCODED_LEN;
 
-            const MAX_ENCODED_LEN: NonZeroUsize = $base::<{ ($bits) * 2 }>::MAX_ENCODED_LEN;
+            const MAX_ENCODED_LEN: NonZeroUsize = $base::<{ ($bits / 8) * 2 }>::MAX_ENCODED_LEN;
 
             fn encoded_len(&self) -> NonZeroUsize {
-              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::pack(&self.re, &self.im).encoded_len()
+              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits / 8) * 2 }>>::pack(&self.re, &self.im).encoded_len()
             }
 
             fn encode(&self, buf: &mut [u8]) -> Result<NonZeroUsize, EncodeError> {
-              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::pack(&self.re, &self.im).encode(buf)
+              Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits / 8) * 2 }>>::pack(&self.re, &self.im).encode(buf)
             }
 
             fn decode(buf: &[u8]) -> Result<(NonZeroUsize, Self), DecodeError>
             where
               Self: Sized,
             {
-              let (bytes_read, merged) = $base::< { ($bits) * 2 }>::decode(buf)?;
-              let (re, im): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits) * 2 }>>::unpack(merged);
+              let (bytes_read, merged) = $base::< { ($bits / 8) * 2 }>::decode(buf)?;
+              let (re, im): ($base<{ $bits / 8 }>, $base<{ $bits / 8 }>) = Packable::<$base::<{ $bits / 8 }>, $base::<{ ($bits / 8) * 2 }>>::unpack(merged);
               Ok((bytes_read, Complex { re, im }))
             }
           }
@@ -112,7 +112,7 @@ macro_rules! impl_varint_for_complex_bnum {
       $(
         $(
           impl Varint for Complex<$base<{ $bits / 8 }>> {
-            const MIN_ENCODED_LEN: NonZeroUsize = $unsigned::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
+            const MIN_ENCODED_LEN: NonZeroUsize = $unsigned::<{($bits / 8) * 2}>::MIN_ENCODED_LEN;
 
             const MAX_ENCODED_LEN: NonZeroUsize = $unsigned::<{($bits / 8) * 2}>::MAX_ENCODED_LEN;
 

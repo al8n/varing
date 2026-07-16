@@ -304,7 +304,15 @@ macro_rules! generate_signed {
             let min_encoded_len = [< encoded_ $inner _varint_len >](min);
             let max_encoded_len = [< encoded_ $inner _varint_len >](max);
 
-            assert_eq!(min_encoded_len, <$inner as Varint>::MIN_ENCODED_LEN);
+            // `MIN_ENCODED_LEN` is the minimum encoded length over ALL values (for a
+            // zigzag-encoded signed integer that is the length of `0`, i.e. one byte),
+            // not the encoded length of the numeric minimum which encodes longest.
+            assert_eq!(
+              <$inner as Varint>::MIN_ENCODED_LEN,
+              [< encoded_ $underlying _varint_len >](0),
+            );
+            assert!(min_encoded_len.get() >= <$inner as Varint>::MIN_ENCODED_LEN.get());
+            assert!(min_encoded_len.get() <= <$inner as Varint>::MAX_ENCODED_LEN.get());
             assert_eq!(max_encoded_len, <$inner as Varint>::MAX_ENCODED_LEN);
 
             let mut buf = [0; <$inner as Varint>::MAX_ENCODED_LEN.get()];
@@ -364,7 +372,11 @@ macro_rules! generate_signed {
         }
 
         impl<const BITS: usize> Varint for Int<[< i $storage>], BITS> {
-          const MIN_ENCODED_LEN: NonZeroUsize = [< encoded_int_d $storage _len >](Int::<[< i $storage>], BITS>::MIN);
+          // `MIN_ENCODED_LEN` is the *minimum* encoded length over all values, not the
+          // encoded length of the numeric minimum. Signed values are zigzag-encoded, so
+          // the smallest-magnitude value `0` maps to `0` and encodes in a single LEB128
+          // byte; `0` is representable for every `BITS >= 1`, so the minimum is always 1.
+          const MIN_ENCODED_LEN: NonZeroUsize = crate::NON_ZERO_USIZE_ONE;
           const MAX_ENCODED_LEN: NonZeroUsize = {
             let min_len = [< encoded_int_d $storage _len >](Int::<[< i $storage>], BITS>::MIN);
             let max_len = [< encoded_int_d $storage _len >](Int::<[< i $storage>], BITS>::MAX);
@@ -404,3 +416,26 @@ generate_signed!(
 );
 
 generate_signed!(@generic 8, 16, 32, 64, 128,);
+
+#[cfg(test)]
+mod min_encoded_len_tests {
+  use crate::Varint;
+  use ::arbitrary_int_2::prelude::*;
+
+  // F6: for a zigzag-encoded signed `Int`, `MIN_ENCODED_LEN` is the length of the
+  // shortest value (`0`, a single byte), not of the numeric minimum which encodes
+  // longest. The zero value must therefore encode within `MIN_ENCODED_LEN..=MAX`.
+  #[test]
+  fn signed_zero_in_range() {
+    fn check<T: Varint>(zero: T) {
+      let len = zero.encoded_len().get();
+      assert_eq!(T::MIN_ENCODED_LEN.get(), 1);
+      assert!(len >= T::MIN_ENCODED_LEN.get());
+      assert!(len <= T::MAX_ENCODED_LEN.get());
+      assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+    }
+    // small width and wide width
+    check(Int::<i8, 4>::try_new(0).unwrap());
+    check(Int::<i128, 128>::try_new(0).unwrap());
+  }
+}

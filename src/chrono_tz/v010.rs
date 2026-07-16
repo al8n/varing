@@ -54,16 +54,22 @@ pub const fn encode_tz(tz: Tz) -> Buffer<{ Tz::MAX_ENCODED_LEN.get() + 1 }> {
 pub const fn decode_tz(buf: &[u8]) -> Result<(NonZeroUsize, Tz), ConstDecodeError> {
   match decode_i16_varint(buf) {
     Ok((len, tz)) => {
-      let mut i = 0;
-      let mut found = None;
-
-      while i < TZ_VALUES.len() {
-        if TZ_VALUES[i] == tz {
-          found = Some(TZ_VARIANTS[i]);
-          break;
+      // `chrono-tz`'s `Tz` enum has no explicit discriminants and `TZ_VARIANTS`
+      // lists variants in the same order as the enum declaration, so
+      // `TZ_VALUES[i] == i as i16` holds for every valid index `i`. That lets
+      // us jump straight to the slot instead of scanning `TZ_VALUES` linearly.
+      // The `TZ_VALUES[idx] == tz` guard keeps the exact same accept/reject
+      // behavior as the old linear scan even if that invariant ever changes.
+      let found = if tz >= 0 {
+        let idx = tz as usize;
+        if idx < TZ_VALUES.len() && TZ_VALUES[idx] == tz {
+          Some(TZ_VARIANTS[idx])
+        } else {
+          None
         }
-        i += 1;
-      }
+      } else {
+        None
+      };
 
       if let Some(tz) = found {
         Ok((len, tz))
@@ -103,7 +109,10 @@ impl Varint for Tz {
 mod tests {
   use quickcheck::Arbitrary;
 
-  use super::{TZ_VALUES, TZ_VARIANTS, Varint, decode_tz, encode_tz, encoded_tz_len};
+  use super::{
+    ConstDecodeError, TZ_VALUES, TZ_VARIANTS, Varint, decode_tz, encode_i16_varint_to, encode_tz,
+    encoded_tz_len,
+  };
 
   #[derive(Debug, Clone, Copy, PartialEq, Eq)]
   struct Tz(super::Tz);
@@ -124,4 +133,53 @@ mod tests {
 
   fuzzy!(@varint_into (Tz(super::Tz)));
   fuzzy!(@const_varint_into (Tz(super::Tz)));
+
+  #[test]
+  fn decode_tz_round_trips_first_middle_last() {
+    let first = TZ_VARIANTS[0];
+    let last = TZ_VARIANTS[TZ_VARIANTS.len() - 1];
+    let middle = TZ_VARIANTS[TZ_VARIANTS.len() / 2];
+
+    for tz in [first, middle, last] {
+      let encoded = encode_tz(tz);
+      assert_eq!(encoded.len(), encoded_tz_len(tz).get());
+
+      let (bytes_read, decoded) = decode_tz(&encoded).expect("valid timezone must decode");
+      assert_eq!(decoded, tz);
+      assert_eq!(bytes_read.get(), encoded.len());
+    }
+  }
+
+  #[test]
+  fn decode_tz_rejects_out_of_range_and_negative_values() {
+    // One past the last valid discriminant, and a comfortably out-of-range value.
+    for invalid in [TZ_VARIANTS.len() as i16, i16::MAX] {
+      let mut buf = [0u8; 4];
+      let len = encode_i16_varint_to(invalid, &mut buf).unwrap();
+      assert_eq!(
+        decode_tz(&buf[..len.get()]),
+        Err(ConstDecodeError::other("Invalid timezone value"))
+      );
+    }
+
+    // Negative values are never valid discriminants.
+    for invalid in [-1i16, i16::MIN] {
+      let mut buf = [0u8; 4];
+      let len = encode_i16_varint_to(invalid, &mut buf).unwrap();
+      assert_eq!(
+        decode_tz(&buf[..len.get()]),
+        Err(ConstDecodeError::other("Invalid timezone value"))
+      );
+    }
+  }
+
+  #[test]
+  fn decode_tz_round_trips_every_variant() {
+    for (i, &tz) in TZ_VARIANTS.iter().enumerate() {
+      let encoded = encode_tz(tz);
+      let (bytes_read, decoded) = decode_tz(&encoded).expect("every table entry must decode");
+      assert_eq!(decoded, tz, "mismatch at index {i}");
+      assert_eq!(bytes_read.get(), encoded.len());
+    }
+  }
 }

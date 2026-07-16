@@ -110,3 +110,73 @@ mod bnum_0_13;
 
 #[cfg(feature = "ruint_1")]
 mod ruint_1;
+
+// F6: `MIN_ENCODED_LEN` is the *minimum* encoded length of any value. The shortest
+// representable `Ratio` is a zero numerator over `1` (the smallest nonzero
+// denominator). Because `pack` stores the numerator low and the denominator high,
+// `0/1` does not pack to `0`, so `MIN_ENCODED_LEN` must equal `encoded_len(0/1)`
+// (which is 2+ bytes), and no representable `Ratio` may encode any shorter.
+#[test]
+fn min_encoded_len_in_range() {
+  use crate::Varint;
+
+  fn check<T: crate::Varint>(v: T) {
+    let len = v.encoded_len().get();
+    assert!(
+      len >= T::MIN_ENCODED_LEN.get(),
+      "encoded_len {len} below MIN_ENCODED_LEN {}",
+      T::MIN_ENCODED_LEN.get(),
+    );
+    assert!(
+      len <= T::MAX_ENCODED_LEN.get(),
+      "encoded_len {len} above MAX_ENCODED_LEN {}",
+      T::MAX_ENCODED_LEN.get(),
+    );
+    assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+  }
+
+  // `MIN_ENCODED_LEN` must equal the encoded length of `0/1` for small and wide
+  // widths, unsigned and signed.
+  assert_eq!(
+    Ratio::<u8>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(0u8, 1u8).encoded_len().get(),
+  );
+  assert_eq!(
+    Ratio::<u64>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(0u64, 1u64).encoded_len().get(),
+  );
+  assert_eq!(
+    Ratio::<i8>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(0i8, 1i8).encoded_len().get(),
+  );
+  assert_eq!(
+    Ratio::<i64>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(0i64, 1i64).encoded_len().get(),
+  );
+
+  // small and wide widths, unsigned and signed
+  check(Ratio::new_raw(0u8, 1u8));
+  check(Ratio::new_raw(0u64, 1u64));
+  check(Ratio::new_raw(0i8, 1i8));
+  check(Ratio::new_raw(0i64, 1i64));
+
+  // Non-vacuous: exhaust every representable `Ratio<u8>` and `Ratio<i8>`. `0/1`
+  // achieves `MIN_ENCODED_LEN` and nothing encodes shorter.
+  let min_u8 = Ratio::<u8>::MIN_ENCODED_LEN.get();
+  assert_eq!(min_u8, Ratio::new_raw(0u8, 1u8).encoded_len().get());
+  for numer in 0u8..=u8::MAX {
+    for denom in 1u8..=u8::MAX {
+      assert!(Ratio::new_raw(numer, denom).encoded_len().get() >= min_u8);
+    }
+  }
+  let min_i8 = Ratio::<i8>::MIN_ENCODED_LEN.get();
+  assert_eq!(min_i8, Ratio::new_raw(0i8, 1i8).encoded_len().get());
+  for numer in i8::MIN..=i8::MAX {
+    for denom in i8::MIN..=i8::MAX {
+      if denom == 0 {
+        continue;
+      }
+      assert!(Ratio::new_raw(numer, denom).encoded_len().get() >= min_i8);
+    }
+  }
+}

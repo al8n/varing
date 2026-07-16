@@ -52,3 +52,55 @@ ratio_ruint_fuzzy!(@varint_into (
   RUintRatioU2048(Ratio<U2048>),
   RUintRatioU4096(Ratio<U4096>),
 ));
+
+// F6: the packed `Ratio<ruint>` types must advertise a `MIN_ENCODED_LEN` that lower-
+// bounds every value's encoded length. The shortest representable value is a zero
+// numerator over `1`; because `pack` stores the numerator low and denominator high,
+// `0/1` does not pack to `0`, so `MIN_ENCODED_LEN` must equal `encoded_len(0/1)`
+// (2+ bytes) and no representable `Ratio` may encode any shorter.
+#[test]
+fn min_encoded_len_in_range() {
+  use crate::Varint;
+
+  fn check<T: crate::Varint>(v: T) {
+    let len = v.encoded_len().get();
+    assert!(len >= T::MIN_ENCODED_LEN.get());
+    assert!(len <= T::MAX_ENCODED_LEN.get());
+    assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+  }
+
+  // `MIN_ENCODED_LEN` must equal `encoded_len(0/1)` for small and wide widths.
+  assert_eq!(
+    Ratio::<U64>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(U64::ZERO, U64::from(1u64))
+      .encoded_len()
+      .get(),
+  );
+  assert_eq!(
+    Ratio::<U256>::MIN_ENCODED_LEN.get(),
+    Ratio::new_raw(U256::ZERO, U256::from(1u64))
+      .encoded_len()
+      .get(),
+  );
+
+  // small (64-bit) and wide (256-bit)
+  check(Ratio::new_raw(U64::ZERO, U64::from(1u64)));
+  check(Ratio::new_raw(U256::ZERO, U256::from(1u64)));
+
+  // Non-vacuous: sample small representable `Ratio<U64>` values (which are the
+  // candidates for the shortest encoding). `0/1` achieves `MIN_ENCODED_LEN` and
+  // nothing encodes shorter.
+  let min = Ratio::<U64>::MIN_ENCODED_LEN.get();
+  assert_eq!(
+    min,
+    Ratio::new_raw(U64::ZERO, U64::from(1u64))
+      .encoded_len()
+      .get()
+  );
+  for numer in 0u64..256 {
+    for denom in 1u64..256 {
+      let r = Ratio::new_raw(U64::from(numer), U64::from(denom));
+      assert!(r.encoded_len().get() >= min);
+    }
+  }
+}

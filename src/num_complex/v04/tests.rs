@@ -126,3 +126,39 @@ mod ruint_1;
 
 #[cfg(feature = "bnum_0_13")]
 mod bnum_0_13;
+
+// F6: `MIN_ENCODED_LEN` is the *minimum* encoded length of any value. The shortest
+// value for the packed `Complex` types is `Complex { 0, 0 }` (packs to `0`), so its
+// `encoded_len()` must fall within `MIN_ENCODED_LEN..=MAX_ENCODED_LEN`.
+#[test]
+fn min_encoded_len_in_range() {
+  fn check<T: crate::Varint>(v: T) {
+    let len = v.encoded_len().get();
+    assert!(
+      len >= T::MIN_ENCODED_LEN.get(),
+      "encoded_len {len} below MIN_ENCODED_LEN {}",
+      T::MIN_ENCODED_LEN.get(),
+    );
+    assert!(
+      len <= T::MAX_ENCODED_LEN.get(),
+      "encoded_len {len} above MAX_ENCODED_LEN {}",
+      T::MAX_ENCODED_LEN.get(),
+    );
+    assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+  }
+
+  // small and wide widths, unsigned and signed
+  check(Complex { re: 0u8, im: 0u8 });
+  check(Complex { re: 0u64, im: 0u64 });
+  check(Complex { re: 0i8, im: 0i8 });
+  check(Complex { re: 0i64, im: 0i64 });
+  // float components delegate to the integer path
+  check(Complex {
+    re: 0.0f32,
+    im: 0.0f32,
+  });
+  check(Complex {
+    re: 0.0f64,
+    im: 0.0f64,
+  });
+}

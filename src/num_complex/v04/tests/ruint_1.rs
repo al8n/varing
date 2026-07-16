@@ -53,3 +53,24 @@ complex_ruint_fuzzy!(@varint_into (
   RUintComplexU2048(Complex<U2048>),
   RUintComplexU4096(Complex<U4096>),
 ));
+
+// F6: the packed `Complex<ruint>` types must advertise a `MIN_ENCODED_LEN` that
+// lower-bounds every value's encoded length. `Complex { 0, 0 }` is the shortest.
+#[test]
+fn min_encoded_len_in_range() {
+  fn check<T: crate::Varint>(v: T) {
+    let len = v.encoded_len().get();
+    assert!(len >= T::MIN_ENCODED_LEN.get());
+    assert!(len <= T::MAX_ENCODED_LEN.get());
+    assert!(T::MIN_ENCODED_LEN.get() <= T::MAX_ENCODED_LEN.get());
+  }
+  // small (64-bit component) and wide (256-bit component)
+  check(Complex {
+    re: U64::ZERO,
+    im: U64::ZERO,
+  });
+  check(Complex {
+    re: U256::ZERO,
+    im: U256::ZERO,
+  });
+}

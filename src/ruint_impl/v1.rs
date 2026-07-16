@@ -111,12 +111,22 @@ impl<const BITS: usize, const LBITS: usize> Varint for Uint<BITS, LBITS> {
     while bytes_read < buf.len() {
       let byte = buf[bytes_read];
       // Extract the 7 data bits
-      let value = Self::from(byte & 0x7f);
+      let payload = byte & 0x7f;
 
       // Check for overflow
       if shift >= BITS {
         return Err(DecodeError::Overflow);
       }
+
+      // `checked_shl` only rejects shifts >= BITS; for a non-multiple-of-7
+      // width the highest partial byte can carry data bits above BITS that
+      // would otherwise be silently truncated. Reject those excess bits.
+      let remaining_bits = BITS - shift;
+      if remaining_bits < 7 && (payload >> remaining_bits) != 0 {
+        return Err(DecodeError::Overflow);
+      }
+
+      let value = Self::from(payload);
 
       // Add the bits to the result
       // Need to handle potential overflow
@@ -232,6 +242,39 @@ mod tests_ruint_1 {
   max_encoded_len!(
     U0, U1, U16, U32, U64, U128, U256, U320, U384, U448, U512, U768, U1024, U2048, U4096
   );
+
+  #[test]
+  fn final_byte_excess_bits_are_rejected() {
+    // BITS = 8 is not a multiple of 7: the second byte's payload carries bits
+    // above the 8-bit width. Previously these were silently truncated and the
+    // decode wrongly returned `Ok((2, 127))`; now it must be rejected.
+    assert!(matches!(
+      <Uint<8, 1>>::decode(&[0xff, 0x02]),
+      Err(DecodeError::Overflow)
+    ));
+
+    // Valid maxima still decode: Uint<8> max = 255 = [0xff, 0x01].
+    let (read, value) = <Uint<8, 1>>::decode(&[0xff, 0x01]).unwrap();
+    assert_eq!(read.get(), 2);
+    assert_eq!(value, Uint::<8, 1>::MAX);
+
+    // A wider, non-multiple-of-7 width (U256) round-trips its true maximum.
+    let max = U256::MAX;
+    let mut buf = [0u8; <U256>::MAX_ENCODED_LEN.get()];
+    let written = max.encode(&mut buf).unwrap();
+    let (read, value) = U256::decode(&buf).unwrap();
+    assert_eq!(read, written);
+    assert_eq!(value, max);
+
+    // U256: 256 = 7 * 36 + 4, so the 37th byte holds only 4 payload bits.
+    // A terminal byte with a bit above that width (0x10) must be rejected.
+    let mut overflow = [0x80u8; 37];
+    overflow[36] = 0x10;
+    assert!(matches!(
+      U256::decode(&overflow),
+      Err(DecodeError::Overflow)
+    ));
+  }
 
   #[cfg(feature = "std")]
   mod with_std {
