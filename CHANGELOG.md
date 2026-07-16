@@ -1,5 +1,59 @@
 # RELEASED
 
+## 0.14.0 (Jul 17th, 2026)
+
+Safety and correctness release from a deep audit of the decoders and the
+encoded-length contracts. Malformed and non-canonical inputs now always
+return a decode error instead of panicking, aliasing a valid value, or being
+silently accepted. Valid-value wire encodings, `no_std`/no-alloc operation,
+and const-callability are preserved.
+
+### Fixed (soundness)
+
+- `bnum` unequal-width `Packable::pack`/`unpack` performed an out-of-bounds
+  read reachable from safe code; the digit copies are now correctly bounded.
+- `MapDecoder` (and the sequence/map decode helpers) could construct
+  `NonZeroUsize(0)` in release builds from a safe but adversarial `Varint`
+  implementation; consumed lengths are now validated with checked arithmetic
+  before slicing.
+
+### Fixed (decoders reject malformed input instead of panicking or aliasing)
+
+- The `bnum` and `ruint` decoders now reject excess data bits in a partial
+  final byte instead of decoding an over-wide value to a truncated result.
+- The core, `chrono`, and `time` `Duration` decoders no longer panic on
+  hostile bytes: out-of-range seconds/nanoseconds are rejected, and signed
+  durations reject sign-mismatched seconds and subseconds that would
+  otherwise normalize to a different value.
+- The `time`/`chrono` time, date, and datetime decoders reject non-canonical
+  encodings (bits outside the packed layout can no longer alias a valid value).
+
+### Fixed (encoded-length contracts)
+
+- `MIN_ENCODED_LEN` for `Complex`, `Ratio`, and signed `arbitrary-int` types
+  was set to a maximum; it is now the true minimum, so `ENCODED_LEN_RANGE`
+  holds. For `Ratio` this is the length of the shortest valid value (a zero
+  denominator is not representable, so the minimum is `0/1`, not one byte).
+- Unsigned `Complex<bnum>` packed into an eightfold-oversized type; it now
+  uses the correct `(bits / 8) * 2` digit width, shrinking `MAX_ENCODED_LEN`
+  and the packed temporary and rejecting over-wide non-canonical aliases.
+
+### Fixed (encoders)
+
+- The specialized `encode_*_sequence_to` functions returned `Ok` after
+  encoding only a prefix when the buffer was too small; they now fail with an
+  insufficient-space error (all-or-error).
+
+### Changed
+
+- Timezone decoding (`chrono-tz`) uses an `O(1)` checked direct index instead
+  of a linear scan over all variants, preserving the exact accept/reject set.
+
+### Added
+
+- `From<InsufficientData>` and `From<InsufficientSpace>` conversions into
+  `std::io::Error` (`UnexpectedEof` and `WriteZero` kinds).
+
 ## 0.12.0 (Mar 14th, 2026)
 
 - Extract `InsufficientData` into a standalone error struct (mirrors `InsufficientSpace`)
