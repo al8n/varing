@@ -112,6 +112,43 @@ The following feature flags enable varint support for types from third-party cra
 | `ruint` (= v1) | [`ruint`] | Not `const`-compatible |
 | `time` (= v0.3) | [`time`] | |
 
+## Benchmarks
+
+`varing`'s varint encode/decode is competitive with the fastest Rust varint
+crates and at parity with [`prost`](https://docs.rs/prost) — protobuf's own
+varint implementation.
+
+The tables below show single-value and bulk (1000-value sweep) timings for
+`u64` (all protobuf varints are `u64`), lower is better. Figures are the
+median of one `cargo bench` run on Apple Silicon (aarch64) and are only
+meaningful relative to each other on the same machine — reproduce with
+`cargo bench`.
+
+**Encode `u64`**
+
+| value | `varing` | `prost` | `integer-encoding` | `unsigned-varint` | `leb128` |
+| --- | --- | --- | --- | --- | --- |
+| 1 byte | **527 ps** | 1.20 ns | 542 ps | 874 ps | 429 ps |
+| 10 bytes | **2.16 ns** | 6.00 ns | 2.14 ns | 2.34 ns | 2.14 ns |
+| mixed ×1000 | **2.44 µs** | 2.29 µs | 2.51 µs | 3.91 µs | 9.13 µs |
+
+**Decode `u64`**
+
+| value | `varing` | `prost` | `integer-encoding` | `unsigned-varint` | `leb128` |
+| --- | --- | --- | --- | --- | --- |
+| 1 byte | **386 ps** | 749 ps | 775 ps | 573 ps | 524 ps |
+| 10 bytes | **1.96 ns** | 1.71 ns | 2.76 ns | 2.28 ns | 5.35 ns |
+| mixed ×1000 | **2.06 µs** | 2.29 µs | 1.86 µs | 2.04 µs | 3.44 µs |
+
+On the bulk sweep `varing` is within ~10% of `prost` in both directions
+(faster on decode, slightly slower on encode); on single values it is
+substantially faster than `prost`, whose figures include its `bytes::BufMut`
+API overhead. `prost` appears only in the `u64` groups because that is the
+only varint width it exposes; `leb128` is `u64`-only for unsigned values and
+uses a different signed format, so it is excluded from the signed groups. The
+full suite in [`benches/varint.rs`](benches/varint.rs) also covers `u16`,
+`u32`, `u128`, and zigzag `i64`.
+
 ## Testing
 
 - Property-based testing with [`quickcheck`](https://docs.rs/quickcheck) for all types (including optional features).
