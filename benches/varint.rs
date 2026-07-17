@@ -1,5 +1,6 @@
 //! Criterion benchmark suite comparing `varing`'s const LEB128 varint
-//! encode/decode against other mature Rust varint crates.
+//! encode/decode against other mature Rust varint crates -- including `prost`, the
+//! canonical Rust protobuf implementation, as the protobuf-varint reference point.
 //!
 //! `varing` uses plain (unsigned) LEB128 for unsigned integers and
 //! zigzag + LEB128 for signed integers -- the same scheme as `integer-encoding`.
@@ -15,6 +16,19 @@
 //!   to avoid presenting an apples-to-oranges number as if it were an equivalent comparison.
 //! - `unsigned-varint` (`unsigned_varint::encode` / `unsigned_varint::decode`): unsigned-only,
 //!   but it does implement `u16`/`u32`/`u64`/`u128`, so it appears in every unsigned group.
+//! - `prost` (`prost::encoding::encode_varint` / `prost::encoding::decode_varint`): this *is*
+//!   protobuf's own varint, from the canonical Rust protobuf crate -- the reference this
+//!   whole suite exists to compare against. protobuf defines only one varint wire type, and
+//!   prost's public API models it as `u64`, so `prost` only appears in the `u64` groups
+//!   (both encode and decode, all four distributions). It is deliberately *not* fabricated
+//!   for `u16`/`u32`/`u128`/`i64` -- those groups compare `varing` against other Rust varint
+//!   crates' narrower types, not against protobuf, which has no narrower or 128-bit varint
+//!   wire form. `prost::encoding::encode_varint` writes through a generic `impl BufMut`
+//!   target; because `bytes` implements `BufMut` directly for `&mut [u8]`, a single varint
+//!   (max 10 bytes) needs no growable buffer, so -- unlike prost's own benchmark suite,
+//!   which clears a `Vec<u8>` each iteration -- this suite reuses the same fixed,
+//!   zero-allocation buffer pattern as every other library here (see the inline comments in
+//!   `bench_encode_u64` / `bench_decode_u64`).
 //!
 //! Each case is benchmarked against four value distributions to reflect realistic workloads:
 //! a 1-byte-encodable small value, a mid-range multi-byte value, the type maximum, and a
@@ -24,8 +38,9 @@
 //!
 //! Groups are named `"<encode|decode>/<type>/<distribution>"` (e.g. `"encode/u64/small"`),
 //! and within each group every comparison library appears as its own named bench
-//! (`"varing"`, `"integer-encoding"`, `"unsigned-varint"`, `"leb128"`), so `cargo bench`
-//! output and the criterion HTML report show the libraries side by side for the same case.
+//! (`"varing"`, `"integer-encoding"`, `"unsigned-varint"`, `"leb128"`, `"prost"`), so
+//! `cargo bench` output and the criterion HTML report show the libraries side by side for
+//! the same case.
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use integer_encoding::VarInt;
@@ -511,6 +526,23 @@ fn bench_encode_u64(c: &mut Criterion) {
       })
     });
 
+    // `prost::encoding::encode_varint` writes through a generic `impl BufMut` target rather
+    // than returning the byte count directly. `bytes` implements `BufMut` for `&mut [u8]`
+    // itself, using the same "reslice and shrink" shape as `leb128`'s `io::Write`-based API
+    // just above -- so, unlike prost's own benchmark suite (which encodes many values into
+    // one growing `Vec<u8>` per iteration and must `clear()` it each time), a single varint
+    // fits the fixed `U64_MAX_LEN` buffer here with no Vec/allocation at all. The byte count
+    // is recovered from how much the reslice shrank.
+    let mut buf = [0u8; U64_MAX_LEN];
+    group.bench_function("prost", |b| {
+      b.iter(|| {
+        let mut w: &mut [u8] = &mut buf;
+        prost::encoding::encode_varint(black_box(value), &mut w);
+        let n = U64_MAX_LEN - w.len();
+        black_box(&buf[..n]);
+      })
+    });
+
     group.finish();
   }
 
@@ -558,6 +590,21 @@ fn bench_encode_u64(c: &mut Criterion) {
     })
   });
 
+  // See the `prost` comment in the small/mid/max loop above: no Vec/clear pattern is
+  // needed here either, so `sweep_encode`'s fixed `scratch` buffer is reused exactly like
+  // every other library's mixed-encode case.
+  let mut scratch = vec![0u8; MIXED_LEN * U64_MAX_LEN];
+  group.bench_function("prost", |b| {
+    b.iter(|| {
+      let n = sweep_encode(&values, &mut scratch, |v, mut buf: &mut [u8]| {
+        let before = buf.len();
+        prost::encoding::encode_varint(v, &mut buf);
+        before - buf.len()
+      });
+      black_box(&scratch[..n]);
+    })
+  });
+
   group.finish();
 }
 
@@ -596,6 +643,14 @@ fn bench_decode_u64(c: &mut Criterion) {
       b.iter(|| {
         let mut r: &[u8] = black_box(encoded);
         let v = leb128::read::unsigned(&mut r).unwrap();
+        black_box(v);
+      })
+    });
+
+    group.bench_function("prost", |b| {
+      b.iter(|| {
+        let mut r: &[u8] = black_box(encoded);
+        let v = prost::encoding::decode_varint(&mut r).unwrap();
         black_box(v);
       })
     });
@@ -652,6 +707,22 @@ fn bench_decode_u64(c: &mut Criterion) {
         let mut r = buf;
         let before = r.len();
         let v = leb128::read::unsigned(&mut r).unwrap();
+        (before - r.len(), v)
+      })
+    })
+  });
+
+  let prost_stream = build_stream(&values, U64_MAX_LEN, |v, mut buf: &mut [u8]| {
+    let before = buf.len();
+    prost::encoding::encode_varint(v, &mut buf);
+    before - buf.len()
+  });
+  group.bench_function("prost", |b| {
+    b.iter(|| {
+      sweep_decode(&prost_stream, MIXED_LEN, |buf| {
+        let mut r = buf;
+        let before = r.len();
+        let v = prost::encoding::decode_varint(&mut r).unwrap();
         (before - r.len(), v)
       })
     })
