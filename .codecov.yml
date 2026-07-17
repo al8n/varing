@@ -2,12 +2,12 @@ codecov:
   require_ci_to_pass: false
 
 ignore:
-  - fuzz/
-  - src/num_rational/v04/tests.rs
-  - src/num_rational/v04/tests/
-  - src/num_complex/v04/tests.rs
-  - src/num_complex/v04/tests/
   - src/error.rs
+  - "**/*test.rs"
+  - "**/tests/"
+  - "**/examples/"
+  - "**/fuzz/"
+  - "**/benches/"
 
 coverage:
   status:
